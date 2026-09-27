@@ -19,7 +19,7 @@ export function ListSearch({
         type="submit"
         className="h-10 shrink-0 rounded-xl bg-ink px-4 text-sm font-bold text-white hover:opacity-90"
       >
-        Buscar
+        Search
       </button>
     </form>
   );

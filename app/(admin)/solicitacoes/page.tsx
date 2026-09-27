@@ -7,9 +7,9 @@ import { ListSearch } from "@/components/funnel/list-search";
 export const dynamic = "force-dynamic";
 
 const STATUS_LABEL: Record<string, string> = {
-  new: "Nova",
+  new: "New",
   review: "Awaiting review",
-  quoted: "Cotada",
+  quoted: "Quoted",
   archived: "Closed / archived",
 };
 
@@ -58,8 +58,8 @@ export default async function SolicitacoesPage({
           [
             { key: "new", title: "New" },
             { key: "review", title: "Awaiting review" },
-            { key: "quoted", title: "Cotadas" },
-            { key: "archived", title: "Fechadas / arquivadas" },
+            { key: "quoted", title: "Quoted" },
+            { key: "archived", title: "Closed / archived" },
           ] as const
         ).map((c) => (
           <Card key={c.key} className="p-4">
@@ -89,9 +89,9 @@ export default async function SolicitacoesPage({
                 <tr className="border-b border-line text-xs uppercase tracking-wide text-ink-mute">
                   <th className="py-2 pr-3 font-bold">Client</th>
                   <th className="py-2 pr-3 font-bold">Title</th>
-                  <th className="py-2 pr-3 font-bold">Coleta</th>
-                  <th className="py-2 pr-3 font-bold">Contato</th>
-                  <th className="py-2 pr-3 font-bold">Recebida</th>
+                  <th className="py-2 pr-3 font-bold">Collection</th>
+                  <th className="py-2 pr-3 font-bold">Contact</th>
+                  <th className="py-2 pr-3 font-bold">Received</th>
                   <th className="py-2 pr-3 font-bold">Status</th>
                   <th className="py-2 text-right font-bold">Action</th>
                 </tr>
@@ -139,7 +139,7 @@ export default async function SolicitacoesPage({
                         href={`/solicitacoes/${r.id}`}
                         className="rounded-lg border border-line px-2.5 py-1.5 text-xs font-bold text-accent hover:bg-accent-soft"
                       >
-                        Abrir
+                        Open
                       </Link>
                     </td>
                   </tr>

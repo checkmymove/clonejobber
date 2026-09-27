@@ -9,9 +9,9 @@ import { Badge, Card, PageHeader } from "@/components/ui";
 export const dynamic = "force-dynamic";
 
 const STATUS_LABEL: Record<string, string> = {
-  new: "Nova",
+  new: "New",
   review: "Awaiting review",
-  quoted: "Cotada",
+  quoted: "Quoted",
   archived: "Closed / archived",
 };
 

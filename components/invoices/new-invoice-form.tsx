@@ -219,7 +219,7 @@ export function NewInvoiceForm({
             </button>
           </div>
           <div className="grid grid-cols-[150px_1fr] items-center gap-3">
-            <span className="text-sm text-[#5d6f78]">Personalizar</span>
+            <span className="text-sm text-[#5d6f78]">Customise</span>
             <button
               type="button"
               className="h-8 w-fit whitespace-nowrap rounded-md border px-3 text-sm font-semibold"
@@ -331,13 +331,13 @@ export function NewInvoiceForm({
               <span>{money(subtotal)}</span>
             </div>
             <div className="flex justify-between text-[#5d6f78]">
-              <span>Desconto</span>
+              <span>Discount</span>
               <button type="button" className="font-semibold underline" style={{ color: green }}>
                 Add discount
               </button>
             </div>
             <div className="flex justify-between text-[#5d6f78]">
-              <span>Imposto</span>
+              <span>VAT</span>
               <button type="button" className="font-semibold underline" style={{ color: green }}>
                 Add tax
               </button>
@@ -388,7 +388,7 @@ export function NewInvoiceForm({
           }
         >
           <label className="block">
-            <span className="mb-1 block text-[13px] text-[#8aa0a8]">Mensagem</span>
+            <span className="mb-1 block text-[13px] text-[#8aa0a8]">Message</span>
             <textarea
               aria-label="Contract message"
               value={contract}
@@ -400,7 +400,7 @@ export function NewInvoiceForm({
       ) : null}
 
       <section className="space-y-3">
-        <h2 className={`text-[17px] font-bold ${ink}`}>Notas</h2>
+        <h2 className={`text-[17px] font-bold ${ink}`}>Notes</h2>
         <button
           type="button"
           className={`flex min-h-[150px] w-full flex-col items-center justify-center rounded-lg border border-dashed ${line} bg-white px-6 py-8 text-center`}

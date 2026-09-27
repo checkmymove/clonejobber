@@ -494,7 +494,7 @@ export function NewRequestForm({
       </section>
 
       <section className="space-y-4 border-t border-[#e6ebed] pt-8">
-        <SectionTitle>Notas</SectionTitle>
+        <SectionTitle>Notes</SectionTitle>
         <Dropzone text="Leave an internal note for yourself or the team on this request." />
       </section>
 

@@ -216,9 +216,9 @@ export const requests: Request[] = [
 ];
 
 export const requestStatusLabel: Record<Request["status"], string> = {
-  new: "Nova",
+  new: "New",
   review: "Awaiting review",
-  quoted: "Cotada",
+  quoted: "Quoted",
   archived: "Closed / archived",
 };
 

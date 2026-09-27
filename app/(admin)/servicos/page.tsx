@@ -91,7 +91,7 @@ export default async function ServicosPage({
                     {j.client_name} · {j.number}
                   </p>
                   <p className="text-xs text-ink-soft">
-                    {onDay(j.scheduled_date) ? formatDateLondon(onDay(j.scheduled_date)) : "Sem data"} · {j.title}
+                    {onDay(j.scheduled_date) ? formatDateLondon(onDay(j.scheduled_date)) : "No date"} · {j.title}
                   </p>
                 </div>
                 <span className="ml-auto">

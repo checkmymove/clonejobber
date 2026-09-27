@@ -17,7 +17,7 @@ export default async function ClientsPage({
     <div>
       <PageHeader
         title="Clients"
-        subtitle={`${rows.length} cliente(s) · busca por nome, e-mail ou telefone`}
+        subtitle={`${rows.length} client(s) · search by name, email or phone`}
         action={
           <Link
             href="/clientes/novo"
@@ -43,7 +43,7 @@ export default async function ClientsPage({
               type="submit"
               className="h-10 shrink-0 rounded-xl bg-ink px-4 text-sm font-bold text-white hover:opacity-90"
             >
-              Buscar
+              Search
             </button>
           </form>
 
@@ -61,9 +61,9 @@ export default async function ClientsPage({
                 <thead>
                   <tr className="border-b border-line text-xs uppercase tracking-wide text-ink-mute">
                     <th className="py-2 pr-3 font-bold">Client</th>
-                    <th className="py-2 pr-3 font-bold">Contato</th>
-                    <th className="py-2 pr-3 font-bold">Funil</th>
-                    <th className="py-2 text-right font-bold">Desde</th>
+                    <th className="py-2 pr-3 font-bold">Contact</th>
+                    <th className="py-2 pr-3 font-bold">Funnel</th>
+                    <th className="py-2 text-right font-bold">Since</th>
                   </tr>
                 </thead>
                 <tbody>

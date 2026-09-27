@@ -31,7 +31,7 @@ export default async function CotacoesPage({
     <div>
       <PageHeader
         title="Quotes"
-        subtitle={`Pipeline · ${formatGBP(totalPence)} em enviadas + aprovadas`}
+        subtitle={`Pipeline · ${formatGBP(totalPence)} in sent and approved`}
         action={
           <Link
             href="/cotacoes/novo"
@@ -67,8 +67,8 @@ export default async function CotacoesPage({
                 <tr className="border-b border-line text-xs uppercase tracking-wide text-ink-mute">
                   <th className="py-2 pr-3 font-bold">Quote</th>
                   <th className="py-2 pr-3 font-bold">Client</th>
-                  <th className="py-2 pr-3 font-bold">Origem</th>
-                  <th className="py-2 pr-3 font-bold">Validade</th>
+                  <th className="py-2 pr-3 font-bold">Source</th>
+                  <th className="py-2 pr-3 font-bold">Valid until</th>
                   <th className="py-2 pr-3 font-bold">Status</th>
                   <th className="py-2 text-right font-bold">Total</th>
                 </tr>

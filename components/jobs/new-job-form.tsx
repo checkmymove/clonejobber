@@ -252,7 +252,7 @@ export function NewJobForm({
             </span>
           </label>
           <div className="flex items-center justify-between pl-[100px]">
-            <span className="text-sm text-[#5d6f78]">Personalizar</span>
+            <span className="text-sm text-[#5d6f78]">Customise</span>
             <button
               type="button"
               className="h-8 rounded-md border px-3 text-sm font-semibold"
@@ -264,10 +264,10 @@ export function NewJobForm({
         </div>
       </div>
 
-      <SectionCard title="Visitas">
+      <SectionCard title="Visits">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
-            <span className="text-[11px] font-bold tracking-wide text-[#8aa0a8]">AGENDAR</span>
+            <span className="text-[11px] font-bold tracking-wide text-[#8aa0a8]">SCHEDULE</span>
             <div className="inline-flex rounded-lg border border-[#d5dde1] p-0.5">
               <button
                 type="button"
@@ -291,11 +291,11 @@ export function NewJobForm({
                     : { color: "#5d6f78" }
                 }
               >
-                Recorrente
+                Recurring
               </button>
             </div>
             <span className="text-sm text-[#5d6f78]">
-              {visits.length} {visits.length === 1 ? "visita" : "visitas"}
+              {visits.length} {visits.length === 1 ? "visit" : "visits"}
             </span>
           </div>
           <button
@@ -570,13 +570,13 @@ export function NewJobForm({
             <span className="w-24 text-right">{money(subtotal)}</span>
           </div>
           <div className="flex justify-end gap-10 text-[#5d6f78]">
-            <span className="w-40">Desconto</span>
+            <span className="w-40">Discount</span>
             <button type="button" className="w-24 text-right font-semibold underline" style={{ color: green }}>
               Add discount
             </button>
           </div>
           <div className="flex justify-end gap-10 text-[#5d6f78]">
-            <span className="w-40">Imposto</span>
+            <span className="w-40">VAT</span>
             <button type="button" className="w-24 text-right font-semibold underline" style={{ color: green }}>
               Add tax
             </button>
@@ -589,7 +589,7 @@ export function NewJobForm({
       </SectionCard>
 
       <section className="space-y-3">
-        <h2 className={`text-[17px] font-bold ${ink}`}>Notas</h2>
+        <h2 className={`text-[17px] font-bold ${ink}`}>Notes</h2>
         <button
           type="button"
           className={`flex min-h-[150px] w-full flex-col items-center justify-center rounded-lg border border-dashed ${line} bg-white px-6 py-8 text-center`}

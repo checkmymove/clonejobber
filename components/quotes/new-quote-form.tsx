@@ -197,7 +197,7 @@ export function NewQuoteForm({
         className={`min-h-[72px] w-full resize-y rounded-lg border ${line} px-3 py-2 text-[15px] ${ink} outline-none`}
       />
       <textarea
-        placeholder="Notas internas"
+        placeholder="Internal notes"
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
         className={`min-h-[72px] w-full resize-y rounded-lg border ${line} px-3 py-2 text-[15px] ${ink} outline-none`}

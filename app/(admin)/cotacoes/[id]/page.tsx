@@ -73,7 +73,7 @@ export default async function CotacaoDetailPage({
               href="/configuracoes/email"
               className="h-9 rounded-xl bg-ink px-3 text-sm font-bold leading-9 text-white hover:opacity-90"
             >
-              Ligar Gmail para enviar
+              Connect Gmail to send
             </Link>
           )
         ) : null}
@@ -112,16 +112,16 @@ export default async function CotacaoDetailPage({
             Resumo
           </h2>
           <dl className="text-sm">
-            <Row k="Origem" v={q.request_number ?? "Direct"} />
+            <Row k="Source" v={q.request_number ?? "Direct"} />
             <Row k="Recipient" v={q.client_email} />
-            <Row k="Validade" v={q.valid_until ? formatDateLondon(q.valid_until) : "—"} />
+            <Row k="Valid until" v={q.valid_until ? formatDateLondon(q.valid_until) : "—"} />
             <Row k="Total" v={formatGBP(q.total)} />
           </dl>
           {q.message ? <p className="mt-3 whitespace-pre-wrap text-sm text-ink">{q.message}</p> : null}
         </Card>
         <Card className="h-fit p-5">
           <h2 className="mb-2 text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">
-            Itens
+            Items
           </h2>
           <div className="space-y-2 text-sm">
             {q.lines.map((l, i) => (
@@ -141,7 +141,7 @@ export default async function CotacaoDetailPage({
         {deliveries.length ? (
           <Card className="h-fit p-5 xl:col-span-2">
             <h2 className="mb-2 text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">
-              Envios
+              Sent
             </h2>
             <ul className="space-y-2 text-sm">
               {deliveries.map((d) => (

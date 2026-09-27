@@ -83,22 +83,22 @@ export default async function ServicoDetailPage({
 
       <div className="grid gap-4 xl:grid-cols-2">
         <Card className="h-fit p-5">
-          <h2 className="mb-2 text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">Agenda</h2>
+          <h2 className="mb-2 text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">Schedule</h2>
           <dl className="text-sm">
             <Row k="Date" v={j.scheduled_date ? formatDateLondon(j.scheduled_date) : "Schedule mais tarde"} />
             <Row k="Janela" v={window} />
-            <Row k="Coleta" v={j.pickup_address || "—"} />
-            <Row k="Entrega" v={j.delivery_address || "—"} />
+            <Row k="Collection" v={j.pickup_address || "—"} />
+            <Row k="Delivery" v={j.delivery_address || "—"} />
             <Row k="Quote" v={j.quote_number ?? "Direct"} />
             <Row k="Total" v={formatGBP(j.total)} />
           </dl>
         </Card>
         <Card className="h-fit p-5">
-          <h2 className="mb-2 text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">Visitas</h2>
+          <h2 className="mb-2 text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">Visits</h2>
           <div className="space-y-2 text-sm">
             {j.visits.map((v) => (
               <p key={v.id} className="rounded-xl border border-line p-3">
-                <span className="font-bold text-ink">{v.visit_date ? formatDateLondon(v.visit_date) : "Sem data"}</span>
+                <span className="font-bold text-ink">{v.visit_date ? formatDateLondon(v.visit_date) : "No date"}</span>
                 <span className="text-ink-soft">
                   {" "}
                   · {v.anytime ? "Anytime" : `${v.start_time || "—"}–${v.end_time || "—"}`}
@@ -109,7 +109,7 @@ export default async function ServicoDetailPage({
           </div>
         </Card>
         <Card className="h-fit p-5 xl:col-span-2">
-          <h2 className="mb-2 text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">Itens</h2>
+          <h2 className="mb-2 text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">Items</h2>
           {j.lines.map((l, i) => (
             <div key={i} className="flex justify-between gap-3 border-b border-line py-2 text-sm last:border-0">
               <div>

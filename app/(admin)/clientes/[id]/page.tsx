@@ -185,7 +185,7 @@ export default async function ClientDetailPage({
                   className="block cursor-not-allowed rounded-xl px-3 py-2.5 text-sm font-semibold text-ink-mute"
                   title={`${m} module arrives in its own phase`}
                 >
-                  {m} · em breve
+                  {m} · coming soon
                 </span>
               ))}
             </div>

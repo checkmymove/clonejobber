@@ -70,7 +70,7 @@ export default async function InvoiceDetailPage({
               href="/configuracoes/email"
               className="h-9 rounded-xl bg-ink px-3 text-sm font-bold leading-9 text-white hover:opacity-90"
             >
-              Ligar Gmail para enviar
+              Connect Gmail to send
             </Link>
           )
         ) : null}
@@ -95,14 +95,14 @@ export default async function InvoiceDetailPage({
             <Row k="Job" v={inv.job_number ?? "Direct"} />
             <Row k="Recipient" v={inv.client_email} />
             <Row k="Issued" v={formatDateLondon(inv.issued_on)} />
-            <Row k="Vencimento" v={formatDateLondon(inv.due_on)} />
+            <Row k="Due" v={formatDateLondon(inv.due_on)} />
             <Row k="Total" v={formatGBP(inv.total)} />
             <Row k="Saldo" v={formatGBP(inv.balance)} />
           </dl>
           {inv.message ? <p className="mt-3 whitespace-pre-wrap text-sm text-ink">{inv.message}</p> : null}
         </Card>
         <Card className="h-fit p-5">
-          <h2 className="mb-2 text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">Itens</h2>
+          <h2 className="mb-2 text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">Items</h2>
           {inv.lines.map((l, i) => (
             <div key={i} className="flex justify-between gap-3 border-b border-line py-2 text-sm last:border-0">
               <div>
@@ -117,7 +117,7 @@ export default async function InvoiceDetailPage({
         </Card>
         {deliveries.length ? (
           <Card className="h-fit p-5 xl:col-span-2">
-            <h2 className="mb-2 text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">Envios</h2>
+            <h2 className="mb-2 text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">Sent</h2>
             <ul className="space-y-2 text-sm">
               {deliveries.map((d) => (
                 <li key={d.id} className="flex justify-between gap-3 border-b border-line py-2 last:border-0">

@@ -59,7 +59,7 @@ export default async function InvoicesPage({
 
       <Card accent="#b3354a" className="mt-4 border-rose-200 bg-rose-50/50 p-4">
         <p className="text-sm font-extrabold text-ink">
-          {formatGBP(pending)} a receber · {overdue.length} vencida{overdue.length === 1 ? "" : "s"}
+          {formatGBP(pending)} outstanding · {overdue.length} overdue
         </p>
         <p className="mt-1 text-[13px] text-ink-soft">
           {overdue.map((i) => `${i.number} · ${i.client_name}`).join(" · ") || "Nothing overdue."}
@@ -77,8 +77,8 @@ export default async function InvoicesPage({
                 <tr className="border-b border-line text-xs uppercase tracking-wide text-ink-mute">
                   <th className="py-2 pr-3 font-bold">Invoice</th>
                   <th className="py-2 pr-3 font-bold">Client</th>
-                  <th className="py-2 pr-3 font-bold">Origem</th>
-                  <th className="py-2 pr-3 font-bold">Vencimento</th>
+                  <th className="py-2 pr-3 font-bold">Source</th>
+                  <th className="py-2 pr-3 font-bold">Due</th>
                   <th className="py-2 pr-3 font-bold">Status</th>
                   <th className="py-2 text-right font-bold">Total</th>
                 </tr>
