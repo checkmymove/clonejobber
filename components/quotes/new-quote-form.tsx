@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { Quote } from "lucide-react";
 import { createQuote, updateQuote } from "@/lib/quotes/actions";
 import { ClientSelect } from "@/components/funnel/client-select";
+import { formatPounds } from "@/lib/format";
 
 const ink = "text-[#042b3c]";
 const line = "border-[#d5dde1]";
@@ -13,10 +14,6 @@ const field = `h-11 w-full rounded-lg border ${line} bg-white px-3 text-[15px] $
 
 type Line = { id: string; name: string; qty: string; price: string; description: string };
 type Client = { id: string; first_name: string; last_name: string; email: string };
-
-function money(value: number) {
-  return `£${value.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 
 export function NewQuoteForm({
   clients,
@@ -154,7 +151,7 @@ export function NewQuoteForm({
                     className={field}
                   />
                   <div className={`flex h-11 items-center justify-end rounded-lg border ${line} px-3 text-sm ${ink}`}>
-                    {money(qty * price)}
+                    {formatPounds(qty * price)}
                   </div>
                 </div>
                 <textarea
@@ -186,7 +183,7 @@ export function NewQuoteForm({
         </button>
         <div className={`mt-5 flex justify-end gap-10 border-t ${line} pt-4 font-bold ${ink}`}>
           <span>Total</span>
-          <span>{money(subtotal)}</span>
+          <span>{formatPounds(subtotal)}</span>
         </div>
       </section>
 

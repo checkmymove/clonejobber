@@ -139,45 +139,44 @@ export async function sendQuoteEmail(
     lines,
   });
 
-  try {
-    const sent = await sendGmailMessage({
-      accessToken: token.access_token,
-      from: `${q.company_name} <${token.email}>`,
-      to: q.client_email,
-      subject,
-      html,
-    });
-    await logDelivery({
-      companyId,
-      clientId: q.client_id,
-      documentType: "quote",
-      documentId: quoteId,
-      toEmail: q.client_email,
-      subject,
-      status: "sent",
-      gmailId: sent.id,
-      body: html,
-    });
-    if (q.status === "draft") {
-      const status = await changeQuoteStatus(sql, quoteId, "sent");
-      if (!status.ok) return status;
-    }
-    return { ok: true, id: quoteId, number: q.number };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Gmail send failed";
-    await logDelivery({
-      companyId,
-      clientId: q.client_id,
-      documentType: "quote",
-      documentId: quoteId,
-      toEmail: q.client_email,
-      subject,
-      status: "failed",
-      error: message,
-      body: html,
-    });
-    return { ok: false, message };
-  }
+  const sent = await deliverGmail({
+    send: () =>
+      sendGmailMessage({
+        accessToken: token.access_token,
+        from: `${q.company_name} <${token.email}>`,
+        to: q.client_email,
+        subject,
+        html,
+      }),
+    record: async (gmailId) => {
+      await logDelivery({
+        companyId,
+        clientId: q.client_id,
+        documentType: "quote",
+        documentId: quoteId,
+        toEmail: q.client_email,
+        subject,
+        status: "sent",
+        gmailId,
+        body: html,
+      });
+      if (q.status === "draft") await changeQuoteStatus(sql, quoteId, "sent");
+    },
+    recordFailure: (message) =>
+      logDelivery({
+        companyId,
+        clientId: q.client_id,
+        documentType: "quote",
+        documentId: quoteId,
+        toEmail: q.client_email,
+        subject,
+        status: "failed",
+        error: message,
+        body: html,
+      }),
+  });
+  if (!sent.ok) return sent;
+  return { ok: true, id: quoteId, number: q.number };
 }
 
 export async function sendInvoiceEmail(
@@ -246,43 +245,63 @@ export async function sendInvoiceEmail(
     lines,
   });
 
+  const sent = await deliverGmail({
+    send: () =>
+      sendGmailMessage({
+        accessToken: token.access_token,
+        from: `${inv.company_name} <${token.email}>`,
+        to: inv.client_email,
+        subject,
+        html,
+      }),
+    record: async (gmailId) => {
+      await logDelivery({
+        companyId,
+        clientId: inv.client_id,
+        documentType: "invoice",
+        documentId: invoiceId,
+        toEmail: inv.client_email,
+        subject,
+        status: "sent",
+        gmailId,
+        body: html,
+      });
+      if (inv.status === "draft") await changeInvoiceStatus(sql, invoiceId, "sent");
+    },
+    recordFailure: (message) =>
+      logDelivery({
+        companyId,
+        clientId: inv.client_id,
+        documentType: "invoice",
+        documentId: invoiceId,
+        toEmail: inv.client_email,
+        subject,
+        status: "failed",
+        error: message,
+        body: html,
+      }),
+  });
+  if (!sent.ok) return sent;
+  return { ok: true, id: invoiceId, number: inv.number };
+}
+
+async function deliverGmail(input: {
+  send: () => Promise<{ id: string }>;
+  record: (gmailId: string) => Promise<void>;
+  recordFailure: (message: string) => Promise<void>;
+}): Promise<{ ok: true } | { ok: false; message: string }> {
+  let gmailId: string;
   try {
-    const sent = await sendGmailMessage({
-      accessToken: token.access_token,
-      from: `${inv.company_name} <${token.email}>`,
-      to: inv.client_email,
-      subject,
-      html,
-    });
-    await logDelivery({
-      companyId,
-      clientId: inv.client_id,
-      documentType: "invoice",
-      documentId: invoiceId,
-      toEmail: inv.client_email,
-      subject,
-      status: "sent",
-      gmailId: sent.id,
-      body: html,
-    });
-    if (inv.status === "draft") {
-      const status = await changeInvoiceStatus(sql, invoiceId, "sent");
-      if (!status.ok) return status;
-    }
-    return { ok: true, id: invoiceId, number: inv.number };
+    gmailId = (await input.send()).id;
   } catch (err) {
     const message = err instanceof Error ? err.message : "Gmail send failed";
-    await logDelivery({
-      companyId,
-      clientId: inv.client_id,
-      documentType: "invoice",
-      documentId: invoiceId,
-      toEmail: inv.client_email,
-      subject,
-      status: "failed",
-      error: message,
-      body: html,
-    });
+    await input.recordFailure(message);
     return { ok: false, message };
   }
+  try {
+    await input.record(gmailId);
+  } catch {
+    // Gmail already accepted the message. Resend remains a separate click.
+  }
+  return { ok: true };
 }

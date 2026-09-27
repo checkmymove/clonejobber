@@ -9,6 +9,7 @@ import { getCompanyId } from "@/lib/company";
 import {
   changeJobStatus,
   convertApprovedQuoteToJob,
+  isUniqueViolation,
   persistJob,
   updateJobDocument,
   type ActionResult,
@@ -36,15 +37,27 @@ export async function convertQuoteToJob(quoteId: string): Promise<ActionResult> 
   const companyId = await getCompanyId();
   if (!companyId) return { ok: false, message: "Company not found." };
 
-  const result = await sql.begin(async (tx) =>
-    convertApprovedQuoteToJob(tx, companyId, quoteId),
-  );
-  if (!result.ok) return result;
+  let jobId: string | undefined;
+  try {
+    const result = await sql.begin(async (tx) =>
+      convertApprovedQuoteToJob(tx, companyId, quoteId),
+    );
+    if (!result.ok) return result;
+    jobId = result.id;
+  } catch (error) {
+    if (!isUniqueViolation(error)) throw error;
+    const existing = await sql<{ id: string }[]>`
+      select id from jobs where quote_id = ${quoteId} limit 1
+    `;
+    if (!existing[0]) throw error;
+    jobId = existing[0].id;
+  }
+  if (!jobId) return { ok: false, message: "Job not found" };
 
   revalidatePath("/servicos");
   revalidatePath("/cotacoes");
   revalidatePath("/clientes");
-  redirect(`/servicos/${result.id}`);
+  redirect(`/servicos/${jobId}`);
 }
 
 export async function updateJob(jobId: string, input: JobInput): Promise<ActionResult> {

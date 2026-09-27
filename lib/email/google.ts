@@ -1,6 +1,7 @@
 import "server-only";
 import { sql } from "@/lib/db";
 import { GOOGLE_SCOPES, googleRedirectUri } from "./config";
+import { encryptionKey, isSealedToken, openToken, sealToken } from "./token-crypto";
 
 export type GoogleTokens = {
   company_id: string;
@@ -122,11 +123,13 @@ export async function upsertGoogleTokens(
     scope: string;
   },
 ): Promise<void> {
+  const accessToken = sealToken(tokens.access_token);
+  const refreshToken = sealToken(tokens.refresh_token);
   await sql`
     insert into google_oauth_tokens
       (company_id, email, access_token, refresh_token, expires_at, scope, updated_at)
     values
-      (${companyId}, ${email}, ${tokens.access_token}, ${tokens.refresh_token},
+      (${companyId}, ${email}, ${accessToken}, ${refreshToken},
        ${tokens.expires_at.toISOString()}, ${tokens.scope}, now())
     on conflict (company_id) do update set
       email = excluded.email,
@@ -135,6 +138,22 @@ export async function upsertGoogleTokens(
       expires_at = excluded.expires_at,
       scope = excluded.scope,
       updated_at = now()
+  `;
+}
+
+async function sealStoredTokens(
+  companyId: string,
+  accessToken: string,
+  refreshToken: string,
+): Promise<void> {
+  if (!encryptionKey()) return;
+  if (isSealedToken(accessToken) && isSealedToken(refreshToken)) return;
+  await sql`
+    update google_oauth_tokens set
+      access_token = ${sealToken(openToken(accessToken))},
+      refresh_token = ${sealToken(openToken(refreshToken))},
+      updated_at = now()
+    where company_id = ${companyId}
   `;
 }
 
@@ -148,14 +167,22 @@ export async function getValidAccessToken(companyId: string): Promise<{
   `;
   const row = rows[0];
   if (!row) return null;
+  const accessToken = openToken(row.access_token);
+  const refreshToken = openToken(row.refresh_token);
   const exp = new Date(row.expires_at).getTime();
   if (exp - Date.now() > 60_000) {
-    return { access_token: row.access_token, email: row.email };
+    await sealStoredTokens(companyId, row.access_token, row.refresh_token);
+    return { access_token: accessToken, email: row.email };
   }
-  const refreshed = await refreshAccessToken(row.refresh_token);
+  const refreshed = await refreshAccessToken(refreshToken);
+  const storedAccess = encryptionKey()
+    ? sealToken(refreshed.access_token)
+    : refreshed.access_token;
+  const storedRefresh = encryptionKey() ? sealToken(refreshToken) : refreshToken;
   await sql`
     update google_oauth_tokens set
-      access_token = ${refreshed.access_token},
+      access_token = ${storedAccess},
+      refresh_token = ${storedRefresh},
       expires_at = ${refreshed.expires_at.toISOString()},
       scope = coalesce(${refreshed.scope ?? null}, scope),
       updated_at = now()

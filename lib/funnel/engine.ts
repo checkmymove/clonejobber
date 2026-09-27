@@ -90,6 +90,13 @@ export async function changeQuoteStatus(
     select company_id, number, status, total from quotes where id = ${quoteId} limit 1
   `;
   if (!rows[0]) return { ok: false, message: "Quote not found" };
+  const quoteNext: Record<string, string[]> = {
+    draft: ["sent"],
+    sent: ["approved", "rejected"],
+  };
+  if (!quoteNext[rows[0].status]?.includes(status)) {
+    return { ok: false, message: "This status change is not allowed." };
+  }
   if (status === "sent" && rows[0].total <= 0) {
     return { ok: false, message: "Set line item prices before sending." };
   }
@@ -187,6 +194,15 @@ export async function persistJob(
   return { ok: true, id: jobId, number: numbered[0].number };
 }
 
+export function isUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: string }).code === "23505"
+  );
+}
+
 export async function convertApprovedQuoteToJob(
   db: Db,
   companyId: string,
@@ -194,7 +210,9 @@ export async function convertApprovedQuoteToJob(
 ): Promise<ActionResult> {
   const q = await db`
     select id, company_id, client_id, request_id, number, title, notes, status
-    from quotes where id = ${quoteId} limit 1
+    from quotes where id = ${quoteId}
+    limit 1
+    for update
   `;
   if (!q[0]) return { ok: false, message: "Quote not found" };
   if (q[0].company_id !== companyId) return { ok: false, message: "Quote not found" };
@@ -317,7 +335,9 @@ export async function convertCompletedJobToInvoice(
 ): Promise<ActionResult> {
   const job = await db`
     select id, company_id, client_id, quote_id, number, title, notes, status
-    from jobs where id = ${jobId} limit 1
+    from jobs where id = ${jobId}
+    limit 1
+    for update
   `;
   if (!job[0]) return { ok: false, message: "Job not found" };
   if (job[0].company_id !== companyId) return { ok: false, message: "Job not found" };
@@ -361,9 +381,17 @@ export async function changeInvoiceStatus(
   status: "draft" | "sent" | "paid" | "cancelled",
 ): Promise<ActionResult> {
   const rows = await db`
-    select company_id, number, total from invoices where id = ${invoiceId} limit 1
+    select company_id, number, status, total from invoices where id = ${invoiceId} limit 1
   `;
   if (!rows[0]) return { ok: false, message: "Invoice not found" };
+  const invoiceNext: Record<string, string[]> = {
+    draft: ["sent", "cancelled"],
+    sent: ["paid", "cancelled"],
+    overdue: ["paid", "cancelled"],
+  };
+  if (!invoiceNext[rows[0].status]?.includes(status)) {
+    return { ok: false, message: "This status change is not allowed." };
+  }
   const paid = status === "paid";
   await db`
     update invoices set

@@ -32,7 +32,7 @@ const check = (name, cond) => {
   console.log(`  ok: ${name}`);
 };
 
-const LOCKED = ["google_oauth_tokens", "google_oauth_states"];
+const LOCKED = ["google_oauth_tokens", "google_oauth_states", "public_submit_limits"];
 
 async function rolledBack(fn) {
   try {

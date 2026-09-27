@@ -1,6 +1,7 @@
 "use server";
 
 import { requireAdmin } from "@/lib/auth/session";
+import { isUniqueViolation } from "@/lib/funnel/engine";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -16,7 +17,6 @@ import {
   MIN_FORM_SECONDS,
 } from "@/lib/requests/constants";
 import {
-  normalizePhone,
   sniffImageMime,
   validateContact,
   validateFileList,
@@ -30,7 +30,8 @@ import {
   type LocationStep,
   type PackingStep,
 } from "@/lib/requests/validation";
-import { getClientIp, rateLimit } from "@/lib/ratelimit";
+import { getClientIp } from "@/lib/ratelimit";
+import { consumeRateLimit } from "@/lib/requests/submit-limit";
 
 export interface SubmitResult {
   ok: boolean;
@@ -56,7 +57,7 @@ export async function submitRequest(formData: FormData): Promise<SubmitResult> {
   const ip = getClientIp(h);
 
   // --- anti-spam: rate limit -------------------------------------------
-  const rl = rateLimit(`req-submit:${ip}`, 10, 60 * 60 * 1000);
+  const rl = await consumeRateLimit(`req-submit:${ip}`, 10, 60 * 60 * 1000);
   if (!rl.ok) {
     return {
       ok: false,
@@ -197,17 +198,18 @@ export async function submitRequest(formData: FormData): Promise<SubmitResult> {
 
   const email = contact.email.trim();
   const phone = contact.phone.trim();
-  const phoneNorm = normalizePhone(phone);
 
-  const result = await sql.begin(async (tx) => {
-    // --- dedup client by email OR phone (same company) --------------------
+  let result: { number: string; requestId: string };
+  try {
+    result = await sql.begin(async (tx) => {
+    // Match an existing client only by email. A shared phone must not
+    // attach this request to someone else's record.
     const found = await tx<{
       id: string;
     }[]>`
       select id from clients
       where company_id = ${company.id}
-        and (email = ${email}
-          or regexp_replace(phone, '[\\s\\-().]', '', 'g') = ${phoneNorm})
+        and email = ${email}
       limit 1
     `;
 
@@ -215,12 +217,9 @@ export async function submitRequest(formData: FormData): Promise<SubmitResult> {
     let clientCreated = false;
     if (found[0]) {
       clientId = found[0].id;
-      // Additive-only update: grant new consents, fill missing lead source,
-      // never overwrite names/phone/history.
+      // Fill a missing lead source only. Marketing consent stays as stored.
       await tx`
         update clients set
-          marketing_email_consent = marketing_email_consent or ${contact.marketingEmail},
-          marketing_sms_consent = marketing_sms_consent or ${contact.marketingSms},
           lead_source_id = coalesce(lead_source_id, ${contact.leadSourceId}),
           updated_at = now()
         where id = ${clientId}
@@ -316,7 +315,17 @@ export async function submitRequest(formData: FormData): Promise<SubmitResult> {
     `;
 
     return { number, requestId };
-  });
+    });
+  } catch (error) {
+    if (!isUniqueViolation(error)) throw error;
+    const again = await sql<{ number: string; id: string }[]>`
+      select number, id from requests where idempotency_key = ${idempotencyKey} limit 1
+    `;
+    if (!again[0]) throw error;
+    revalidatePath("/solicitacoes");
+    revalidatePath("/clientes");
+    return { ok: true, number: again[0].number, requestId: again[0].id };
+  }
 
   revalidatePath("/solicitacoes");
   revalidatePath("/clientes");

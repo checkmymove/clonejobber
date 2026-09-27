@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit",
     "migrate": "node scripts/migrate.mjs",
     "test": "npm run test:unit && npm run test:integration",
-    "test:unit": "npx tsc lib/requests/validation.ts lib/requests/constants.ts lib/clients/validation.ts lib/clients/crm-validation.ts lib/funnel/money.ts lib/funnel/validation.ts lib/funnel/engine.ts lib/email/mime.ts lib/email/config.ts lib/format.ts lib/email/templates.ts lib/auth/allowlist.ts --outDir .testbuild --module nodenext --target es2022 --skipLibCheck && node --test tests/unit-validation.test.mjs tests/unit-clients.test.mjs tests/unit-crm.test.mjs tests/unit-funnel.test.mjs tests/unit-email.test.mjs tests/unit-auth.test.mjs",
+    "test:unit": "npx tsc lib/requests/validation.ts lib/requests/constants.ts lib/clients/validation.ts lib/clients/crm-validation.ts lib/funnel/money.ts lib/funnel/validation.ts lib/funnel/engine.ts lib/email/mime.ts lib/email/config.ts lib/email/token-crypto.ts lib/format.ts lib/ratelimit.ts lib/auth/allowlist.ts --outDir .testbuild --module nodenext --target es2022 --skipLibCheck && node --test tests/unit-validation.test.mjs tests/unit-clients.test.mjs tests/unit-crm.test.mjs tests/unit-funnel.test.mjs tests/unit-email.test.mjs tests/unit-auth.test.mjs tests/unit-security.test.mjs",
     "test:integration": "node scripts/test-request-flow.mjs && node scripts/test-clients-flow.mjs && node scripts/test-crm-flow.mjs && node scripts/test-funnel-flow.mjs && node scripts/test-email-flow.mjs && node scripts/test-auth-rls.mjs"
   },
   "dependencies": {

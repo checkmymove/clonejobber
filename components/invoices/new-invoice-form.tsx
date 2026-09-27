@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { createInvoice, updateInvoice } from "@/lib/invoices/actions";
 import { ClientSelect } from "@/components/funnel/client-select";
+import { formatPounds } from "@/lib/format";
 import {
   ChevronDown,
   Eye,
@@ -21,10 +22,6 @@ const ph = "placeholder:text-[#667880]";
 const field = `h-11 w-full rounded-lg border ${line} bg-white px-3 text-[15px] ${ink} outline-none ${ph} focus:border-[#388623] focus:ring-2 focus:ring-[#388623]/20`;
 
 type Line = { id: string; name: string; qty: string; price: string; description: string };
-
-function money(value: number) {
-  return `£${value.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 
 function SectionCard({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
   return (
@@ -274,7 +271,7 @@ export function NewInvoiceForm({
                   <label className="block">
                     <span className="mb-1 block text-[11px] text-[#8aa0a8]">Total</span>
                     <div className={`flex h-11 items-center justify-end rounded-lg border ${line} px-3 text-sm ${ink}`}>
-                      {money(qty * price)}
+                      {formatPounds(qty * price)}
                     </div>
                   </label>
                 </div>
@@ -328,7 +325,7 @@ export function NewInvoiceForm({
           <div className="space-y-3 text-sm">
             <div className="flex justify-between text-[#5d6f78]">
               <span>Subtotal</span>
-              <span>{money(subtotal)}</span>
+              <span>{formatPounds(subtotal)}</span>
             </div>
             <div className="flex justify-between text-[#5d6f78]">
               <span>Discount</span>
@@ -344,11 +341,11 @@ export function NewInvoiceForm({
             </div>
             <div className={`flex justify-between font-bold ${ink}`}>
               <span>Total</span>
-              <span>{money(subtotal)}</span>
+              <span>{formatPounds(subtotal)}</span>
             </div>
             <div className="flex justify-between rounded-lg bg-[#f6f7f8] px-3 py-2 text-[#5d6f78]">
               <span>Invoice balance</span>
-              <span>{money(subtotal)}</span>
+              <span>{formatPounds(subtotal)}</span>
             </div>
             <div className={`rounded-lg border ${line} px-3 py-3`}>
               <div className="flex items-center justify-between">

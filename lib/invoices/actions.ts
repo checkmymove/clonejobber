@@ -9,6 +9,7 @@ import { getCompanyId } from "@/lib/company";
 import {
   changeInvoiceStatus,
   convertCompletedJobToInvoice,
+  isUniqueViolation,
   persistInvoice,
   updateInvoiceDocument,
   type ActionResult,
@@ -36,15 +37,27 @@ export async function convertJobToInvoice(jobId: string): Promise<ActionResult> 
   const companyId = await getCompanyId();
   if (!companyId) return { ok: false, message: "Company not found." };
 
-  const result = await sql.begin(async (tx) =>
-    convertCompletedJobToInvoice(tx, companyId, jobId),
-  );
-  if (!result.ok) return result;
+  let invoiceId: string | undefined;
+  try {
+    const result = await sql.begin(async (tx) =>
+      convertCompletedJobToInvoice(tx, companyId, jobId),
+    );
+    if (!result.ok) return result;
+    invoiceId = result.id;
+  } catch (error) {
+    if (!isUniqueViolation(error)) throw error;
+    const existing = await sql<{ id: string }[]>`
+      select id from invoices where job_id = ${jobId} limit 1
+    `;
+    if (!existing[0]) throw error;
+    invoiceId = existing[0].id;
+  }
+  if (!invoiceId) return { ok: false, message: "Invoice not found" };
 
   revalidatePath("/faturas");
   revalidatePath("/servicos");
   revalidatePath("/clientes");
-  redirect(`/faturas/${result.id}`);
+  redirect(`/faturas/${invoiceId}`);
 }
 
 export async function updateInvoice(

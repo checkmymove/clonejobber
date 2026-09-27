@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { createJob, updateJob } from "@/lib/jobs/actions";
 import { ClientSelect } from "@/components/funnel/client-select";
+import { formatPounds } from "@/lib/format";
 import {
   Calendar,
   ChevronDown,
@@ -48,10 +49,6 @@ const emptyVisit = (): Visit => ({
   assignee: "",
   instructions: "",
 });
-
-function money(value: number) {
-  return `£${value.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 
 function monthDay(iso: string) {
   const date = new Date(`${iso}T12:00:00`);
@@ -538,7 +535,7 @@ export function NewJobForm({
                   <label className="block">
                     <span className="mb-1 block text-[11px] text-[#8aa0a8]">Total</span>
                     <div className={`flex h-11 items-center justify-end rounded-lg border ${line} px-3 text-sm ${ink}`}>
-                      {money(qty * price)}
+                      {formatPounds(qty * price)}
                     </div>
                   </label>
                   <button type="button" aria-label="More item options" className="mb-1 grid h-11 w-9 place-items-center text-[#5d6f78]">
@@ -567,7 +564,7 @@ export function NewJobForm({
         <div className={`mt-5 space-y-3 border-t ${line} pt-4 text-sm`}>
           <div className="flex justify-end gap-10 text-[#5d6f78]">
             <span className="w-40">Subtotal</span>
-            <span className="w-24 text-right">{money(subtotal)}</span>
+            <span className="w-24 text-right">{formatPounds(subtotal)}</span>
           </div>
           <div className="flex justify-end gap-10 text-[#5d6f78]">
             <span className="w-40">Discount</span>
@@ -583,7 +580,7 @@ export function NewJobForm({
           </div>
           <div className={`flex justify-end gap-10 font-bold ${ink}`}>
             <span className="w-40">Total price</span>
-            <span className="w-24 text-right">{money(subtotal)}</span>
+            <span className="w-24 text-right">{formatPounds(subtotal)}</span>
           </div>
         </div>
       </SectionCard>

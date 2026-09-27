@@ -8,6 +8,16 @@ export function formatGBP(pence: number): string {
   }).format(pence / 100);
 }
 
+/** Form totals typed in pounds. Always two decimals, en-GB. */
+export function formatPounds(pounds: number): string {
+  return new Intl.NumberFormat("en-GB", {
+    style: "currency",
+    currency: "GBP",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(pounds);
+}
+
 export function formatDateLondon(iso: string | Date): string {
   const date = iso instanceof Date ? iso : new Date(iso);
   return new Intl.DateTimeFormat("en-GB", {

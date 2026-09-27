@@ -1,9 +1,16 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { isAllowedAdminEmail, safeNextPath } from "@/lib/auth/allowlist";
 import { sql } from "@/lib/db";
+import { getClientIp } from "@/lib/ratelimit";
+import { consumeRateLimit, rateLimitOpen } from "@/lib/requests/submit-limit";
 import { createSupabaseServer } from "@/lib/supabase/server";
+
+const AUTH_FAIL = "Email or password is incorrect.";
+const LOGIN_FAIL_LIMIT = 20;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 
 export interface AuthState {
   ok: boolean;
@@ -21,17 +28,27 @@ export async function signIn(
   if (!process.env.ADMIN_EMAIL?.trim()) {
     return { ok: false, message: "Administrator access is not configured yet." };
   }
-  if (!isAllowedAdminEmail(email)) {
-    return { ok: false, message: "This account does not have access." };
+
+  const ip = getClientIp(await headers());
+  const bucket = `login-fail:${ip}`;
+  const gate = await rateLimitOpen(bucket, LOGIN_FAIL_LIMIT);
+  if (!gate.ok) {
+    return {
+      ok: false,
+      message: `Too many attempts. Try again in ${gate.retryAfterSec}s.`,
+    };
   }
   if (!password) {
     return { ok: false, message: "Enter your password." };
   }
 
   const supabase = await createSupabaseServer();
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = !isAllowedAdminEmail(email)
+    ? { data: { user: null }, error: true }
+    : await supabase.auth.signInWithPassword({ email, password });
   if (error || !data.user) {
-    return { ok: false, message: "Email or password is incorrect." };
+    await consumeRateLimit(bucket, LOGIN_FAIL_LIMIT, LOGIN_WINDOW_MS);
+    return { ok: false, message: AUTH_FAIL };
   }
 
   await sql`
