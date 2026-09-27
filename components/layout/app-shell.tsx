@@ -22,21 +22,21 @@ import { cn } from "@/lib/cn";
 
 const NAV = [
   { href: "/", label: "Dashboard", icon: House, exact: true },
-  { href: "/agenda", label: "Agendar", icon: CalendarDays, disabled: true },
-  { href: "/clientes", label: "Clientes", icon: Users },
-  { href: "/solicitacoes", label: "Solicitações", icon: Inbox },
-  { href: "/cotacoes", label: "Cotações", icon: Quote },
-  { href: "/servicos", label: "Serviços", icon: Hammer },
-  { href: "/faturas", label: "Faturas", icon: FileText },
-  { href: "/configuracoes/email", label: "E-mail", icon: Mail },
+  { href: "/agenda", label: "Schedule", icon: CalendarDays, disabled: true },
+  { href: "/clientes", label: "Clients", icon: Users },
+  { href: "/solicitacoes", label: "Requests", icon: Inbox },
+  { href: "/cotacoes", label: "Quotes", icon: Quote },
+  { href: "/servicos", label: "Jobs", icon: Hammer },
+  { href: "/faturas", label: "Invoices", icon: FileText },
+  { href: "/configuracoes/email", label: "Email", icon: Mail },
 ];
 
 const CREATE_ITEMS = [
-  { label: "Cliente", href: "/clientes/novo", icon: Users },
-  { label: "Solicitação", href: "/solicitacoes/novo", icon: Inbox },
-  { label: "Cotação", href: "/cotacoes/novo", icon: Quote },
-  { label: "Serviço", href: "/servicos/novo", icon: Hammer },
-  { label: "Fatura", href: "/faturas/novo", icon: FileText },
+  { label: "Client", href: "/clientes/novo", icon: Users },
+  { label: "Request", href: "/solicitacoes/novo", icon: Inbox },
+  { label: "Quote", href: "/cotacoes/novo", icon: Quote },
+  { label: "Job", href: "/servicos/novo", icon: Hammer },
+  { label: "Invoice", href: "/faturas/novo", icon: FileText },
 ];
 
 export function AppShell({
@@ -72,7 +72,7 @@ export function AppShell({
           className="flex h-11 w-full items-center gap-3 rounded-xl bg-ink px-3 text-sm font-bold text-white hover:opacity-90"
         >
           {createOpen ? <X size={18} /> : <Plus size={18} />}
-          Criar
+          Create
         </button>
         {createOpen ? (
           <div className="absolute left-0 right-0 top-12 z-30 rounded-2xl border border-line bg-card p-2 shadow-xl">
@@ -94,7 +94,7 @@ export function AppShell({
         ) : null}
       </div>
 
-      <nav className="mt-2 flex flex-col gap-0.5" aria-label="Navegação principal">
+      <nav className="mt-2 flex flex-col gap-0.5" aria-label="Main navigation">
         {NAV.map((item) => {
           const active = item.exact
             ? pathname === item.href
@@ -132,7 +132,7 @@ export function AppShell({
             type="submit"
             className="h-9 w-full rounded-xl border border-line text-sm font-bold text-ink hover:bg-cream"
           >
-            Sair
+            Sign out
           </button>
         </form>
       </div>
@@ -148,7 +148,7 @@ export function AppShell({
             type="button"
             className="rounded-lg p-2 hover:bg-card lg:hidden"
             onClick={() => setMobileOpen(true)}
-            aria-label="Abrir menu"
+            aria-label="Open menu"
           >
             <Menu size={20} />
           </button>
@@ -161,7 +161,7 @@ export function AppShell({
           <div className="ml-auto flex w-full max-w-md items-center gap-2 rounded-xl border border-line bg-card px-3 py-2 text-sm text-ink-mute">
             <Search size={16} />
             <span className="truncate">
-              Pressione / para pesquisar — em breve
+              Press / to search — coming soon
             </span>
           </div>
         </div>

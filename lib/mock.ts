@@ -18,49 +18,49 @@ export type FunnelCard = {
 export const funnel: FunnelCard[] = [
   {
     key: "requests",
-    label: "Solicitações",
+    label: "Requests",
     count: 3,
     amountPence: 0,
-    headline: "Novas",
+    headline: "New",
     rows: [
-      { label: "Aguardando análise (2)" },
-      { label: "Em atraso (1)" },
+      { label: "Awaiting review (2)" },
+      { label: "Overdue (1)" },
     ],
     accent: "#c07a1a",
   },
   {
     key: "quotes",
-    label: "Cotações",
+    label: "Quotes",
     count: 4,
     amountPence: 184500,
-    headline: "Aprovadas",
+    headline: "Approved",
     rows: [
-      { label: "Rascunho (2)", value: "£1,240" },
-      { label: "Enviadas (3)", value: "£2,180" },
+      { label: "Draft (2)", value: "£1,240" },
+      { label: "Sent (3)", value: "£2,180" },
     ],
     accent: "#a4445c",
   },
   {
     key: "jobs",
-    label: "Serviços",
+    label: "Jobs",
     count: 3,
     amountPence: 0,
-    headline: "Requerem ação",
+    headline: "Need action",
     rows: [
-      { label: "Agendados (2)", value: "£1,150" },
-      { label: "Sem equipe (1)", value: "£520" },
+      { label: "Scheduled (2)", value: "£1,150" },
+      { label: "Unassigned (1)", value: "£520" },
     ],
     accent: "#2f7d3b",
   },
   {
     key: "invoices",
-    label: "Faturas",
+    label: "Invoices",
     count: 2,
     amountPence: 27000,
-    headline: "Aguardando pagamento",
+    headline: "Awaiting payment",
     rows: [
-      { label: "Rascunho (1)" },
-      { label: "Vencida (1)", value: "£190" },
+      { label: "Draft (1)" },
+      { label: "Overdue (1)", value: "£190" },
     ],
     accent: "#245d8a",
   },
@@ -77,14 +77,14 @@ export type TodayJob = {
 export const todayJobs: TodayJob[] = [
   {
     id: "JOB-0042",
-    title: "Chaquiras family — Serviço de Mudança",
+    title: "Chaquiras family — Removals",
     window: "14:00 – 18:00",
     amountPence: 19000,
     state: "overdue",
   },
   {
     id: "JOB-0043",
-    title: "James Prescott — Serviço de Mudança",
+    title: "James Prescott — Removals",
     window: "11:00 – 16:30",
     amountPence: 52000,
     state: "done",
@@ -217,9 +217,9 @@ export const requests: Request[] = [
 
 export const requestStatusLabel: Record<Request["status"], string> = {
   new: "Nova",
-  review: "Aguardando análise",
+  review: "Awaiting review",
   quoted: "Cotada",
-  archived: "Fechada / arquivada",
+  archived: "Closed / archived",
 };
 
 export type Quote = {
@@ -251,7 +251,7 @@ export const quotes: Quote[] = [
   {
     id: "Q-0079",
     client: "Hannah Reddy",
-    source: "Direta",
+    source: "Direct",
     totalPence: 61500,
     validUntil: "2026-09-20",
     status: "approved",
@@ -267,7 +267,7 @@ export const quotes: Quote[] = [
   {
     id: "Q-0077",
     client: "Daniel Osei",
-    source: "Direta",
+    source: "Direct",
     totalPence: 73000,
     validUntil: "2026-09-10",
     status: "rejected",
@@ -275,11 +275,11 @@ export const quotes: Quote[] = [
 ];
 
 export const quoteStatusLabel: Record<Quote["status"], string> = {
-  draft: "Rascunho",
-  sent: "Enviada",
-  approved: "Aprovada",
-  rejected: "Recusada",
-  expired: "Expirada",
+  draft: "Draft",
+  sent: "Sent",
+  approved: "Approved",
+  rejected: "Declined",
+  expired: "Expired",
 };
 
 export type Job = {
@@ -332,10 +332,10 @@ export const jobs: Job[] = [
 ];
 
 export const jobStatusLabel: Record<Job["status"], string> = {
-  scheduled: "Agendado",
-  in_progress: "Em andamento",
-  done: "Concluído",
-  cancelled: "Cancelado",
+  scheduled: "Scheduled",
+  in_progress: "In progress",
+  done: "Completed",
+  cancelled: "Cancelled",
 };
 
 export type Invoice = {
@@ -359,7 +359,7 @@ export const invoices: Invoice[] = [
   {
     id: "INV-0030",
     client: "Hannah Reddy",
-    source: "Direta",
+    source: "Direct",
     totalPence: 8000,
     due: "2026-09-25",
     status: "sent",
@@ -383,9 +383,9 @@ export const invoices: Invoice[] = [
 ];
 
 export const invoiceStatusLabel: Record<Invoice["status"], string> = {
-  draft: "Rascunho",
-  sent: "Enviada",
-  paid: "Paga",
-  overdue: "Vencida",
-  cancelled: "Cancelada",
+  draft: "Draft",
+  sent: "Sent",
+  paid: "Paid",
+  overdue: "Overdue",
+  cancelled: "Cancelled",
 };

@@ -149,8 +149,8 @@ export function NewRequestForm({
       }}
     >
       <input
-        aria-label="Título"
-        placeholder="Título"
+        aria-label="Title"
+        placeholder="Title"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         className={field}
@@ -160,10 +160,10 @@ export function NewRequestForm({
         <ClientSelect clients={clients} value={clientId} onChange={setClientId} />
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
           <label className="block">
-            <span className="mb-1.5 block text-[13px] font-semibold text-[#5d6f78]">Solicitado em</span>
+            <span className="mb-1.5 block text-[13px] font-semibold text-[#5d6f78]">Requested on</span>
             <span className="relative block">
               <input
-                aria-label="Solicitado em"
+                aria-label="Requested on"
                 type="date"
                 value={requestedDate}
                 onChange={(e) => setRequestedDate(e.target.value)}
@@ -181,12 +181,12 @@ export function NewRequestForm({
               className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#5d6f78]"
             />
             <select
-              aria-label="Vendedor"
+              aria-label="Salesperson"
               value={salesperson}
               onChange={(e) => setSalesperson(e.target.value)}
               className={`${field} appearance-none pl-9 pr-10 ${salesperson ? "" : "text-[#667880]"}`}
             >
-              <option value="">Selecionar vendedor</option>
+              <option value="">Select a salesperson</option>
             </select>
             <ChevronDown
               size={16}
@@ -197,17 +197,17 @@ export function NewRequestForm({
       </div>
 
       <section className="space-y-4 border-t border-[#e6ebed] pt-8">
-        <SectionTitle>Visão geral</SectionTitle>
+        <SectionTitle>Overview</SectionTitle>
         <div>
-          <h3 className={`text-[15px] font-bold ${ink}`}>Informações de contato</h3>
+          <h3 className={`text-[15px] font-bold ${ink}`}>Contact details</h3>
           <p className="mt-1 text-[13px] leading-5 text-[#7b8e96]">
-            Este será o contato principal desta solicitação.
+            This will be the main contact for this request.
           </p>
         </div>
         <label className="relative block">
           <input
-            aria-label="Data"
-            placeholder="Data"
+            aria-label="Date"
+            placeholder="Date"
             value={moveDate}
             onChange={(e) => setMoveDate(e.target.value)}
             className={`${field} pr-10`}
@@ -218,8 +218,8 @@ export function NewRequestForm({
           />
         </label>
         <input
-          aria-label="Tempo de mudança"
-          placeholder="Tempo de mudança"
+          aria-label="Moving time"
+          placeholder="Moving time"
           value={moveTime}
           onChange={(e) => setMoveTime(e.target.value)}
           className={field}
@@ -227,49 +227,49 @@ export function NewRequestForm({
       </section>
 
       <section className="space-y-4 border-t border-[#e6ebed] pt-8">
-        <SectionTitle>Informações da coleta</SectionTitle>
+        <SectionTitle>Collection details</SectionTitle>
         <label className="relative block">
           <Search
             size={16}
             className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#8aa0a8]"
           />
           <input
-            aria-label="Endereço de coleta"
-            placeholder="Endereço de coleta"
+            aria-label="Collection address"
+            placeholder="Collection address"
             value={pickup.address}
             onChange={(e) => setPickup((p) => ({ ...p, address: e.target.value }))}
             className={`${field} pl-9`}
           />
         </label>
         <input
-          aria-label="Código postal"
-          placeholder="Código postal"
+          aria-label="Postcode"
+          placeholder="Postcode"
           value={pickup.postcode}
           onChange={(e) => setPickup((p) => ({ ...p, postcode: e.target.value }))}
           className={field}
         />
         <input
-          aria-label="Andar"
-          placeholder="Andar (Ex: Térreo ou 1º)"
+          aria-label="Floor"
+          placeholder="Floor (e.g. ground or 1st)"
           value={pickup.floor}
           onChange={(e) => setPickup((p) => ({ ...p, floor: e.target.value }))}
           className={field}
         />
         <Toggle
-          label="Elevador"
+          label="Lift"
           on={pickup.lift}
           onChange={(lift) => setPickup((p) => ({ ...p, lift }))}
         />
         <input
-          aria-label="Instruções para o motorista"
-          placeholder="Instruções para o motorista"
+          aria-label="Driver instructions"
+          placeholder="Driver instructions"
           value={pickup.notes}
           onChange={(e) => setPickup((p) => ({ ...p, notes: e.target.value }))}
           className={field}
         />
         <input
-          aria-label="Quartos na coleta"
-          placeholder="E quantos quartos você vai se mudar?"
+          aria-label="Bedrooms at collection"
+          placeholder="How many bedrooms are you moving?"
           value={pickup.bedrooms}
           onChange={(e) => setPickup((p) => ({ ...p, bedrooms: e.target.value }))}
           className={field}
@@ -277,49 +277,49 @@ export function NewRequestForm({
       </section>
 
       <section className="space-y-4 border-t border-[#e6ebed] pt-8">
-        <SectionTitle>Informações sobre a entrega</SectionTitle>
+        <SectionTitle>Delivery details</SectionTitle>
         <label className="relative block">
           <Search
             size={16}
             className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#8aa0a8]"
           />
           <input
-            aria-label="Endereço de entrega"
-            placeholder="Endereço de entrega"
+            aria-label="Delivery address"
+            placeholder="Delivery address"
             value={delivery.address}
             onChange={(e) => setDelivery((d) => ({ ...d, address: e.target.value }))}
             className={`${field} pl-9`}
           />
         </label>
         <input
-          aria-label="Código postal da entrega"
-          placeholder="Código postal"
+          aria-label="Delivery postcode"
+          placeholder="Postcode"
           value={delivery.postcode}
           onChange={(e) => setDelivery((d) => ({ ...d, postcode: e.target.value }))}
           className={field}
         />
         <input
-          aria-label="Andar da entrega"
-          placeholder="Andar (Ex: Térreo ou 1º)"
+          aria-label="Delivery floor"
+          placeholder="Floor (e.g. ground or 1st)"
           value={delivery.floor}
           onChange={(e) => setDelivery((d) => ({ ...d, floor: e.target.value }))}
           className={field}
         />
         <Toggle
-          label="Elevador"
+          label="Lift"
           on={delivery.lift}
           onChange={(lift) => setDelivery((d) => ({ ...d, lift }))}
         />
         <input
-          aria-label="Instruções para o motorista na entrega"
-          placeholder="Instruções para o motorista"
+          aria-label="Driver instructions for delivery"
+          placeholder="Driver instructions"
           value={delivery.notes}
           onChange={(e) => setDelivery((d) => ({ ...d, notes: e.target.value }))}
           className={field}
         />
         <input
-          aria-label="Destino"
-          placeholder="Para qual endereço você vai se mudar?"
+          aria-label="Destination"
+          placeholder="Which address are you moving to?"
           value={delivery.destination}
           onChange={(e) => setDelivery((d) => ({ ...d, destination: e.target.value }))}
           className={field}
@@ -327,30 +327,30 @@ export function NewRequestForm({
       </section>
 
       <section className="space-y-5 border-t border-[#e6ebed] pt-8">
-        <SectionTitle>Serviço de Embalagem</SectionTitle>
+        <SectionTitle>Packing service</SectionTitle>
         <Toggle
-          label="Você vai precisar de embalagem?"
+          label="Will you need packing?"
           on={needsPacking}
           onChange={setNeedsPacking}
         />
         <Toggle
-          label="Você precisa de caixas para embalagem?"
+          label="Do you need packing boxes?"
           on={needsBoxes}
           onChange={setNeedsBoxes}
         />
       </section>
 
       <section className="space-y-4 border-t border-[#e6ebed] pt-8">
-        <SectionTitle>Detalhes do serviço</SectionTitle>
+        <SectionTitle>Service details</SectionTitle>
         <label className="relative block">
-          <span className="mb-1.5 block text-sm text-[#5d6f78]">Qual serviço você precisa?</span>
+          <span className="mb-1.5 block text-sm text-[#5d6f78]">Which service do you need?</span>
           <select
-            aria-label="Qual serviço você precisa?"
+            aria-label="Which service do you need?"
             value={serviceId}
             onChange={(e) => setServiceId(e.target.value)}
             className={`${field} appearance-none pr-10 ${serviceId ? "" : "text-[#667880]"}`}
           >
-            <option value="">Selecione as opções</option>
+            <option value="">Select options</option>
             {services.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
@@ -363,14 +363,14 @@ export function NewRequestForm({
           />
         </label>
         <label className="relative block">
-          <span className="mb-1.5 block text-sm text-[#5d6f78]">E quantas horas você precisa?</span>
+          <span className="mb-1.5 block text-sm text-[#5d6f78]">How many hours do you need?</span>
           <select
-            aria-label="E quantas horas você precisa?"
+            aria-label="How many hours do you need?"
             value={hours}
             onChange={(e) => setHours(e.target.value)}
             className={`${field} appearance-none pr-10 ${hours ? "" : "text-[#667880]"}`}
           >
-            <option value="">Selecione as opções</option>
+            <option value="">Select options</option>
             {HOURS_OPTIONS.map((h) => (
               <option key={h} value={h}>
                 {h}
@@ -385,11 +385,11 @@ export function NewRequestForm({
       </section>
 
       <section className="space-y-4 border-t border-[#e6ebed] pt-8">
-        <SectionTitle>Lista de inventário</SectionTitle>
+        <SectionTitle>Inventory list</SectionTitle>
         <div className={`overflow-hidden rounded-lg border ${line} bg-white`}>
           <textarea
-            aria-label="Lista de inventário"
-            placeholder="Por favor, forneça o máximo de informações possível."
+            aria-label="Inventory list"
+            placeholder="Please give as much detail as you can."
             value={inventory}
             maxLength={500}
             onChange={(e) => setInventory(e.target.value)}
@@ -405,20 +405,20 @@ export function NewRequestForm({
             className="h-9 rounded-lg px-3 text-sm font-semibold text-white"
             style={{ background: green }}
           >
-            Selecione as imagens
+            Select images
           </button>
         </div>
       </section>
 
       <section className="space-y-4 border-t border-[#e6ebed] pt-8">
-        <SectionTitle>Avaliação no local</SectionTitle>
-        <Dropzone text="Visite o imóvel para avaliar o trabalho antes de começar." />
+        <SectionTitle>On-site assessment</SectionTitle>
+        <Dropzone text="Visit the property to assess the work before it starts." />
       </section>
 
       <section className="space-y-4 border-t border-[#e6ebed] pt-8">
-        <SectionTitle>Produto/Serviço</SectionTitle>
+        <SectionTitle>Product / Service</SectionTitle>
         <p className="text-[13px] text-[#7b8e96]">
-          Mantenha tudo organizado adicionando produtos e serviços.
+          Keep things organised by adding products and services.
         </p>
         <button
           type="button"
@@ -431,7 +431,7 @@ export function NewRequestForm({
           className="h-9 rounded-lg px-3 text-sm font-semibold text-white"
           style={{ background: green }}
         >
-          Adicionar item de linha
+          Add line item
         </button>
         {lines.length > 0 ? (
           <div className="space-y-2">
@@ -449,8 +449,8 @@ export function NewRequestForm({
                   className={field}
                 />
                 <input
-                  aria-label="Qtd"
-                  placeholder="Qtd"
+                  aria-label="Qty"
+                  placeholder="Qty"
                   value={line.qty}
                   onChange={(e) =>
                     setLines((rows) =>
@@ -460,7 +460,7 @@ export function NewRequestForm({
                   className={field}
                 />
                 <input
-                  aria-label="Preço"
+                  aria-label="Price"
                   placeholder="£"
                   value={line.price}
                   onChange={(e) =>
@@ -475,7 +475,7 @@ export function NewRequestForm({
                   onClick={() => setLines((rows) => rows.filter((r) => r.id !== line.id))}
                   className="px-2 text-xs font-bold text-rose-700"
                 >
-                  Remover
+                  Remove
                 </button>
               </div>
             ))}
@@ -495,7 +495,7 @@ export function NewRequestForm({
 
       <section className="space-y-4 border-t border-[#e6ebed] pt-8">
         <SectionTitle>Notas</SectionTitle>
-        <Dropzone text="Deixe um recado interno para você ou para o time ver nesta solicitação." />
+        <Dropzone text="Leave an internal note for yourself or the team on this request." />
       </section>
 
       <div className="flex items-center justify-end gap-2 border-t border-[#e6ebed] pt-6">
@@ -504,7 +504,7 @@ export function NewRequestForm({
           href="/solicitacoes"
           className={`inline-flex h-10 items-center rounded-lg px-4 text-sm font-semibold ${ink} hover:bg-[#f4f6f7]`}
         >
-          Cancelar
+          Cancel
         </Link>
         <button
           type="submit"
@@ -512,7 +512,7 @@ export function NewRequestForm({
           className="h-10 rounded-lg px-4 text-sm font-semibold text-white disabled:opacity-60"
           style={{ background: green }}
         >
-          {pending ? "A guardar…" : "Guardar solicitação"}
+          {pending ? "Saving…" : "Save request"}
         </button>
       </div>
     </form>

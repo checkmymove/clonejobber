@@ -10,9 +10,9 @@ export const dynamic = "force-dynamic";
 
 const STATUS_LABEL: Record<string, string> = {
   new: "Nova",
-  review: "Aguardando análise",
+  review: "Awaiting review",
   quoted: "Cotada",
-  archived: "Fechada / arquivada",
+  archived: "Closed / archived",
 };
 
 export default async function SolicitacaoDetailPage({
@@ -38,20 +38,20 @@ export default async function SolicitacaoDetailPage({
     <div>
       <PageHeader
         title={`${r.number} · ${r.client_name}`}
-        subtitle={`Recebida em ${formatDateLondon(r.submitted_at)}${r.move_date ? ` · mudança em ${formatDateLondon(r.move_date)}${r.move_time ? ` às ${r.move_time}` : ""}` : " · sem data definida"}`}
+        subtitle={`Received on ${formatDateLondon(r.submitted_at)}${r.move_date ? ` · move on ${formatDateLondon(r.move_date)}${r.move_time ? ` at ${r.move_time}` : ""}` : " · no date set"}`}
         action={
           <div className="flex gap-2">
             <Link
               href={`/cotacoes/novo?requestId=${r.id}`}
               className="inline-flex h-10 items-center rounded-xl bg-ink px-4 text-sm font-bold text-white hover:opacity-90"
             >
-              Criar cotação
+              Create quote
             </Link>
             <Link
               href={`/clientes/${r.client_id}`}
               className="inline-flex h-10 items-center rounded-xl border border-line bg-card px-4 text-sm font-bold text-accent hover:bg-accent-soft"
             >
-              Ver cliente
+              View client
             </Link>
             <Link
               href="/solicitacoes"
@@ -74,7 +74,7 @@ export default async function SolicitacaoDetailPage({
           <button
             type="submit"
             className="h-9 rounded-xl bg-accent px-3 text-sm font-bold text-white hover:opacity-90"
-            title="Cria uma avaliação ligada ao cliente e à request"
+            title="Creates an on-site assessment linked to the client and the request"
           >
             Schedule Assessment
           </button>
@@ -230,7 +230,7 @@ function StatusChanger({ id, current }: { id: string; current: string }) {
         type="submit"
         className="h-9 rounded-xl bg-ink px-3 text-sm font-bold text-white hover:opacity-90"
       >
-        Salvar status
+        Save status
       </button>
     </form>
   );

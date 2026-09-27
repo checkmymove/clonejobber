@@ -154,7 +154,7 @@ export function ProfileForm({
           {state.message}
         </p>
       ) : null}
-      <SaveButton pending={pending} label="Salvar perfil" />
+      <SaveButton pending={pending} label="Save profile" />
     </form>
   );
 }
@@ -225,7 +225,7 @@ export function PropertyForm({ action }: { action: Action }) {
           Billing
         </label>
       </div>
-      <SaveButton pending={pending} label="Adicionar propriedade" />
+      <SaveButton pending={pending} label="Add property" />
     </form>
   );
 }
@@ -276,7 +276,7 @@ export function NoteForm({ action }: { action: Action }) {
         className="w-full rounded-xl border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-accent"
       />
       {state.errors?.content ? <Err msg={state.errors.content} /> : null}
-      <SaveButton pending={pending} label="Adicionar nota" />
+      <SaveButton pending={pending} label="Add note" />
     </form>
   );
 }
@@ -372,9 +372,9 @@ export function MessageForm({ action }: { action: Action }) {
         <Err msg={e.body} />
       </label>
       <p className="-mt-1 text-xs text-ink-mute">
-        Registrado no histórico. O envio pelo provedor chega na fase de e-mail.
+        Saved in the history. Sending through a provider comes with the email phase.
       </p>
-      <SaveButton pending={pending} label="Registrar mensagem" />
+      <SaveButton pending={pending} label="Log message" />
     </form>
   );
 }

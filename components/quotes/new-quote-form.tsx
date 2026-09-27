@@ -99,7 +99,7 @@ export function NewQuoteForm({
       <div className="flex items-center gap-2">
         <Quote size={18} style={{ color: green }} />
         <h1 className={`text-[26px] font-bold tracking-tight ${ink}`}>
-          {quoteId ? "Editar cotação" : "Nova cotação"}
+          {quoteId ? "Edit quote" : "New quote"}
         </h1>
       </div>
 
@@ -111,16 +111,16 @@ export function NewQuoteForm({
       />
 
       <label className="block">
-        <span className="mb-1 block text-[13px] text-[#5d6f78]">Título</span>
+        <span className="mb-1 block text-[13px] text-[#5d6f78]">Title</span>
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Moving quote" className={field} />
       </label>
       <label className="block">
-        <span className="mb-1 block text-[13px] text-[#5d6f78]">Válida até</span>
+        <span className="mb-1 block text-[13px] text-[#5d6f78]">Valid until</span>
         <input type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} className={field} />
       </label>
 
       <section className={`rounded-lg border ${line} bg-white p-4 sm:p-5`}>
-        <h2 className={`text-[17px] font-bold ${ink}`}>Produto/Serviço</h2>
+        <h2 className={`text-[17px] font-bold ${ink}`}>Product / Service</h2>
         <div className="mt-4 space-y-4">
           {lines.map((line) => {
             const qty = Number(line.qty.replace(",", ".")) || 0;
@@ -129,7 +129,7 @@ export function NewQuoteForm({
               <div key={line.id} className="space-y-2">
                 <div className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[1fr_110px_150px_110px]">
                   <input
-                    placeholder="Nome"
+                    placeholder="Name"
                     value={line.name}
                     onChange={(e) =>
                       setLines((rows) => rows.map((row) => (row.id === line.id ? { ...row, name: e.target.value } : row)))
@@ -137,7 +137,7 @@ export function NewQuoteForm({
                     className={field}
                   />
                   <input
-                    aria-label="Quantidade"
+                    aria-label="Quantity"
                     value={line.qty}
                     onChange={(e) =>
                       setLines((rows) => rows.map((row) => (row.id === line.id ? { ...row, qty: e.target.value } : row)))
@@ -145,7 +145,7 @@ export function NewQuoteForm({
                     className={field}
                   />
                   <input
-                    aria-label="Preço unitário"
+                    aria-label="Unit price"
                     placeholder="£ 0.00"
                     value={line.price}
                     onChange={(e) =>
@@ -158,7 +158,7 @@ export function NewQuoteForm({
                   </div>
                 </div>
                 <textarea
-                  placeholder="Descrição"
+                  placeholder="Description"
                   value={line.description}
                   onChange={(e) =>
                     setLines((rows) =>
@@ -182,7 +182,7 @@ export function NewQuoteForm({
           className="mt-4 h-9 rounded-lg px-3 text-sm font-semibold text-white"
           style={{ background: green }}
         >
-          Adicionar item de linha
+          Add line item
         </button>
         <div className={`mt-5 flex justify-end gap-10 border-t ${line} pt-4 font-bold ${ink}`}>
           <span>Total</span>
@@ -191,7 +191,7 @@ export function NewQuoteForm({
       </section>
 
       <textarea
-        placeholder="Mensagem para o cliente"
+        placeholder="Message to the client"
         value={message}
         onChange={(e) => setMessage(e.target.value)}
         className={`min-h-[72px] w-full resize-y rounded-lg border ${line} px-3 py-2 text-[15px] ${ink} outline-none`}
@@ -210,7 +210,7 @@ export function NewQuoteForm({
           href={quoteId ? `/cotacoes/${quoteId}` : "/cotacoes"}
           className={`inline-flex h-10 items-center rounded-lg border ${line} bg-white px-4 text-sm font-semibold ${ink}`}
         >
-          Cancelar
+          Cancel
         </Link>
         <button
           type="submit"
@@ -218,7 +218,7 @@ export function NewQuoteForm({
           className="h-10 rounded-lg px-4 text-sm font-semibold text-white disabled:opacity-60"
           style={{ background: green }}
         >
-          {pending ? "A guardar…" : quoteId ? "Atualizar cotação" : "Guardar cotação"}
+          {pending ? "Saving…" : quoteId ? "Update quote" : "Save quote"}
         </button>
       </div>
     </form>

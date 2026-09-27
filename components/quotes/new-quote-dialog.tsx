@@ -7,12 +7,12 @@ import { X } from "lucide-react";
 const TEMPLATES = [
   "Motorista + Ajudante",
   "Somente motorista",
-  "Serviço de descarte de entulho",
-  "Preço fixo",
-  "Serviço de ajuda",
-  "Mudança de escritório",
-  "Serviço de Embalagem",
-  "Serviço de Piano",
+  "Rubbish clearance",
+  "Fixed price",
+  "Helper service",
+  "Office relocation",
+  "Packing service",
+  "Piano move",
 ];
 
 export function NewQuoteDialog() {
@@ -41,12 +41,12 @@ export function NewQuoteDialog() {
       >
         <div className="flex items-start justify-between gap-4">
           <h1 id="new-quote-title" className="text-[28px] font-bold tracking-tight text-[#042b3c]">
-            Nova citação
+            New quote
           </h1>
           <button
             type="button"
             onClick={close}
-            aria-label="Fechar"
+            aria-label="Close"
             className="grid h-9 w-9 place-items-center rounded-lg text-[#5d6f78] hover:bg-[#f4f6f7]"
           >
             <X size={20} />
@@ -79,7 +79,7 @@ export function NewQuoteDialog() {
           className="h-12 w-full rounded-lg text-[15px] font-semibold text-white"
           style={{ background: "#388623" }}
         >
-          Criar novo orçamento
+          Create a new quote
         </button>
       </div>
     </div>

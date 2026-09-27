@@ -9,14 +9,14 @@ export const dynamic = "force-dynamic";
 
 const STAGES = ["draft", "sent", "paid", "overdue"] as const;
 const LABELS: Record<string, string> = {
-  draft: "Rascunho",
-  sent: "Enviada",
-  paid: "Paga",
-  overdue: "Vencida",
-  cancelled: "Cancelada",
+  draft: "Draft",
+  sent: "Sent",
+  paid: "Paid",
+  overdue: "Overdue",
+  cancelled: "Cancelled",
 };
 
-export default async function FaturasPage({
+export default async function InvoicesPage({
   searchParams,
 }: {
   searchParams: Promise<{ q?: string }>;
@@ -31,14 +31,14 @@ export default async function FaturasPage({
   return (
     <div>
       <PageHeader
-        title="Faturas"
-        subtitle="Rascunhos, enviadas, pagas e vencidas · saldo a receber"
+        title="Invoices"
+        subtitle="Drafts, sent, paid and overdue · balance due"
         action={
           <Link
             href="/faturas/novo"
             className="inline-flex h-10 items-center gap-2 rounded-xl bg-ink px-4 text-sm font-bold text-white hover:opacity-90"
           >
-            + Nova fatura
+            + New invoice
           </Link>
         }
       />
@@ -62,21 +62,21 @@ export default async function FaturasPage({
           {formatGBP(pending)} a receber · {overdue.length} vencida{overdue.length === 1 ? "" : "s"}
         </p>
         <p className="mt-1 text-[13px] text-ink-soft">
-          {overdue.map((i) => `${i.number} · ${i.client_name}`).join(" · ") || "Nada vencido."}
+          {overdue.map((i) => `${i.number} · ${i.client_name}`).join(" · ") || "Nothing overdue."}
         </p>
       </Card>
 
       <Card className="mt-4 p-4">
-        <ListSearch defaultValue={q} placeholder="Pesquisar por cliente ou número" />
+        <ListSearch defaultValue={q} placeholder="Search by client or number" />
         {invoices.length === 0 ? (
-          <EmptyState>Nenhuma fatura ainda. Gere a partir de um serviço concluído ou crie diretamente.</EmptyState>
+          <EmptyState>No invoices yet. Create one from a completed job, or add one directly.</EmptyState>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[680px] text-left text-sm">
               <thead>
                 <tr className="border-b border-line text-xs uppercase tracking-wide text-ink-mute">
-                  <th className="py-2 pr-3 font-bold">Fatura</th>
-                  <th className="py-2 pr-3 font-bold">Cliente</th>
+                  <th className="py-2 pr-3 font-bold">Invoice</th>
+                  <th className="py-2 pr-3 font-bold">Client</th>
                   <th className="py-2 pr-3 font-bold">Origem</th>
                   <th className="py-2 pr-3 font-bold">Vencimento</th>
                   <th className="py-2 pr-3 font-bold">Status</th>
@@ -92,7 +92,7 @@ export default async function FaturasPage({
                       </Link>
                     </td>
                     <td className="py-3 pr-3 text-ink-soft">{i.client_name}</td>
-                    <td className="py-3 pr-3 text-[13px] text-ink-mute">{i.job_number ?? "Direta"}</td>
+                    <td className="py-3 pr-3 text-[13px] text-ink-mute">{i.job_number ?? "Direct"}</td>
                     <td className="py-3 pr-3 text-[13px] text-ink-soft">{formatDateLondon(i.due_on)}</td>
                     <td className="py-3 pr-3">
                       <Badge tone={i.status}>{LABELS[i.status] ?? i.status}</Badge>

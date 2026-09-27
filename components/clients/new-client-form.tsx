@@ -532,7 +532,7 @@ export function NewClientForm({
                 </div>
                 <div className="grid grid-cols-2">
                   <input
-                    aria-label="Postal code"
+                    aria-label="Postcode"
                     placeholder="Postal code"
                     value={a.postcode}
                     onChange={(e) => patchProperty(i, { postcode: e.target.value })}

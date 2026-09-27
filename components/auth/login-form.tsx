@@ -18,7 +18,7 @@ export function LoginForm({
     <form action={action} className="mt-6 flex flex-col gap-4">
       <input type="hidden" name="next" value={next} />
       <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
-        E-mail
+        Email
         <input
           name="email"
           type="email"
@@ -28,7 +28,7 @@ export function LoginForm({
         />
       </label>
       <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
-        Senha
+        Password
         <input
           name="password"
           type="password"
@@ -39,7 +39,7 @@ export function LoginForm({
       </label>
       {configError ? (
         <p className="text-sm font-medium text-rose-700">
-          Faltam variáveis de autenticação no ambiente.
+          Authentication settings are missing from this environment.
         </p>
       ) : null}
       {state.message ? (
@@ -50,7 +50,7 @@ export function LoginForm({
         disabled={pending}
         className="h-11 rounded-xl bg-ink text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
       >
-        {pending ? "A entrar…" : "Entrar"}
+        {pending ? "Signing in…" : "Sign in"}
       </button>
     </form>
   );

@@ -126,14 +126,14 @@ export function NewInvoiceForm({
       <div className="flex items-center gap-2">
         <FileText size={18} style={{ color: green }} />
         <h1 className={`text-[26px] font-bold tracking-tight ${ink}`}>
-          {invoiceId ? "Editar fatura" : "Nova fatura"}
+          {invoiceId ? "Edit invoice" : "New invoice"}
         </h1>
       </div>
 
       <label className="block">
-        <span className="mb-1 block text-[13px] text-[#5d6f78]">Assunto</span>
+        <span className="mb-1 block text-[13px] text-[#5d6f78]">Subject</span>
         <input
-          aria-label="Assunto"
+          aria-label="Subject"
           value={subject}
           onChange={(event) => setSubject(event.target.value)}
           className={field}
@@ -152,9 +152,9 @@ export function NewInvoiceForm({
 
         <div className="space-y-3">
           <div className="grid grid-cols-[150px_1fr] items-center gap-3">
-            <span className="text-sm text-[#5d6f78]">Fatura #</span>
+            <span className="text-sm text-[#5d6f78]">Invoice #</span>
             <input
-              aria-label="Fatura"
+              aria-label="Invoice"
               value={number}
               disabled={!!invoiceId}
               onChange={(event) => setNumber(event.target.value)}
@@ -162,16 +162,16 @@ export function NewInvoiceForm({
             />
           </div>
           <div className="grid grid-cols-[150px_1fr] items-center gap-3">
-            <span className="text-sm text-[#5d6f78]">Data de emissão</span>
+            <span className="text-sm text-[#5d6f78]">Issue date</span>
             <button type="button" className="justify-self-start text-sm font-semibold underline" style={{ color: green }}>
-              Data de envio
+              Date de envio
             </button>
           </div>
           <label className="grid grid-cols-[150px_1fr] items-center gap-3">
-            <span className="text-sm text-[#5d6f78]">Condições de pagamento</span>
+            <span className="text-sm text-[#5d6f78]">Payment terms</span>
             <span className="relative block">
               <select
-                aria-label="Condições de pagamento"
+                aria-label="Payment terms"
                 value={terms}
                 onChange={(event) => setTerms(event.target.value)}
                 className={`${field} appearance-none pr-9`}
@@ -185,16 +185,16 @@ export function NewInvoiceForm({
             </span>
           </label>
           <div className="grid grid-cols-[150px_1fr] items-center gap-3">
-            <span className="text-sm text-[#5d6f78]">Vendedor</span>
+            <span className="text-sm text-[#5d6f78]">Salesperson</span>
             <button
               type="button"
               className={`h-9 w-fit rounded-full border ${line} bg-white px-3 text-sm text-[#5d6f78]`}
             >
-              Vendedor +
+              Salesperson +
             </button>
           </div>
           <div className="grid grid-cols-[150px_1fr] items-center gap-3">
-            <span className="text-sm text-[#5d6f78]">Solicite uma avaliação</span>
+            <span className="text-sm text-[#5d6f78]">Ask for a review</span>
             <button
               type="button"
               role="switch"
@@ -214,7 +214,7 @@ export function NewInvoiceForm({
                 </span>
               </span>
               <span className="text-sm font-semibold" style={{ color: askReview ? green : "#8aa0a8" }}>
-                {askReview ? "SIM" : "NÃO"}
+                {askReview ? "Yes" : "No"}
               </span>
             </button>
           </div>
@@ -225,13 +225,13 @@ export function NewInvoiceForm({
               className="h-8 w-fit whitespace-nowrap rounded-md border px-3 text-sm font-semibold"
               style={{ borderColor: green, color: green }}
             >
-              Adicionar campo
+              Add field
             </button>
           </div>
         </div>
       </div>
 
-      <SectionCard title="Produto/Serviço">
+      <SectionCard title="Product / Service">
         <div className="space-y-4">
           {lines.map((line) => {
             const qty = Number(line.qty.replace(",", ".")) || 0;
@@ -240,8 +240,8 @@ export function NewInvoiceForm({
               <div key={line.id} className="space-y-2">
                 <div className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[1fr_110px_150px_110px]">
                   <input
-                    aria-label="Nome"
-                    placeholder="Nome"
+                    aria-label="Name"
+                    placeholder="Name"
                     value={line.name}
                     onChange={(event) =>
                       setLines((rows) => rows.map((row) => (row.id === line.id ? { ...row, name: event.target.value } : row)))
@@ -249,9 +249,9 @@ export function NewInvoiceForm({
                     className={field}
                   />
                   <label className="block">
-                    <span className="mb-1 block text-[11px] text-[#8aa0a8]">Quantidade</span>
+                    <span className="mb-1 block text-[11px] text-[#8aa0a8]">Quantity</span>
                     <input
-                      aria-label="Quantidade"
+                      aria-label="Quantity"
                       value={line.qty}
                       onChange={(event) =>
                         setLines((rows) => rows.map((row) => (row.id === line.id ? { ...row, qty: event.target.value } : row)))
@@ -260,9 +260,9 @@ export function NewInvoiceForm({
                     />
                   </label>
                   <label className="block">
-                    <span className="mb-1 block text-[11px] text-[#8aa0a8]">Preço unitário</span>
+                    <span className="mb-1 block text-[11px] text-[#8aa0a8]">Unit price</span>
                     <input
-                      aria-label="Preço unitário"
+                      aria-label="Unit price"
                       placeholder="£ 0,00"
                       value={line.price}
                       onChange={(event) =>
@@ -279,8 +279,8 @@ export function NewInvoiceForm({
                   </label>
                 </div>
                 <textarea
-                  aria-label="Descrição"
-                  placeholder="Descrição"
+                  aria-label="Description"
+                  placeholder="Description"
                   value={line.description}
                   onChange={(event) =>
                     setLines((rows) =>
@@ -290,7 +290,7 @@ export function NewInvoiceForm({
                   className={`min-h-[88px] w-full resize-y rounded-lg border ${line} px-3 py-2 text-[15px] ${ink} outline-none ${ph}`}
                 />
                 <button type="button" className="text-sm font-semibold underline" style={{ color: green }}>
-                  Adicionar data de serviço
+                  Add a service date
                 </button>
               </div>
             );
@@ -307,7 +307,7 @@ export function NewInvoiceForm({
           className="mt-4 h-9 rounded-lg px-3 text-sm font-semibold text-white"
           style={{ background: green }}
         >
-          Adicionar item de linha
+          Add line item
         </button>
 
         <div className={`mt-5 grid gap-6 border-t ${line} pt-4 lg:grid-cols-[1fr_280px]`}>
@@ -319,7 +319,7 @@ export function NewInvoiceForm({
               aria-pressed={clientView}
             >
               <Eye size={16} />
-              Visão do cliente
+              Client view
             </button>
             <button type="button" className="font-semibold underline" style={{ color: green }}>
               Mudar
@@ -333,13 +333,13 @@ export function NewInvoiceForm({
             <div className="flex justify-between text-[#5d6f78]">
               <span>Desconto</span>
               <button type="button" className="font-semibold underline" style={{ color: green }}>
-                Adicionar desconto
+                Add discount
               </button>
             </div>
             <div className="flex justify-between text-[#5d6f78]">
               <span>Imposto</span>
               <button type="button" className="font-semibold underline" style={{ color: green }}>
-                Adicionar imposto
+                Add tax
               </button>
             </div>
             <div className={`flex justify-between font-bold ${ink}`}>
@@ -347,18 +347,18 @@ export function NewInvoiceForm({
               <span>{money(subtotal)}</span>
             </div>
             <div className="flex justify-between rounded-lg bg-[#f6f7f8] px-3 py-2 text-[#5d6f78]">
-              <span>Saldo da fatura</span>
+              <span>Invoice balance</span>
               <span>{money(subtotal)}</span>
             </div>
             <div className={`rounded-lg border ${line} px-3 py-3`}>
               <div className="flex items-center justify-between">
-                <p className={`text-sm font-bold ${ink}`}>Pagamentos do hub do cliente</p>
-                <button type="button" aria-label="Editar pagamentos" className="text-[#5d6f78]">
+                <p className={`text-sm font-bold ${ink}`}>Client hub payments</p>
+                <button type="button" aria-label="Edit payments" className="text-[#5d6f78]">
                   <Pencil size={15} />
                 </button>
               </div>
               <div className="mt-2 flex items-center justify-between text-sm text-[#5d6f78]">
-                <span>Pagamentos de faturas</span>
+                <span>Invoice payments</span>
                 <span className="rounded-full bg-[#eef1f2] px-2 py-0.5 text-[11px] font-bold tracking-wide text-[#5d6f78]">
                   DESBLOQUEADO
                 </span>
@@ -371,18 +371,18 @@ export function NewInvoiceForm({
       <div className="flex flex-wrap gap-2">
         <button type="button" className={`inline-flex h-9 items-center gap-1 rounded-lg border ${line} bg-[#f7f8f8] px-3 text-sm text-[#5d6f78]`}>
           <Plus size={14} />
-          Adicionar seção
+          Add section
         </button>
         <button type="button" className={`h-9 rounded-lg border ${line} bg-[#f7f8f8] px-3 text-sm text-[#5d6f78]`}>
-          Mensagem do cliente
+          Client message
         </button>
       </div>
 
       {showContract ? (
         <SectionCard
-          title="Contrato / Isenção de responsabilidade"
+          title="Contract / Disclaimer"
           action={
-            <button type="button" aria-label="Remover contrato" onClick={() => setShowContract(false)} className="text-[#8aa0a8]">
+            <button type="button" aria-label="Remove contract" onClick={() => setShowContract(false)} className="text-[#8aa0a8]">
               <Trash2 size={16} />
             </button>
           }
@@ -390,7 +390,7 @@ export function NewInvoiceForm({
           <label className="block">
             <span className="mb-1 block text-[13px] text-[#8aa0a8]">Mensagem</span>
             <textarea
-              aria-label="Mensagem do contrato"
+              aria-label="Contract message"
               value={contract}
               onChange={(event) => setContract(event.target.value)}
               className={`min-h-[88px] w-full resize-y rounded-lg border ${line} px-3 py-2 text-[15px] ${ink} outline-none`}
@@ -409,7 +409,7 @@ export function NewInvoiceForm({
             <Upload size={18} />
           </span>
           <span className="mt-3 text-sm text-[#7b8e96]">
-            Deixe um recado interno para você ou para um membro da equipe.
+            Leave an internal note for yourself or a team member.
           </span>
         </button>
       </section>
@@ -421,13 +421,13 @@ export function NewInvoiceForm({
           href={invoiceId ? `/faturas/${invoiceId}` : "/faturas"}
           className={`inline-flex h-10 items-center rounded-lg border ${line} bg-white px-4 text-sm font-semibold ${ink}`}
         >
-          Cancelar
+          Cancel
         </Link>
         <div className="inline-flex overflow-hidden rounded-lg text-white" style={{ background: green }}>
           <button type="submit" disabled={pending} className="h-10 px-4 text-sm font-semibold disabled:opacity-60">
-            {pending ? "A guardar…" : invoiceId ? "Atualizar fatura" : "Guardar fatura"}
+            {pending ? "Saving…" : invoiceId ? "Update invoice" : "Save invoice"}
           </button>
-          <button type="button" aria-label="Mais opções para salvar" className="grid h-10 w-9 place-items-center border-l border-white/30">
+          <button type="button" aria-label="More save options" className="grid h-10 w-9 place-items-center border-l border-white/30">
             <ChevronDown size={16} />
           </button>
         </div>

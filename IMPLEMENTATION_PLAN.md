@@ -334,7 +334,7 @@ Fica para a fase final. Casos de uso previstos: confirmação de cotação, lemb
 - Conta e projeto Vercel criados: projeto `clonejobber` e domínio `movinglondontransport.com` configurado.
 - E-mail profissional Google Workspace/Gmail que será usado como remetente.
 - Nome comercial, logotipo e cores, se já disponíveis.
-- Decisão sobre idioma da interface: recomendação é inglês britânico (`en-GB`) para o uso cotidiano em Londres.
+- Idioma oficial da interface: inglês britânico (`en-GB`).
 - Lista inicial de serviços e preços comuns, mesmo que provisória.
 
 Não compartilhar senhas, tokens, chaves privadas, credenciais do Gmail ou chaves `service_role` em conversas. As credenciais devem ser configuradas diretamente como variáveis de ambiente nos provedores apropriados.
@@ -346,6 +346,7 @@ Não compartilhar senhas, tokens, chaves privadas, credenciais do Gmail ou chave
 | Público | Ferramenta interna para uma única empresa de mudanças em Londres. |
 | Usuários | Um administrador; sem gestão de equipa na primeira versão. |
 | Funil | Cliente → Solicitação → Cotação → Serviço → Fatura. |
+| Idioma | Inglês britânico (`en-GB`) em toda a interface. |
 | Banco e autenticação | Supabase. |
 | Aplicação | Next.js no mesmo repositório para front-end e back-end. |
 | Hospedagem | Vercel para a aplicação; Supabase gerenciado para dados/arquivos/login. |

@@ -70,7 +70,7 @@ const TYPE_TABS = [
 
 type Scope = "active" | "archived" | "all";
 
-export default async function ClienteDetailPage({
+export default async function ClientDetailPage({
   params,
   searchParams,
 }: {
@@ -110,7 +110,7 @@ export default async function ClienteDetailPage({
     financials,
     comms,
     lastComm,
-    filesData,
+    filesDate,
     notes,
     tags,
     appointments,
@@ -320,7 +320,7 @@ export default async function ClienteDetailPage({
                           </a>
                           <form action={deleteProperty.bind(null, id, p.id)}>
                             <button type="submit" className="text-xs font-bold text-rose-700 hover:underline">
-                              Remover
+                              Remove
                             </button>
                           </form>
                         </div>
@@ -373,7 +373,7 @@ export default async function ClienteDetailPage({
                       </div>
                       <form action={deleteContact.bind(null, id, ct.id)}>
                         <button type="submit" className="text-xs font-bold text-rose-700 hover:underline">
-                          Remover
+                          Remove
                         </button>
                       </form>
                     </div>
@@ -592,7 +592,7 @@ export default async function ClienteDetailPage({
           {tab === "files" ? (
             <Card className="p-5">
               <h2 className="mb-3 text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">
-                All files ({filesData.total} results)
+                All files ({filesDate.total} results)
               </h2>
               <FileUploadForm action={uploadClientFile.bind(null, id)} />
               <div className="mb-3 mt-4 flex flex-wrap gap-1.5">
@@ -615,11 +615,11 @@ export default async function ClienteDetailPage({
                   </Link>
                 ))}
               </div>
-              {filesData.files.length === 0 ? (
+              {filesDate.files.length === 0 ? (
                 <EmptyState>No files for this filter.</EmptyState>
               ) : (
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-                  {filesData.files.map((f) => (
+                  {filesDate.files.map((f) => (
                     <a key={f.source + f.id} href={f.url} target="_blank" rel="noreferrer" title={`${f.file_name} · via ${f.source}`}>
                       {f.mime_type.startsWith("image/") ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -635,8 +635,8 @@ export default async function ClienteDetailPage({
               )}
               <div className="mt-3 flex items-center justify-between text-xs text-ink-mute">
                 <span>
-                  Showing {filesData.total === 0 ? 0 : (filePage - 1) * PER_PAGE + 1}–
-                  {Math.min(filePage * PER_PAGE, filesData.total)} of {filesData.total} items
+                  Showing {filesDate.total === 0 ? 0 : (filePage - 1) * PER_PAGE + 1}–
+                  {Math.min(filePage * PER_PAGE, filesDate.total)} of {filesDate.total} items
                 </span>
                 <span className="flex gap-1">
                   {filePage > 1 ? (
@@ -644,7 +644,7 @@ export default async function ClienteDetailPage({
                       ← Prev
                     </Link>
                   ) : null}
-                  {filePage * PER_PAGE < filesData.total ? (
+                  {filePage * PER_PAGE < filesDate.total ? (
                     <Link href={`/clientes/${id}${qs({ type: typeKey, scope, fsrc, fkind, page: String(filePage + 1) })}`} className="rounded-lg border border-line px-2 py-1 font-bold text-ink">
                       Next →
                     </Link>

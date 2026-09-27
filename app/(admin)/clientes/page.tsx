@@ -5,7 +5,7 @@ import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
-export default async function ClientesPage({
+export default async function ClientsPage({
   searchParams,
 }: {
   searchParams: Promise<{ q?: string }>;
@@ -16,14 +16,14 @@ export default async function ClientesPage({
   return (
     <div>
       <PageHeader
-        title="Clientes"
+        title="Clients"
         subtitle={`${rows.length} cliente(s) · busca por nome, e-mail ou telefone`}
         action={
           <Link
             href="/clientes/novo"
             className="inline-flex h-10 items-center gap-2 rounded-xl bg-ink px-4 text-sm font-bold text-white hover:opacity-90"
           >
-            + Novo cliente
+            + New client
           </Link>
         }
       />
@@ -35,8 +35,8 @@ export default async function ClientesPage({
               type="search"
               name="q"
               defaultValue={q}
-              placeholder="Pesquisar por nome, e-mail ou telefone"
-              aria-label="Pesquisar clientes"
+              placeholder="Search by name, email or phone"
+              aria-label="Search clients"
               className="h-10 w-full rounded-xl border border-line bg-card px-3 text-sm text-ink outline-none focus:border-accent"
             />
             <button
@@ -51,8 +51,8 @@ export default async function ClientesPage({
             <div className="mt-3">
               <EmptyState>
                 {q
-                  ? `Nenhum cliente para “${q}”.`
-                  : "Nenhum cliente ainda — envie o formulário público ou cadastre manualmente."}
+                  ? `No clients match “${q}”.`
+                  : "No clients yet — share the public form or add one manually."}
               </EmptyState>
             </div>
           ) : (
@@ -60,7 +60,7 @@ export default async function ClientesPage({
               <table className="w-full min-w-[640px] text-left text-sm">
                 <thead>
                   <tr className="border-b border-line text-xs uppercase tracking-wide text-ink-mute">
-                    <th className="py-2 pr-3 font-bold">Cliente</th>
+                    <th className="py-2 pr-3 font-bold">Client</th>
                     <th className="py-2 pr-3 font-bold">Contato</th>
                     <th className="py-2 pr-3 font-bold">Funil</th>
                     <th className="py-2 text-right font-bold">Desde</th>
@@ -104,7 +104,7 @@ export default async function ClientesPage({
         </Card>
 
         <Card className="h-fit p-4">
-          <h2 className="font-extrabold text-ink">Últimos clientes</h2>
+          <h2 className="font-extrabold text-ink">Recent clients</h2>
           <div className="mt-3 space-y-3">
             {rows.slice(0, 5).map((c) => (
               <Link
@@ -126,7 +126,7 @@ export default async function ClientesPage({
               </Link>
             ))}
             {rows.length === 0 ? (
-              <p className="text-sm text-ink-mute">Nada por aqui ainda.</p>
+              <p className="text-sm text-ink-mute">Nothing here yet.</p>
             ) : null}
           </div>
         </Card>

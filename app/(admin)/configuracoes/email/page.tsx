@@ -30,7 +30,7 @@ export default async function EmailSettingsPage({
   return (
     <div>
       <PageHeader
-        title="E-mail (Gmail)"
+        title="Email (Gmail)"
         subtitle="Connect the company Gmail account. Messages go out from that mailbox and stay in Sent."
       />
 

@@ -9,10 +9,10 @@ import { Badge, Card, PageHeader } from "@/components/ui";
 export const dynamic = "force-dynamic";
 
 const LABELS: Record<string, string> = {
-  scheduled: "Agendado",
-  in_progress: "Em andamento",
-  done: "Concluído",
-  cancelled: "Cancelado",
+  scheduled: "Scheduled",
+  in_progress: "In progress",
+  done: "Completed",
+  cancelled: "Cancelled",
 };
 
 export default async function ServicoDetailPage({
@@ -31,7 +31,7 @@ export default async function ServicoDetailPage({
     <div>
       <PageHeader
         title={`${j.number} · ${j.client_name}`}
-        subtitle={j.title || "Serviço"}
+        subtitle={j.title || "Job"}
         action={
           <Link
             href="/servicos"
@@ -49,17 +49,17 @@ export default async function ServicoDetailPage({
             href={`/servicos/${id}/editar`}
             className="h-9 rounded-xl border border-line bg-card px-3 text-sm font-bold leading-9 text-ink hover:bg-cream"
           >
-            Editar
+            Edit
           </Link>
         ) : null}
         {j.status === "scheduled" ? (
-          <StatusForm id={id} status="in_progress" label="Iniciar" />
+          <StatusForm id={id} status="in_progress" label="Start" />
         ) : null}
         {j.status === "scheduled" || j.status === "in_progress" ? (
-          <StatusForm id={id} status="done" label="Concluir" />
+          <StatusForm id={id} status="done" label="Complete" />
         ) : null}
         {j.status !== "cancelled" && j.status !== "done" ? (
-          <StatusForm id={id} status="cancelled" label="Cancelar" />
+          <StatusForm id={id} status="cancelled" label="Cancel" />
         ) : null}
         {j.status === "done" ? (
           <form
@@ -69,7 +69,7 @@ export default async function ServicoDetailPage({
             }}
           >
             <button type="submit" className="h-9 rounded-xl bg-ink px-3 text-sm font-bold text-white hover:opacity-90">
-              Gerar fatura
+              Create invoice
             </button>
           </form>
         ) : null}
@@ -77,7 +77,7 @@ export default async function ServicoDetailPage({
           href={`/clientes/${j.client_id}`}
           className="h-9 rounded-xl border border-line px-3 text-sm font-bold leading-9 text-accent hover:bg-accent-soft"
         >
-          Ver cliente
+          View client
         </Link>
       </div>
 
@@ -85,11 +85,11 @@ export default async function ServicoDetailPage({
         <Card className="h-fit p-5">
           <h2 className="mb-2 text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">Agenda</h2>
           <dl className="text-sm">
-            <Row k="Data" v={j.scheduled_date ? formatDateLondon(j.scheduled_date) : "Agendar mais tarde"} />
+            <Row k="Date" v={j.scheduled_date ? formatDateLondon(j.scheduled_date) : "Schedule mais tarde"} />
             <Row k="Janela" v={window} />
             <Row k="Coleta" v={j.pickup_address || "—"} />
             <Row k="Entrega" v={j.delivery_address || "—"} />
-            <Row k="Cotação" v={j.quote_number ?? "Direta"} />
+            <Row k="Quote" v={j.quote_number ?? "Direct"} />
             <Row k="Total" v={formatGBP(j.total)} />
           </dl>
         </Card>

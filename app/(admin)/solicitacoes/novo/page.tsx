@@ -18,7 +18,7 @@ export default async function NovaSolicitacaoPage() {
   return (
     <div className="min-h-[calc(100dvh-6.5rem)] rounded-2xl bg-white px-6 py-8 sm:px-10">
       <div className="mx-auto max-w-[760px]">
-        <h1 className="text-[28px] font-bold tracking-tight text-[#042b3c]">Nova solicitação</h1>
+        <h1 className="text-[28px] font-bold tracking-tight text-[#042b3c]">New request</h1>
         <NewRequestForm services={services} clients={clients} />
       </div>
     </div>

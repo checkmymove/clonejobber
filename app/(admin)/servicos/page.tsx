@@ -8,10 +8,10 @@ import { ListSearch } from "@/components/funnel/list-search";
 export const dynamic = "force-dynamic";
 
 const LABELS: Record<string, string> = {
-  scheduled: "Agendado",
-  in_progress: "Em andamento",
-  done: "Concluído",
-  cancelled: "Cancelado",
+  scheduled: "Scheduled",
+  in_progress: "In progress",
+  done: "Completed",
+  cancelled: "Cancelled",
 };
 
 function todayLondon() {
@@ -33,23 +33,23 @@ export default async function ServicosPage({
   return (
     <div>
       <PageHeader
-        title="Serviços"
-        subtitle="Agenda do dia, próximos e status de execução"
+        title="Jobs"
+        subtitle="Today’s schedule, upcoming jobs and progress"
         action={
           <Link
             href="/servicos/novo"
             className="inline-flex h-10 items-center gap-2 rounded-xl bg-ink px-4 text-sm font-bold text-white hover:opacity-90"
           >
-            + Novo serviço
+            + New job
           </Link>
         }
       />
 
-      <ListSearch defaultValue={q} placeholder="Pesquisar por cliente, ID ou endereço" />
+      <ListSearch defaultValue={q} placeholder="Search by client, ID or address" />
 
       <div className="mt-4 grid gap-4 xl:grid-cols-2">
         <Card className="p-4">
-          <h2 className="font-extrabold text-ink">Hoje · {today.length} serviços</h2>
+          <h2 className="font-extrabold text-ink">Today · {today.length} jobs</h2>
           <div className="mt-3 space-y-2">
             {today.map((j) => (
               <Link
@@ -64,7 +64,7 @@ export default async function ServicosPage({
                   </p>
                   <p className="text-xs text-ink-soft">
                     {j.anytime ? "Anytime" : `${j.window_start || "—"} – ${j.window_end || "—"}`} ·{" "}
-                    {j.pickup_address || "Sem endereço"}
+                    {j.pickup_address || "No address"}
                   </p>
                   <p className="mt-1">
                     <Badge tone={j.status}>{LABELS[j.status] ?? j.status}</Badge>
@@ -73,12 +73,12 @@ export default async function ServicosPage({
                 <span className="ml-auto text-sm font-bold text-ink">{formatGBP(j.total)}</span>
               </Link>
             ))}
-            {today.length === 0 ? <EmptyState>Nenhum serviço agendado para hoje.</EmptyState> : null}
+            {today.length === 0 ? <EmptyState>No jobs scheduled for today.</EmptyState> : null}
           </div>
         </Card>
 
         <Card className="p-4">
-          <h2 className="font-extrabold text-ink">Próximos e demais status</h2>
+          <h2 className="font-extrabold text-ink">Upcoming and other statuses</h2>
           <div className="mt-3 space-y-2">
             {rest.map((j) => (
               <Link
@@ -99,7 +99,7 @@ export default async function ServicosPage({
                 </span>
               </Link>
             ))}
-            {rest.length === 0 ? <EmptyState>Nada agendado adiante.</EmptyState> : null}
+            {rest.length === 0 ? <EmptyState>Nothing scheduled ahead.</EmptyState> : null}
           </div>
         </Card>
       </div>

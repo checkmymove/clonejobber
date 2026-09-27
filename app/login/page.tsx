@@ -18,10 +18,10 @@ export default async function LoginPage({
           O
         </div>
         <h1 className="mt-4 text-2xl font-extrabold tracking-tight text-ink">
-          Entrar
+          Sign in
         </h1>
         <p className="mt-1 text-sm text-ink-soft">
-          Acesso do administrador de Moving London Transport.
+          Administrator access for Moving London Transport.
         </p>
         <LoginForm next={next} configError={params.error === "config"} />
       </div>

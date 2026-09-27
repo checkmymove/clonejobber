@@ -29,7 +29,7 @@ export function SendEmailButton({
         }}
         className="h-9 rounded-xl bg-ink px-3 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
       >
-        {pending ? "A enviar…" : label}
+        {pending ? "Sending…" : label}
       </button>
       {error ? <p className="text-sm font-semibold text-rose-700">{error}</p> : null}
     </div>

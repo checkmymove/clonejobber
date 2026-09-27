@@ -4,7 +4,7 @@ import { NewClientForm } from "@/components/clients/new-client-form";
 
 export const dynamic = "force-dynamic";
 
-export default async function NovoClientePage({
+export default async function NovoClientPage({
   searchParams,
 }: {
   searchParams: Promise<{ created?: string }>;

@@ -19,19 +19,19 @@ export async function signIn(
   const next = safeNextPath(String(formData.get("next") ?? "/"));
 
   if (!process.env.ADMIN_EMAIL?.trim()) {
-    return { ok: false, message: "O acesso de administrador ainda não está configurado." };
+    return { ok: false, message: "Administrator access is not configured yet." };
   }
   if (!isAllowedAdminEmail(email)) {
-    return { ok: false, message: "Esta conta não tem acesso." };
+    return { ok: false, message: "This account does not have access." };
   }
   if (!password) {
-    return { ok: false, message: "Indique a senha." };
+    return { ok: false, message: "Enter your password." };
   }
 
   const supabase = await createSupabaseServer();
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error || !data.user) {
-    return { ok: false, message: "E-mail ou senha incorretos." };
+    return { ok: false, message: "Email or password is incorrect." };
   }
 
   await sql`

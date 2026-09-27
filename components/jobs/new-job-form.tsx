@@ -212,13 +212,13 @@ export function NewJobForm({
       <div className="flex items-center gap-2">
         <Flag size={18} style={{ color: green }} />
         <h1 className={`text-[26px] font-bold tracking-tight ${ink}`}>
-          {jobId ? "Editar serviço" : "Novo emprego"}
+          {jobId ? "Edit job" : "New job"}
         </h1>
       </div>
 
       <input
-        aria-label="Título"
-        placeholder="Título"
+        aria-label="Title"
+        placeholder="Title"
         value={title}
         onChange={(event) => setTitle(event.target.value)}
         className={field}
@@ -228,9 +228,9 @@ export function NewJobForm({
         <ClientSelect clients={clients} value={clientId} onChange={setClientId} disabled={!!jobId} />
         <div className="space-y-3">
           <div className="grid grid-cols-[88px_1fr] items-center gap-3">
-            <span className="text-sm text-[#5d6f78]">Trabalho #</span>
+            <span className="text-sm text-[#5d6f78]">Job #</span>
             <input
-              aria-label="Trabalho"
+              aria-label="Job"
               value={jobNumber}
               disabled={!!jobId}
               onChange={(event) => setJobNumber(event.target.value)}
@@ -238,15 +238,15 @@ export function NewJobForm({
             />
           </div>
           <label className="grid grid-cols-[88px_1fr] items-center gap-3">
-            <span className="text-sm text-[#5d6f78]">Vendedor</span>
+            <span className="text-sm text-[#5d6f78]">Salesperson</span>
             <span className="relative block">
               <select
-                aria-label="Vendedor"
+                aria-label="Salesperson"
                 value={salesperson}
                 onChange={(event) => setSalesperson(event.target.value)}
                 className={`${field} appearance-none pr-9 ${salesperson ? "" : "text-[#667880]"}`}
               >
-                <option value="">Selecionar vendedor</option>
+                <option value="">Select a salesperson</option>
               </select>
               <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
             </span>
@@ -258,7 +258,7 @@ export function NewJobForm({
               className="h-8 rounded-md border px-3 text-sm font-semibold"
               style={{ borderColor: green, color: green }}
             >
-              Adicionar campo
+              Add field
             </button>
           </div>
         </div>
@@ -279,7 +279,7 @@ export function NewJobForm({
                     : { color: "#5d6f78" }
                 }
               >
-                Peça única
+                One-off
               </button>
               <button
                 type="button"
@@ -304,7 +304,7 @@ export function NewJobForm({
             style={{ background: green }}
           >
             <Plus size={15} />
-            Criar visitas
+            Create visits
           </button>
         </div>
 
@@ -323,30 +323,30 @@ export function NewJobForm({
                     <div className="flex items-start gap-2">
                       <label className="relative block min-w-0 flex-1">
                         <select
-                          aria-label="Título da visita"
+                          aria-label="Visit title"
                           value={visit.title}
                           onChange={(event) => patchVisit(visit.id, { title: event.target.value })}
                           className={`${field} appearance-none pr-9 ${visit.title ? "" : "text-[#667880]"}`}
                         >
-                          <option value="">Título</option>
+                          <option value="">Title</option>
                         </select>
                         <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
                       </label>
-                      <button type="button" aria-label="Mais opções" className="grid h-11 w-9 place-items-center text-[#5d6f78]">
+                      <button type="button" aria-label="More options" className="grid h-11 w-9 place-items-center text-[#5d6f78]">
                         <MoreHorizontal size={18} />
                       </button>
                     </div>
                     <p className="text-[13px] text-[#7b8e96]">
-                      Deixe o campo em branco para usar o título padrão.{" "}
+                      Leave blank to use the default title.{" "}
                       <button type="button" className="font-semibold underline" style={{ color: green }}>
-                        Configurações
+                        Settings
                       </button>
                     </p>
                     <label className="block">
-                      <span className="mb-1 block text-[13px] text-[#5d6f78]">Data</span>
+                      <span className="mb-1 block text-[13px] text-[#5d6f78]">Date</span>
                       <span className="relative block">
                         <input
-                          aria-label="Data da visita"
+                          aria-label="Visit date"
                           type="date"
                           value={visit.date}
                           disabled={visit.later}
@@ -364,13 +364,13 @@ export function NewJobForm({
                         onChange={(event) => patchVisit(visit.id, { later: event.target.checked })}
                       />
                       <GreenCheck checked={visit.later} />
-                      Agendar mais tarde
+                      Schedule mais tarde
                     </label>
                     <div className="grid gap-3 sm:grid-cols-2">
                       <label className="relative block">
-                        <span className="mb-1 block text-[13px] text-[#5d6f78]">Hora de início</span>
+                        <span className="mb-1 block text-[13px] text-[#5d6f78]">Start time</span>
                         <input
-                          aria-label="Hora de início"
+                          aria-label="Start time"
                           type="time"
                           value={visit.start}
                           disabled={timesOff}
@@ -380,9 +380,9 @@ export function NewJobForm({
                         <Clock size={16} className="pointer-events-none absolute bottom-3.5 right-3 text-[#8aa0a8]" />
                       </label>
                       <label className="relative block">
-                        <span className="mb-1 block text-[13px] text-[#5d6f78]">Hora final</span>
+                        <span className="mb-1 block text-[13px] text-[#5d6f78]">End time</span>
                         <input
-                          aria-label="Hora final"
+                          aria-label="End time"
                           type="time"
                           value={visit.end}
                           disabled={timesOff}
@@ -404,18 +404,18 @@ export function NewJobForm({
                     </label>
                     <label className="relative block">
                       <select
-                        aria-label="Atribuir"
+                        aria-label="Assign"
                         value={visit.assignee}
                         onChange={(event) => patchVisit(visit.id, { assignee: event.target.value })}
                         className={`${field} appearance-none pr-9 ${visit.assignee ? "" : "text-[#667880]"}`}
                       >
-                        <option value="">Atribuir</option>
+                        <option value="">Assign</option>
                       </select>
                       <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
                     </label>
                     <textarea
-                      aria-label="Instruções de acesso"
-                      placeholder="Instruções de acesso"
+                      aria-label="Access instructions"
+                      placeholder="Access instructions"
                       value={visit.instructions}
                       onChange={(event) => patchVisit(visit.id, { instructions: event.target.value })}
                       className={`min-h-[72px] w-full resize-y rounded-lg border ${line} px-3 py-2 text-[15px] ${ink} outline-none ${ph}`}
@@ -428,17 +428,17 @@ export function NewJobForm({
         </div>
 
         <div className="mt-4">
-          <p className="mb-1.5 text-[13px] text-[#5d6f78]">Linhas de verificação</p>
+          <p className="mb-1.5 text-[13px] text-[#5d6f78]">Checklist lines</p>
           <div className={`flex min-h-11 items-center justify-between rounded-lg border ${line} px-3`}>
             {checklist ? (
               <span className="inline-flex items-center gap-1 rounded-md bg-[#eef1f2] px-2 py-1 text-sm text-[#1c3d46]">
-                Serviço de Mudanças
-                <button type="button" aria-label="Remover linha de verificação" onClick={() => setChecklist(false)}>
+                Removals service
+                <button type="button" aria-label="Remove checklist line" onClick={() => setChecklist(false)}>
                   <X size={14} />
                 </button>
               </span>
             ) : (
-              <span className="text-sm text-[#8aa0a8]">Adicionar linha de verificação</span>
+              <span className="text-sm text-[#8aa0a8]">Add checklist line</span>
             )}
             <ChevronDown size={16} className="text-[#5d6f78]" />
           </div>
@@ -450,7 +450,7 @@ export function NewJobForm({
             onClick={() => setVisits((rows) => [...rows, emptyVisit()])}
             className={`h-9 rounded-lg border ${line} bg-white px-3 text-sm font-semibold ${ink}`}
           >
-            Adicionar uma visita
+            Add a visit
           </button>
           <button
             type="button"
@@ -459,12 +459,12 @@ export function NewJobForm({
             }
             className={`h-9 rounded-lg border ${line} bg-white px-3 text-sm font-semibold ${ink}`}
           >
-            Remover
+            Remove
           </button>
         </div>
       </SectionCard>
 
-      <SectionCard title="Cobrança">
+      <SectionCard title="Billing">
         <div className="space-y-3">
           <label className={`flex cursor-pointer items-center gap-2 text-sm ${ink}`}>
             <input
@@ -474,7 +474,7 @@ export function NewJobForm({
               onChange={(event) => setRemindInvoice(event.target.checked)}
             />
             <GreenCheck checked={remindInvoice} />
-            Lembre-me de enviar a fatura quando eu concluir o trabalho.
+            Remind me to send the invoice when I complete the job.
           </label>
           <label className={`flex cursor-pointer items-center gap-2 border-t ${line} pt-3 text-sm ${ink}`}>
             <input
@@ -484,12 +484,12 @@ export function NewJobForm({
               onChange={(event) => setSplitInvoices(event.target.checked)}
             />
             <GreenCheck checked={splitInvoices} />
-            Dividir em várias faturas com um cronograma de pagamento
+            Split into several invoices with a payment schedule
           </label>
         </div>
       </SectionCard>
 
-      <SectionCard title="Produto/Serviço">
+      <SectionCard title="Product / Service">
         <div className="space-y-3">
           {lines.map((line) => {
             const qty = Number(line.qty.replace(",", ".")) || 0;
@@ -498,8 +498,8 @@ export function NewJobForm({
               <div key={line.id} className="space-y-2">
                 <div className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[1fr_110px_150px_110px_auto]">
                   <input
-                    aria-label="Nome"
-                    placeholder="Nome"
+                    aria-label="Name"
+                    placeholder="Name"
                     value={line.name}
                     onChange={(event) =>
                       setLines((rows) =>
@@ -509,9 +509,9 @@ export function NewJobForm({
                     className={field}
                   />
                   <label className="block">
-                    <span className="mb-1 block text-[11px] text-[#8aa0a8]">Quantidade</span>
+                    <span className="mb-1 block text-[11px] text-[#8aa0a8]">Quantity</span>
                     <input
-                      aria-label="Quantidade"
+                      aria-label="Quantity"
                       value={line.qty}
                       onChange={(event) =>
                         setLines((rows) =>
@@ -522,9 +522,9 @@ export function NewJobForm({
                     />
                   </label>
                   <label className="block">
-                    <span className="mb-1 block text-[11px] text-[#8aa0a8]">Preço unitário</span>
+                    <span className="mb-1 block text-[11px] text-[#8aa0a8]">Unit price</span>
                     <input
-                      aria-label="Preço unitário"
+                      aria-label="Unit price"
                       value={line.price}
                       placeholder="£ 0,00"
                       onChange={(event) =>
@@ -541,13 +541,13 @@ export function NewJobForm({
                       {money(qty * price)}
                     </div>
                   </label>
-                  <button type="button" aria-label="Mais opções do item" className="mb-1 grid h-11 w-9 place-items-center text-[#5d6f78]">
+                  <button type="button" aria-label="More item options" className="mb-1 grid h-11 w-9 place-items-center text-[#5d6f78]">
                     <MoreHorizontal size={18} />
                   </button>
                 </div>
                 <textarea
-                  aria-label="Descrição"
-                  placeholder="Descrição"
+                  aria-label="Description"
+                  placeholder="Description"
                   className={`min-h-[72px] w-full resize-y rounded-lg border ${line} px-3 py-2 text-[15px] ${ink} outline-none ${ph}`}
                 />
               </div>
@@ -562,7 +562,7 @@ export function NewJobForm({
           className="mt-4 h-9 rounded-lg px-3 text-sm font-semibold text-white"
           style={{ background: green }}
         >
-          Adicionar item de linha
+          Add line item
         </button>
         <div className={`mt-5 space-y-3 border-t ${line} pt-4 text-sm`}>
           <div className="flex justify-end gap-10 text-[#5d6f78]">
@@ -572,17 +572,17 @@ export function NewJobForm({
           <div className="flex justify-end gap-10 text-[#5d6f78]">
             <span className="w-40">Desconto</span>
             <button type="button" className="w-24 text-right font-semibold underline" style={{ color: green }}>
-              Adicionar desconto
+              Add discount
             </button>
           </div>
           <div className="flex justify-end gap-10 text-[#5d6f78]">
             <span className="w-40">Imposto</span>
             <button type="button" className="w-24 text-right font-semibold underline" style={{ color: green }}>
-              Adicionar imposto
+              Add tax
             </button>
           </div>
           <div className={`flex justify-end gap-10 font-bold ${ink}`}>
-            <span className="w-40">Preço total</span>
+            <span className="w-40">Total price</span>
             <span className="w-24 text-right">{money(subtotal)}</span>
           </div>
         </div>
@@ -598,7 +598,7 @@ export function NewJobForm({
             <Upload size={18} />
           </span>
           <span className="mt-3 text-sm text-[#7b8e96]">
-            Deixe um recado interno para você ou para um membro da equipe.
+            Leave an internal note for yourself or a team member.
           </span>
         </button>
       </section>
@@ -610,13 +610,13 @@ export function NewJobForm({
           href={jobId ? `/servicos/${jobId}` : "/servicos"}
           className={`inline-flex h-10 items-center rounded-lg border ${line} bg-white px-4 text-sm font-semibold ${ink}`}
         >
-          Cancelar
+          Cancel
         </Link>
         <div className="inline-flex overflow-hidden rounded-lg text-white" style={{ background: green }}>
           <button type="submit" disabled={pending} className="h-10 px-4 text-sm font-semibold disabled:opacity-60">
-            {pending ? "A guardar…" : jobId ? "Atualizar serviço" : "Guardar serviço"}
+            {pending ? "Saving…" : jobId ? "Update job" : "Save job"}
           </button>
-          <button type="button" aria-label="Mais opções para salvar" className="grid h-10 w-9 place-items-center border-l border-white/30">
+          <button type="button" aria-label="More save options" className="grid h-10 w-9 place-items-center border-l border-white/30">
             <ChevronDown size={16} />
           </button>
         </div>

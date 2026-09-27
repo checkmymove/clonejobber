@@ -8,9 +8,9 @@ export const dynamic = "force-dynamic";
 
 const STATUS_LABEL: Record<string, string> = {
   new: "Nova",
-  review: "Aguardando análise",
+  review: "Awaiting review",
   quoted: "Cotada",
-  archived: "Fechada / arquivada",
+  archived: "Closed / archived",
 };
 
 const COMPANY_SLUG = "moving-london";
@@ -29,8 +29,8 @@ export default async function SolicitacoesPage({
   return (
     <div>
       <PageHeader
-        title="Solicitações"
-        subtitle={`${rows.length} solicitações · dados ao vivo do banco`}
+        title="Requests"
+        subtitle={`${rows.length} requests · live data`}
         action={
           <div className="flex gap-2">
             <a
@@ -40,13 +40,13 @@ export default async function SolicitacoesPage({
               className="inline-flex h-10 items-center gap-2 rounded-xl border border-line bg-card px-4 text-sm font-bold text-ink hover:bg-cream"
               title={publicUrl}
             >
-              Ver formulário público
+              View public form
             </a>
             <Link
               href="/solicitacoes/novo"
               className="inline-flex h-10 items-center gap-2 rounded-xl bg-ink px-4 text-sm font-bold text-white hover:opacity-90"
             >
-              + Nova solicitação
+              + New request
             </Link>
           </div>
         }
@@ -56,8 +56,8 @@ export default async function SolicitacoesPage({
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {(
           [
-            { key: "new", title: "Novas" },
-            { key: "review", title: "Aguardando análise" },
+            { key: "new", title: "New" },
+            { key: "review", title: "Awaiting review" },
             { key: "quoted", title: "Cotadas" },
             { key: "archived", title: "Fechadas / arquivadas" },
           ] as const
@@ -74,11 +74,11 @@ export default async function SolicitacoesPage({
       </div>
 
       <Card className="mt-4 p-4">
-        <ListSearch defaultValue={q} placeholder="Pesquisar por cliente, número ou postcode" />
+        <ListSearch defaultValue={q} placeholder="Search by client, number or postcode" />
         {rows.length === 0 ? (
           <div className="mt-3">
             <EmptyState>
-              Nenhuma solicitação ainda. Compartilhe o formulário público:{" "}
+              No requests yet. Share the public form:{" "}
               <span className="font-mono font-bold">{publicUrl}</span>
             </EmptyState>
           </div>
@@ -87,13 +87,13 @@ export default async function SolicitacoesPage({
             <table className="w-full min-w-[760px] text-left text-sm">
               <thead>
                 <tr className="border-b border-line text-xs uppercase tracking-wide text-ink-mute">
-                  <th className="py-2 pr-3 font-bold">Cliente</th>
-                  <th className="py-2 pr-3 font-bold">Título</th>
+                  <th className="py-2 pr-3 font-bold">Client</th>
+                  <th className="py-2 pr-3 font-bold">Title</th>
                   <th className="py-2 pr-3 font-bold">Coleta</th>
                   <th className="py-2 pr-3 font-bold">Contato</th>
                   <th className="py-2 pr-3 font-bold">Recebida</th>
                   <th className="py-2 pr-3 font-bold">Status</th>
-                  <th className="py-2 text-right font-bold">Ação</th>
+                  <th className="py-2 text-right font-bold">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -109,7 +109,7 @@ export default async function SolicitacoesPage({
                       <p className="text-xs text-ink-mute">{r.number}</p>
                     </td>
                     <td className="py-3 pr-3 text-[13px] text-ink-soft">
-                      {r.services_count} serviço(s) · {r.images_count} foto(s)
+                      {r.services_count} service(s) · {r.images_count} photo(s)
                     </td>
                     <td className="py-3 pr-3 text-[13px] text-ink-soft">
                       {r.pickup_address ? (

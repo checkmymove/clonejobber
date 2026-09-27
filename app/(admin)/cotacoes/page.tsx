@@ -9,11 +9,11 @@ export const dynamic = "force-dynamic";
 
 const STAGES = ["draft", "sent", "approved", "rejected", "expired"] as const;
 const LABELS: Record<(typeof STAGES)[number], string> = {
-  draft: "Rascunho",
-  sent: "Enviada",
-  approved: "Aprovada",
-  rejected: "Recusada",
-  expired: "Expirada",
+  draft: "Draft",
+  sent: "Sent",
+  approved: "Approved",
+  rejected: "Declined",
+  expired: "Expired",
 };
 
 export default async function CotacoesPage({
@@ -30,14 +30,14 @@ export default async function CotacoesPage({
   return (
     <div>
       <PageHeader
-        title="Cotações"
+        title="Quotes"
         subtitle={`Pipeline · ${formatGBP(totalPence)} em enviadas + aprovadas`}
         action={
           <Link
             href="/cotacoes/novo"
             className="inline-flex h-10 items-center gap-2 rounded-xl bg-ink px-4 text-sm font-bold text-white hover:opacity-90"
           >
-            + Nova cotação
+            + New quote
           </Link>
         }
       />
@@ -57,16 +57,16 @@ export default async function CotacoesPage({
       </div>
 
       <Card className="mt-4 p-4">
-        <ListSearch defaultValue={q} placeholder="Pesquisar por cliente ou número" />
+        <ListSearch defaultValue={q} placeholder="Search by client or number" />
         {quotes.length === 0 ? (
-          <EmptyState>Nenhuma cotação ainda. Crie a partir de uma solicitação ou diretamente.</EmptyState>
+          <EmptyState>No quotes yet. Create one from a request, or add one directly.</EmptyState>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[680px] text-left text-sm">
               <thead>
                 <tr className="border-b border-line text-xs uppercase tracking-wide text-ink-mute">
-                  <th className="py-2 pr-3 font-bold">Cotação</th>
-                  <th className="py-2 pr-3 font-bold">Cliente</th>
+                  <th className="py-2 pr-3 font-bold">Quote</th>
+                  <th className="py-2 pr-3 font-bold">Client</th>
                   <th className="py-2 pr-3 font-bold">Origem</th>
                   <th className="py-2 pr-3 font-bold">Validade</th>
                   <th className="py-2 pr-3 font-bold">Status</th>
@@ -82,7 +82,7 @@ export default async function CotacoesPage({
                       </Link>
                     </td>
                     <td className="py-3 pr-3 text-ink-soft">{q.client_name}</td>
-                    <td className="py-3 pr-3 text-[13px] text-ink-mute">{q.request_number ?? "Direta"}</td>
+                    <td className="py-3 pr-3 text-[13px] text-ink-mute">{q.request_number ?? "Direct"}</td>
                     <td className="py-3 pr-3 text-[13px] text-ink-soft">
                       {q.valid_until ? formatDateLondon(q.valid_until) : "—"}
                     </td>

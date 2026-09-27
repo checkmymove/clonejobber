@@ -7,7 +7,7 @@ import { NewJobForm } from "@/components/jobs/new-job-form";
 
 export const dynamic = "force-dynamic";
 
-export default async function EditarServicoPage({
+export default async function EditServicoPage({
   params,
 }: {
   params: Promise<{ id: string }>;

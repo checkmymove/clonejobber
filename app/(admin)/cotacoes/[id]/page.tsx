@@ -14,11 +14,11 @@ import { Badge, Card, PageHeader } from "@/components/ui";
 export const dynamic = "force-dynamic";
 
 const LABELS: Record<string, string> = {
-  draft: "Rascunho",
-  sent: "Enviada",
-  approved: "Aprovada",
-  rejected: "Recusada",
-  expired: "Expirada",
+  draft: "Draft",
+  sent: "Sent",
+  approved: "Approved",
+  rejected: "Declined",
+  expired: "Expired",
 };
 
 export default async function CotacaoDetailPage({
@@ -38,7 +38,7 @@ export default async function CotacaoDetailPage({
     <div>
       <PageHeader
         title={`${q.number} · ${q.client_name}`}
-        subtitle={q.title || "Cotação"}
+        subtitle={q.title || "Quote"}
         action={
           <Link
             href="/cotacoes"
@@ -56,16 +56,16 @@ export default async function CotacaoDetailPage({
             href={`/cotacoes/${id}/editar`}
             className="h-9 rounded-xl border border-line bg-card px-3 text-sm font-bold leading-9 text-ink hover:bg-cream"
           >
-            Editar
+            Edit
           </Link>
         ) : null}
         {q.status === "draft" ? (
-          <StatusForm id={id} status="sent" label="Marcar como enviada" />
+          <StatusForm id={id} status="sent" label="Mark as sent" />
         ) : null}
         {canEmail ? (
           gmail ? (
             <SendEmailButton
-              label={q.status === "sent" ? "Reenviar por e-mail" : "Enviar por e-mail"}
+              label={q.status === "sent" ? "Resend by email" : "Send by email"}
               run={emailQuote.bind(null, id)}
             />
           ) : (
@@ -79,8 +79,8 @@ export default async function CotacaoDetailPage({
         ) : null}
         {q.status === "sent" ? (
           <>
-            <StatusForm id={id} status="approved" label="Aprovar" />
-            <StatusForm id={id} status="rejected" label="Recusar" />
+            <StatusForm id={id} status="approved" label="Approve" />
+            <StatusForm id={id} status="rejected" label="Decline" />
           </>
         ) : null}
         {q.status === "approved" ? (
@@ -94,7 +94,7 @@ export default async function CotacaoDetailPage({
               type="submit"
               className="h-9 rounded-xl bg-ink px-3 text-sm font-bold text-white hover:opacity-90"
             >
-              Converter em serviço
+              Convert to job
             </button>
           </form>
         ) : null}
@@ -102,7 +102,7 @@ export default async function CotacaoDetailPage({
           href={`/clientes/${q.client_id}`}
           className="h-9 rounded-xl border border-line px-3 text-sm font-bold leading-9 text-accent hover:bg-accent-soft"
         >
-          Ver cliente
+          View client
         </Link>
       </div>
 
@@ -112,8 +112,8 @@ export default async function CotacaoDetailPage({
             Resumo
           </h2>
           <dl className="text-sm">
-            <Row k="Origem" v={q.request_number ?? "Direta"} />
-            <Row k="Destinatário" v={q.client_email} />
+            <Row k="Origem" v={q.request_number ?? "Direct"} />
+            <Row k="Recipient" v={q.client_email} />
             <Row k="Validade" v={q.valid_until ? formatDateLondon(q.valid_until) : "—"} />
             <Row k="Total" v={formatGBP(q.total)} />
           </dl>
@@ -147,7 +147,7 @@ export default async function CotacaoDetailPage({
               {deliveries.map((d) => (
                 <li key={d.id} className="flex justify-between gap-3 border-b border-line py-2 last:border-0">
                   <span>
-                    {d.status === "sent" ? "Enviado" : "Falhou"} · {d.to_email}
+                    {d.status === "sent" ? "Sent" : "Falhou"} · {d.to_email}
                     {d.error ? <span className="block text-rose-700">{d.error}</span> : null}
                   </span>
                   <span className="text-ink-soft">{formatDateLondon(d.sent_at)}</span>
