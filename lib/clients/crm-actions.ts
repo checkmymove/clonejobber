@@ -535,3 +535,119 @@ export async function createClientFull(
   if (intent === "another") redirect("/clientes/novo?created=1");
   redirect(`/clientes/${created}`);
 }
+
+// --------------------------------------------- quick create (request modal)
+export interface QuickClientInput {
+  title: string;
+  firstName: string;
+  lastName: string;
+  companyName: string;
+  phone: string;
+  email: string;
+  leadSourceId: string;
+  street1: string;
+  street2: string;
+  city: string;
+  county: string;
+  postcode: string;
+  country: string;
+}
+
+export async function createClientQuick(
+  input: QuickClientInput,
+): Promise<{
+  ok: boolean;
+  errors?: Record<string, string>;
+  message?: string;
+  client?: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone: string;
+    status: string;
+    address_line: string | null;
+    city: string | null;
+    postcode: string | null;
+    country: string | null;
+  };
+}> {
+  await requireAdmin();
+  const { getCompanyId } = await import("@/lib/company");
+  const { COMPANY_SLUG } = await import("@/lib/company");
+  const companyId = await getCompanyId(COMPANY_SLUG);
+  if (!companyId) return { ok: false, message: "Company not found." };
+
+  const errors: Record<string, string> = {};
+  if (!input.firstName.trim()) errors.firstName = "First name is required";
+  if (!input.lastName.trim()) errors.lastName = "Last name is required";
+  if (!input.email.trim()) errors.email = "Email is required";
+  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(input.email.trim()))
+    errors.email = "Enter a valid email address";
+  if (!input.phone.trim()) errors.phone = "Phone is required";
+  if (input.leadSourceId) {
+    const src = await sql<{ id: string }[]>`
+      select id from lead_sources where id = ${input.leadSourceId} and company_id = ${companyId} limit 1
+    `;
+    if (!src[0]) errors.leadSourceId = "Invalid lead source";
+  }
+  if (Object.keys(errors).length > 0)
+    return { ok: false, errors, message: "Please review the highlighted fields." };
+
+  const email = input.email.trim();
+  const dup = await sql<{ id: string }[]>`
+    select id from clients where company_id = ${companyId} and email = ${email} limit 1
+  `;
+  if (dup[0]) {
+    return { ok: false, errors: { email: "A client with this email already exists" } };
+  }
+
+  const created = await sql.begin(async (tx) => {
+    const [client] = await tx<{ id: string }[]>`
+      insert into clients
+        (company_id, title, first_name, last_name, company_name, client_type,
+         status, email, phone, lead_source_id)
+      values
+        (${companyId}, ${input.title || "No title"}, ${input.firstName.trim()},
+         ${input.lastName.trim()}, ${input.companyName.trim() || null}, 'individual',
+         'lead', ${email}, ${input.phone.trim()}, ${input.leadSourceId || null})
+      returning id
+    `;
+    if (input.street1.trim() || input.postcode.trim() || input.city.trim()) {
+      await tx`
+        insert into client_addresses
+          (client_id, label, address_line, street_2, city, county, postcode,
+           country, is_primary, is_billing)
+        values (${client.id}, 'Other', ${input.street1.trim() || "—"},
+                ${input.street2.trim()}, ${input.city.trim()}, ${input.county.trim()},
+                ${input.postcode.trim() || "—"}, ${input.country.trim() || "United Kingdom"},
+                true, true)
+      `;
+    }
+    await tx`
+      insert into activity_log (company_id, actor, action, entity, entity_id, summary)
+      values (${companyId}, 'admin', 'client.created', 'client', ${client.id},
+              ${`Client ${input.firstName.trim()} ${input.lastName.trim()} created from request`})
+    `;
+    return client.id;
+  });
+
+  revalidatePath("/clientes");
+  revalidatePath("/solicitacoes/novo");
+  revalidatePath("/solicitacoes");
+  return {
+    ok: true,
+    client: {
+      id: created,
+      first_name: input.firstName.trim(),
+      last_name: input.lastName.trim(),
+      email,
+      phone: input.phone.trim(),
+      status: "lead",
+      address_line: input.street1.trim() || null,
+      city: input.city.trim() || null,
+      postcode: input.postcode.trim() || null,
+      country: input.country.trim() || null,
+    },
+  };
+}

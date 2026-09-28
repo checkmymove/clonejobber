@@ -83,30 +83,9 @@ export default async function SolicitacaoDetailPage({
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <Card className="h-fit p-5">
+        <Card className="h-fit p-5 xl:col-span-2">
           <SectionTitle>Contact Information</SectionTitle>
           <Dl rows={contactRows} />
-        </Card>
-
-        <Card className="h-fit p-5">
-          <SectionTitle>Packing Service</SectionTitle>
-          <Dl
-            rows={[
-              ["Packing services", r.needs_packing_service ? "Yes" : "No"],
-              ["Packing materials", r.needs_packing_materials ? "Yes" : "No"],
-            ]}
-          />
-          <SectionTitle>Service Details</SectionTitle>
-          <ul className="mt-1 space-y-1 text-sm">
-            {r.service_names.map((s) => (
-              <li key={s} className="flex items-center gap-2 text-ink">
-                <span className="font-bold text-emerald-700">✓</span> {s}
-              </li>
-            ))}
-          </ul>
-          <p className="mt-2 text-sm text-ink-soft">
-            Hours: <span className="font-semibold text-ink">{r.estimated_hours.join(", ")}</span>
-          </p>
         </Card>
 
         <Card className="h-fit p-5">
@@ -135,7 +114,28 @@ export default async function SolicitacaoDetailPage({
           />
         </Card>
 
-        <Card className="h-fit p-5 xl:col-span-2">
+        <Card className="h-fit p-5">
+          <SectionTitle>Packing Service</SectionTitle>
+          <Dl
+            rows={[
+              ["Packing services", r.needs_packing_service ? "Yes" : "No"],
+              ["Packing materials", r.needs_packing_materials ? "Yes" : "No"],
+            ]}
+          />
+          <SectionTitle>Service Details</SectionTitle>
+          <ul className="mt-1 space-y-1 text-sm">
+            {r.service_names.map((s) => (
+              <li key={s} className="flex items-center gap-2 text-ink">
+                <span className="font-bold text-emerald-700">✓</span> {s}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-sm text-ink-soft">
+            Hours: <span className="font-semibold text-ink">{r.estimated_hours.join(", ")}</span>
+          </p>
+        </Card>
+
+        <Card className="h-fit p-5">
           <SectionTitle>Inventory List</SectionTitle>
           <p className="whitespace-pre-wrap text-sm text-ink">
             {r.inventory_description}

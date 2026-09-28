@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { Calendar, ChevronDown, Search, Upload, UserRound } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Calendar, ChevronDown, Search, UserRound } from "lucide-react";
 import { HOURS_OPTIONS } from "@/lib/requests/constants";
 import { createAdminRequest } from "@/lib/requests/actions";
-import { ClientSelect } from "@/components/funnel/client-select";
+import { ClientSelect, type RichClient } from "@/components/funnel/client-select";
 
 const ink = "text-[#042b3c]";
 const line = "border-[#d5dde1]";
@@ -14,8 +14,42 @@ const ph = "placeholder:text-[#667880]";
 
 const field = `h-12 w-full rounded-lg border ${line} bg-white px-3 text-[15px] ${ink} outline-none ${ph} focus:border-[#388623] focus:ring-2 focus:ring-[#388623]/20`;
 
-const picker =
-  "[&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-2 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-8 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0";
+function YesNo({
+  value,
+  onChange,
+  label,
+}: {
+  value: boolean | null;
+  onChange: (v: boolean) => void;
+  label: string;
+}) {
+  return (
+    <div>
+      <p className={`text-sm ${ink}`}>{label}</p>
+      <div className="mt-2 grid grid-cols-2 gap-2 rounded-xl border border-[#d5dde1] bg-stone-50 p-1">
+        {[
+          { v: true, label: "Yes" },
+          { v: false, label: "No" },
+        ].map((o) => (
+          <button
+            key={o.label}
+            type="button"
+            aria-pressed={value === o.v}
+            aria-label={`${label} ${o.label}`}
+            onClick={() => onChange(o.v)}
+            className={`h-10 rounded-lg text-sm font-bold transition ${
+              value === o.v
+                ? "bg-[#042b3c] text-white shadow"
+                : "text-[#5d6f78] hover:bg-white"
+            }`}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function Toggle({
   on,
@@ -47,70 +81,124 @@ function Toggle({
   );
 }
 
-function Dropzone({ text }: { text: string }) {
-  return (
-    <button
-      type="button"
-      className={`flex min-h-[168px] w-full flex-col items-center justify-center rounded-lg border border-dashed ${line} bg-white px-6 py-10 text-center hover:bg-[#fafbfb]`}
-    >
-      <span className="grid h-10 w-10 place-items-center rounded-full bg-[#f3f5f6] text-[#8aa0a8]">
-        <Upload size={18} />
-      </span>
-      <span className="mt-3 max-w-md text-sm text-[#7b8e96]">{text}</span>
-    </button>
-  );
+function isoToDisplay(iso: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "";
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+function displayToIso(display: string): string {
+  const m = display.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!m) return "";
+  const [, dd, mm, yyyy] = m;
+  const d = Number(dd);
+  const mo = Number(mm);
+  if (d < 1 || d > 31 || mo < 1 || mo > 12) return "";
+  const iso = `${yyyy}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  const dt = new Date(`${iso}T00:00:00Z`);
+  return Number.isNaN(dt.getTime()) ? "" : iso;
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h2 className={`text-[17px] font-bold ${ink}`}>{children}</h2>;
 }
 
+function FieldErr({ msg }: { msg?: string }) {
+  if (!msg) return null;
+  return <p className="mt-1 text-xs font-semibold text-rose-700">{msg}</p>;
+}
+
+const errBorder = "border-rose-500 focus:border-rose-500 focus:ring-rose-200";
+
 export function NewRequestForm({
   services,
   clients,
+  leadSources,
 }: {
   services: { id: string; name: string }[];
-  clients: { id: string; first_name: string; last_name: string; email: string }[];
+  clients: RichClient[];
+  leadSources: { id: string; name: string }[];
 }) {
   const [title, setTitle] = useState("");
   const [clientId, setClientId] = useState("");
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const clearErr = (key: string) =>
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
   const [pending, setPending] = useState(false);
-  const [requestedDate, setRequestedDate] = useState("");
   const [salesperson, setSalesperson] = useState("");
-  const [moveDate, setMoveDate] = useState("");
-  const [moveTime, setMoveTime] = useState("");
+  const [moveDateIso, setMoveDateIso] = useState("");
+  const [moveDateText, setMoveDateText] = useState("");
+  const [moveDateError, setMoveDateError] = useState("");
+  const [moveTimeText, setMoveTimeText] = useState("");
+  const [movePeriod, setMovePeriod] = useState<"AM" | "PM">("AM");
   const [pickup, setPickup] = useState({
     address: "",
     postcode: "",
     floor: "",
-    lift: true,
-    notes: "",
+    lift: false,
+    parkingYes: null as boolean | null,
     bedrooms: "",
   });
   const [delivery, setDelivery] = useState({
     address: "",
     postcode: "",
     floor: "",
-    lift: true,
-    notes: "",
-    destination: "",
+    lift: false,
+    parkingYes: null as boolean | null,
+    bedrooms: "",
   });
-  const [needsPacking, setNeedsPacking] = useState(true);
-  const [needsBoxes, setNeedsBoxes] = useState(true);
+  const [needsPacking, setNeedsPacking] = useState<boolean | null>(true);
+  const [needsBoxes, setNeedsBoxes] = useState<boolean | null>(true);
   const [serviceId, setServiceId] = useState("");
   const [hours, setHours] = useState("");
   const [inventory, setInventory] = useState("");
-  const [lines, setLines] = useState<{ id: string; name: string; qty: string; price: string }[]>([]);
+  const [notes, setNotes] = useState("");
+  const [images, setImages] = useState<{ file: File; preview: string }[]>([]);
+  const [imagesError, setImagesError] = useState("");
+  const datePickerRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const money = useMemo(() => {
-    const sub = lines.reduce((sum, line) => {
-      const qty = Number(line.qty.replace(",", ".")) || 0;
-      const price = Number(line.price.replace(",", ".")) || 0;
-      return sum + qty * price;
-    }, 0);
-    return sub.toLocaleString("en-GB", { style: "currency", currency: "GBP" });
-  }, [lines]);
+  const money = useMemo(() => "£0.00", []);
+
+  const onPickFiles = (list: FileList | null) => {
+    if (!list) return;
+    setImagesError("");
+    const picked = Array.from(list).filter((f) =>
+      ["image/jpeg", "image/png", "image/webp"].includes(f.type),
+    );
+    if (picked.length !== list.length) {
+      setImagesError("Only JPG, PNG or WEBP images are allowed.");
+    }
+    const oversized = picked.find((f) => f.size > 8 * 1024 * 1024);
+    if (oversized) {
+      setImagesError(`Image ${oversized.name} exceeds 8 MB.`);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+    const merged = [
+      ...images,
+      ...picked.map((file) => ({ file, preview: URL.createObjectURL(file) })),
+    ].slice(0, 10);
+    setImages(merged);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const fileToBase64 = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = String(reader.result ?? "");
+        resolve(result.includes(",") ? result.split(",")[1] : result);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
 
   return (
     <form
@@ -118,33 +206,99 @@ export function NewRequestForm({
       onSubmit={async (e) => {
         e.preventDefault();
         setError("");
+        setFieldErrors({});
+        setMoveDateError("");
+        if (!clientId) {
+          setFieldErrors({ clientId: "Select a client" });
+          setError("Select a client to continue.");
+          return;
+        }
+        if (moveDateText.trim()) {
+          const iso = displayToIso(moveDateText);
+          if (!iso) {
+            setMoveDateError("Use the format dd/mm/yyyy.");
+            return;
+          }
+          setMoveDateIso(iso);
+        }
+        const localErrors: Record<string, string> = {};
+        if (!pickup.address.trim())
+          localErrors.pickupAddress = "Collection address is required";
+        if (!pickup.postcode.trim())
+          localErrors.pickupPostcode = "Collection postcode is required";
+        if (!delivery.address.trim())
+          localErrors.deliveryAddress = "Delivery address is required";
+        if (!delivery.postcode.trim())
+          localErrors.deliveryPostcode = "Delivery postcode is required";
+        if (!inventory.trim()) localErrors.inventory = "Inventory is required";
+        if (Object.keys(localErrors).length > 0) {
+          setFieldErrors(localErrors);
+          setError("Check the highlighted fields.");
+          return;
+        }
         setPending(true);
-        const result = await createAdminRequest({
-          clientId,
-          title,
-          moveDate,
-          moveTime,
-          pickupAddress: pickup.address,
-          pickupPostcode: pickup.postcode,
-          pickupFloor: pickup.floor,
-          pickupLift: pickup.lift,
-          pickupParking: pickup.notes,
-          pickupBedrooms: pickup.bedrooms,
-          deliveryAddress: delivery.address,
-          deliveryPostcode: delivery.postcode,
-          deliveryFloor: delivery.floor,
-          deliveryLift: delivery.lift,
-          deliveryParking: delivery.notes,
-          deliveryBedrooms: pickup.bedrooms,
-          needsPacking,
-          needsBoxes,
-          serviceId,
-          hours,
-          inventory,
-        });
-        setPending(false);
-        if (result && !result.ok) {
-          setError(result.message || Object.values(result.errors ?? {})[0] || "Could not save request.");
+        try {
+          const payloadImages = await Promise.all(
+            images.map(async (img) => ({
+              name: img.file.name,
+              mime: img.file.type,
+              size: img.file.size,
+              data: await fileToBase64(img.file),
+            })),
+          );
+          const iso = moveDateText.trim()
+            ? displayToIso(moveDateText)
+            : moveDateIso;
+          const moveTime = moveTimeText.trim()
+            ? `${moveTimeText.trim()} ${movePeriod}`
+            : "";
+          const result = await createAdminRequest({
+            clientId,
+            title,
+            moveDate: iso,
+            moveTime,
+            pickupAddress: pickup.address,
+            pickupPostcode: pickup.postcode,
+            pickupFloor: pickup.floor,
+            pickupLift: pickup.lift,
+            pickupParking:
+              pickup.parkingYes === null
+                ? "—"
+                : pickup.parkingYes
+                  ? "Has parking restrictions"
+                  : "No parking restrictions",
+            pickupBedrooms: pickup.bedrooms,
+            deliveryAddress: delivery.address,
+            deliveryPostcode: delivery.postcode,
+            deliveryFloor: delivery.floor,
+            deliveryLift: delivery.lift,
+            deliveryParking:
+              delivery.parkingYes === null
+                ? "—"
+                : delivery.parkingYes
+                  ? "Has parking restrictions"
+                  : "No parking restrictions",
+            deliveryBedrooms: delivery.bedrooms,
+            needsPacking: needsPacking === true,
+            needsBoxes: needsBoxes === true,
+            serviceId,
+            hours,
+            inventory,
+            notes,
+            images: payloadImages,
+          });
+          setPending(false);
+          if (result && !result.ok) {
+            setFieldErrors(result.errors ?? {});
+            setError(
+              result.message ||
+                Object.values(result.errors ?? {})[0] ||
+                "Could not save request.",
+            );
+          }
+        } catch {
+          setPending(false);
+          setError("Could not save request. Check your connection and try again.");
         }
       }}
     >
@@ -156,44 +310,35 @@ export function NewRequestForm({
         className={field}
       />
 
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
-        <ClientSelect clients={clients} value={clientId} onChange={setClientId} />
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-          <label className="block">
-            <span className="mb-1.5 block text-[13px] font-semibold text-[#5d6f78]">Requested on</span>
-            <span className="relative block">
-              <input
-                aria-label="Requested on"
-                type="date"
-                value={requestedDate}
-                onChange={(e) => setRequestedDate(e.target.value)}
-                className={`${field} ${picker} relative pr-10`}
-              />
-              <Calendar
-                size={16}
-                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#5d6f78]"
-              />
-            </span>
-          </label>
-          <label className="relative block">
-            <UserRound
-              size={16}
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#5d6f78]"
-            />
-            <select
-              aria-label="Salesperson"
-              value={salesperson}
-              onChange={(e) => setSalesperson(e.target.value)}
-              className={`${field} appearance-none pl-9 pr-10 ${salesperson ? "" : "text-[#667880]"}`}
-            >
-              <option value="">Select a salesperson</option>
-            </select>
-            <ChevronDown
-              size={16}
-              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#042b3c]"
-            />
-          </label>
-        </div>
+      <div className="grid items-start gap-4">
+        <ClientSelect
+          clients={clients}
+          value={clientId}
+          onChange={(id) => {
+            setClientId(id);
+            clearErr("clientId");
+          }}
+          leadSources={leadSources}
+          error={fieldErrors.clientId}
+        />
+        <label className="relative block">
+          <UserRound
+            size={16}
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#5d6f78]"
+          />
+          <select
+            aria-label="Salesperson"
+            value={salesperson}
+            onChange={(e) => setSalesperson(e.target.value)}
+            className={`${field} appearance-none pl-9 pr-10 ${salesperson ? "" : "text-[#667880]"}`}
+          >
+            <option value="">Select a salesperson</option>
+          </select>
+          <ChevronDown
+            size={16}
+            className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#042b3c]"
+          />
+        </label>
       </div>
 
       <section className="space-y-4 border-t border-[#e6ebed] pt-8">
@@ -204,26 +349,88 @@ export function NewRequestForm({
             This will be the main contact for this request.
           </p>
         </div>
-        <label className="relative block">
+        <div>
+          <label className="relative block">
+            <input
+              aria-label="Date"
+              placeholder="Date (dd/mm/yyyy)"
+              value={moveDateText}
+              onChange={(e) => {
+                setMoveDateText(e.target.value);
+                if (!e.target.value.trim()) {
+                  setMoveDateIso("");
+                  setMoveDateError("");
+                  return;
+                }
+                const iso = displayToIso(e.target.value);
+                if (iso) {
+                  setMoveDateIso(iso);
+                  setMoveDateError("");
+                }
+              }}
+              onBlur={() => {
+                if (moveDateText.trim() && !displayToIso(moveDateText)) {
+                  setMoveDateError("Use the format dd/mm/yyyy.");
+                } else {
+                  setMoveDateError("");
+                }
+              }}
+              inputMode="numeric"
+              className={`${field} pr-10`}
+            />
+            <button
+              type="button"
+              aria-label="Open calendar"
+              onClick={() => datePickerRef.current?.showPicker?.()}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-[#5d6f78] hover:bg-[#f1f4f5]"
+            >
+              <Calendar size={16} />
+            </button>
+            <input
+              ref={datePickerRef}
+              type="date"
+              aria-hidden
+              tabIndex={-1}
+              className="absolute right-2 top-1/2 h-6 w-6 -translate-y-1/2 opacity-0"
+              value={moveDateIso}
+              onChange={(e) => {
+                setMoveDateIso(e.target.value);
+                setMoveDateText(isoToDisplay(e.target.value));
+                setMoveDateError("");
+              }}
+            />
+          </label>
+          {moveDateError ? (
+            <p className="mt-1 text-xs font-semibold text-rose-700">
+              {moveDateError}
+            </p>
+          ) : null}
+        </div>
+        <div className="grid grid-cols-[1fr_110px] gap-2">
           <input
-            aria-label="Date"
-            placeholder="Date"
-            value={moveDate}
-            onChange={(e) => setMoveDate(e.target.value)}
-            className={`${field} pr-10`}
+            aria-label="Moving time"
+            placeholder="Moving time (e.g. 10:30)"
+            value={moveTimeText}
+            onChange={(e) => {
+              const next = e.target.value;
+              setMoveTimeText(next);
+              const hour = Number((next.trim().match(/^(\d{1,2})/) ?? [])[1]);
+              if (Number.isInteger(hour) && hour >= 12 && hour <= 24) {
+                setMovePeriod("PM");
+              }
+            }}
+            className={field}
           />
-          <Calendar
-            size={16}
-            className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#5d6f78]"
-          />
-        </label>
-        <input
-          aria-label="Moving time"
-          placeholder="Moving time"
-          value={moveTime}
-          onChange={(e) => setMoveTime(e.target.value)}
-          className={field}
-        />
+          <select
+            aria-label="AM or PM"
+            value={movePeriod}
+            onChange={(e) => setMovePeriod(e.target.value as "AM" | "PM")}
+            className={`${field} appearance-none text-center`}
+          >
+            <option value="AM">AM</option>
+            <option value="PM">PM</option>
+          </select>
+        </div>
       </section>
 
       <section className="space-y-4 border-t border-[#e6ebed] pt-8">
@@ -237,17 +444,25 @@ export function NewRequestForm({
             aria-label="Collection address"
             placeholder="Collection address"
             value={pickup.address}
-            onChange={(e) => setPickup((p) => ({ ...p, address: e.target.value }))}
-            className={`${field} pl-9`}
+            onChange={(e) => {
+              setPickup((p) => ({ ...p, address: e.target.value }));
+              clearErr("pickupAddress");
+            }}
+            className={`${field} pl-9 ${fieldErrors.pickupAddress ? errBorder : ""}`}
           />
         </label>
+        <FieldErr msg={fieldErrors.pickupAddress} />
         <input
           aria-label="Postcode"
           placeholder="Postcode"
           value={pickup.postcode}
-          onChange={(e) => setPickup((p) => ({ ...p, postcode: e.target.value }))}
-          className={field}
+          onChange={(e) => {
+            setPickup((p) => ({ ...p, postcode: e.target.value }));
+            clearErr("pickupPostcode");
+          }}
+          className={`${field} ${fieldErrors.pickupPostcode ? errBorder : ""}`}
         />
+        <FieldErr msg={fieldErrors.pickupPostcode} />
         <input
           aria-label="Floor"
           placeholder="Floor (e.g. ground or 1st)"
@@ -260,20 +475,22 @@ export function NewRequestForm({
           on={pickup.lift}
           onChange={(lift) => setPickup((p) => ({ ...p, lift }))}
         />
-        <input
-          aria-label="Driver instructions"
-          placeholder="Driver instructions"
-          value={pickup.notes}
-          onChange={(e) => setPickup((p) => ({ ...p, notes: e.target.value }))}
-          className={field}
+        <YesNo
+          label="Parking Restriction"
+          value={pickup.parkingYes}
+          onChange={(v) => setPickup((p) => ({ ...p, parkingYes: v }))}
         />
         <input
           aria-label="Bedrooms at collection"
           placeholder="How many bedrooms are you moving?"
           value={pickup.bedrooms}
-          onChange={(e) => setPickup((p) => ({ ...p, bedrooms: e.target.value }))}
+          onChange={(e) => {
+            setPickup((p) => ({ ...p, bedrooms: e.target.value }));
+            clearErr("pickupBedrooms");
+          }}
           className={field}
         />
+        <FieldErr msg={fieldErrors.pickupBedrooms} />
       </section>
 
       <section className="space-y-4 border-t border-[#e6ebed] pt-8">
@@ -287,17 +504,25 @@ export function NewRequestForm({
             aria-label="Delivery address"
             placeholder="Delivery address"
             value={delivery.address}
-            onChange={(e) => setDelivery((d) => ({ ...d, address: e.target.value }))}
-            className={`${field} pl-9`}
+            onChange={(e) => {
+              setDelivery((d) => ({ ...d, address: e.target.value }));
+              clearErr("deliveryAddress");
+            }}
+            className={`${field} pl-9 ${fieldErrors.deliveryAddress ? errBorder : ""}`}
           />
         </label>
+        <FieldErr msg={fieldErrors.deliveryAddress} />
         <input
           aria-label="Delivery postcode"
           placeholder="Postcode"
           value={delivery.postcode}
-          onChange={(e) => setDelivery((d) => ({ ...d, postcode: e.target.value }))}
-          className={field}
+          onChange={(e) => {
+            setDelivery((d) => ({ ...d, postcode: e.target.value }));
+            clearErr("deliveryPostcode");
+          }}
+          className={`${field} ${fieldErrors.deliveryPostcode ? errBorder : ""}`}
         />
+        <FieldErr msg={fieldErrors.deliveryPostcode} />
         <input
           aria-label="Delivery floor"
           placeholder="Floor (e.g. ground or 1st)"
@@ -310,32 +535,30 @@ export function NewRequestForm({
           on={delivery.lift}
           onChange={(lift) => setDelivery((d) => ({ ...d, lift }))}
         />
-        <input
-          aria-label="Driver instructions for delivery"
-          placeholder="Driver instructions"
-          value={delivery.notes}
-          onChange={(e) => setDelivery((d) => ({ ...d, notes: e.target.value }))}
-          className={field}
+        <YesNo
+          label="Parking Restriction"
+          value={delivery.parkingYes}
+          onChange={(v) => setDelivery((d) => ({ ...d, parkingYes: v }))}
         />
         <input
-          aria-label="Destination"
-          placeholder="Which address are you moving to?"
-          value={delivery.destination}
-          onChange={(e) => setDelivery((d) => ({ ...d, destination: e.target.value }))}
+          aria-label="How many bedrooms are you moving"
+          placeholder="How many bedrooms are you moving?"
+          value={delivery.bedrooms}
+          onChange={(e) => setDelivery((d) => ({ ...d, bedrooms: e.target.value }))}
           className={field}
         />
       </section>
 
       <section className="space-y-5 border-t border-[#e6ebed] pt-8">
         <SectionTitle>Packing service</SectionTitle>
-        <Toggle
+        <YesNo
           label="Will you need packing?"
-          on={needsPacking}
+          value={needsPacking}
           onChange={setNeedsPacking}
         />
-        <Toggle
+        <YesNo
           label="Do you need packing boxes?"
-          on={needsBoxes}
+          value={needsBoxes}
           onChange={setNeedsBoxes}
         />
       </section>
@@ -386,116 +609,82 @@ export function NewRequestForm({
 
       <section className="space-y-4 border-t border-[#e6ebed] pt-8">
         <SectionTitle>Inventory list</SectionTitle>
-        <div className={`overflow-hidden rounded-lg border ${line} bg-white`}>
+        <div
+          className={`overflow-hidden rounded-lg border ${fieldErrors.inventory ? "border-rose-500" : line} bg-white`}
+        >
           <textarea
             aria-label="Inventory list"
             placeholder="Please give as much detail as you can."
             value={inventory}
             maxLength={500}
-            onChange={(e) => setInventory(e.target.value)}
+            onChange={(e) => {
+              setInventory(e.target.value);
+              clearErr("inventory");
+            }}
             className={`min-h-[120px] w-full resize-y border-0 bg-transparent px-3 py-3 text-[15px] ${ink} outline-none ${ph}`}
           />
           <div className="flex justify-end px-3 pb-2 text-xs text-[#8aa0a8]">
             {inventory.length}/500
           </div>
         </div>
+        <FieldErr msg={fieldErrors.inventory} />
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
+            onClick={() => fileInputRef.current?.click()}
             className="h-9 rounded-lg px-3 text-sm font-semibold text-white"
             style={{ background: green }}
           >
             Select images
           </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            multiple
+            className="hidden"
+            onChange={(e) => onPickFiles(e.target.files)}
+          />
         </div>
-      </section>
-
-      <section className="space-y-4 border-t border-[#e6ebed] pt-8">
-        <SectionTitle>On-site assessment</SectionTitle>
-        <Dropzone text="Visit the property to assess the work before it starts." />
-      </section>
-
-      <section className="space-y-4 border-t border-[#e6ebed] pt-8">
-        <SectionTitle>Product / Service</SectionTitle>
-        <p className="text-[13px] text-[#7b8e96]">
-          Keep things organised by adding products and services.
-        </p>
-        <button
-          type="button"
-          onClick={() =>
-            setLines((rows) => [
-              ...rows,
-              { id: crypto.randomUUID(), name: "", qty: "1", price: "" },
-            ])
-          }
-          className="h-9 rounded-lg px-3 text-sm font-semibold text-white"
-          style={{ background: green }}
-        >
-          Add line item
-        </button>
-        {lines.length > 0 ? (
-          <div className="space-y-2">
-            {lines.map((line) => (
-              <div key={line.id} className="grid grid-cols-[1fr_72px_110px_auto] gap-2">
-                <input
-                  aria-label="Item"
-                  placeholder="Item"
-                  value={line.name}
-                  onChange={(e) =>
-                    setLines((rows) =>
-                      rows.map((r) => (r.id === line.id ? { ...r, name: e.target.value } : r)),
-                    )
-                  }
-                  className={field}
-                />
-                <input
-                  aria-label="Qty"
-                  placeholder="Qty"
-                  value={line.qty}
-                  onChange={(e) =>
-                    setLines((rows) =>
-                      rows.map((r) => (r.id === line.id ? { ...r, qty: e.target.value } : r)),
-                    )
-                  }
-                  className={field}
-                />
-                <input
-                  aria-label="Price"
-                  placeholder="£"
-                  value={line.price}
-                  onChange={(e) =>
-                    setLines((rows) =>
-                      rows.map((r) => (r.id === line.id ? { ...r, price: e.target.value } : r)),
-                    )
-                  }
-                  className={field}
+        {imagesError ? (
+          <p className="text-xs font-semibold text-rose-700">{imagesError}</p>
+        ) : null}
+        {images.length > 0 ? (
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+            {images.map((img, i) => (
+              <div key={`${img.file.name}-${i}`} className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={img.preview}
+                  alt={img.file.name}
+                  className="aspect-square w-full rounded-lg border border-[#d5dde1] object-cover"
                 />
                 <button
                   type="button"
-                  onClick={() => setLines((rows) => rows.filter((r) => r.id !== line.id))}
-                  className="px-2 text-xs font-bold text-rose-700"
+                  aria-label={`Remove ${img.file.name}`}
+                  onClick={() =>
+                    setImages((prev) => prev.filter((_, j) => j !== i))
+                  }
+                  className="absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-full bg-[#042b3c]/80 text-xs text-white hover:bg-rose-700"
                 >
-                  Remove
+                  ✕
                 </button>
               </div>
             ))}
           </div>
         ) : null}
-        <div className="space-y-2 border-t border-[#e6ebed] pt-4 text-sm">
-          <div className="flex items-center justify-end gap-16 text-[#5d6f78]">
-            <span>Subtotal</span>
-            <span className="w-16 text-right">{money}</span>
-          </div>
-          <div className={`flex items-center justify-end gap-16 font-bold ${ink}`}>
-            <span>Total</span>
-            <span className="w-16 text-right">{money}</span>
-          </div>
-        </div>
+        <p className="hidden">{money}</p>
       </section>
 
       <section className="space-y-4 border-t border-[#e6ebed] pt-8">
         <SectionTitle>Notes</SectionTitle>
-        <Dropzone text="Leave an internal note for yourself or the team on this request." />
+        <textarea
+          aria-label="Notes"
+          placeholder="Leave an internal note for yourself or the team on this request."
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          className={`min-h-[120px] w-full resize-y rounded-lg border ${line} bg-white px-3 py-3 text-[15px] ${ink} outline-none ${ph} focus:border-[#388623] focus:ring-2 focus:ring-[#388623]/20`}
+        />
       </section>
 
       <div className="flex items-center justify-end gap-2 border-t border-[#e6ebed] pt-6">

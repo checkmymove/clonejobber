@@ -386,6 +386,8 @@ export async function createAdminRequest(input: {
   serviceId: string;
   hours: string;
   inventory: string;
+  notes?: string;
+  images?: { name: string; mime: string; size: number; data: string }[];
 }): Promise<SubmitResult> {
   await requireAdmin();
   const { validateAdminRequest } = await import("@/lib/funnel/validation");
@@ -404,9 +406,27 @@ export async function createAdminRequest(input: {
   if (!client[0]) return { ok: false, message: "Client not found." };
 
   const pickupBeds = Number(input.pickupBedrooms || "0");
-  const deliveryBeds = Number(input.deliveryBedrooms || String(pickupBeds));
+  const deliveryBeds = Number(input.deliveryBedrooms || "0");
   const hours = input.hours ? [input.hours] : [];
   const idempotencyKey = crypto.randomUUID();
+
+  // Decode + validate image payloads (base64 from the client file picker).
+  const { sniffImageMime } = await import("@/lib/requests/validation");
+  const { MAX_FILE_SIZE_BYTES } = await import("@/lib/requests/constants");
+  const buffers: { name: string; mime: string; size: number; data: Buffer }[] = [];
+  for (const img of input.images ?? []) {
+    if (!img?.data) continue;
+    const buf = Buffer.from(img.data, "base64");
+    if (buf.length === 0 || buf.length > MAX_FILE_SIZE_BYTES) {
+      return { ok: false, message: `Image ${img.name} exceeds 8 MB.` };
+    }
+    const sniffed = sniffImageMime(new Uint8Array(buf));
+    if (!sniffed) {
+      return { ok: false, message: `Image ${img.name} is not a valid JPG, PNG or WEBP file.` };
+    }
+    buffers.push({ name: img.name.slice(0, 200), mime: sniffed, size: buf.length, data: buf });
+    if (buffers.length >= 10) break;
+  }
 
   const created = await sql.begin(async (tx) => {
     const numbered = await tx<{ number: string }[]>`
@@ -446,6 +466,24 @@ export async function createAdminRequest(input: {
       await tx`
         insert into request_services (request_id, service_id)
         values (${requestId}, ${input.serviceId})
+      `;
+    }
+    for (const b of buffers) {
+      await tx`
+        insert into request_attachments
+          (request_id, file_name, mime_type, file_size, data)
+        values (${requestId}, ${b.name}, ${b.mime}, ${b.size}, ${b.data})
+      `;
+      // Mirror into client_files so images stay related to the client record.
+      await tx`
+        insert into client_files (client_id, file_name, mime_type, file_size, data)
+        values (${input.clientId}, ${b.name}, ${b.mime}, ${b.size}, ${b.data})
+      `;
+    }
+    if (input.notes?.trim()) {
+      await tx`
+        insert into client_notes (client_id, author, content)
+        values (${input.clientId}, 'admin', ${input.notes.trim()})
       `;
     }
     await tx`
