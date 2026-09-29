@@ -83,9 +83,44 @@ export default async function SolicitacaoDetailPage({
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <Card className="h-fit p-5 xl:col-span-2">
+        <Card className="h-fit p-5">
           <SectionTitle>Contact Information</SectionTitle>
           <Dl rows={contactRows} />
+        </Card>
+
+        <Card className="h-fit p-5" accent="#2f7d3b">
+          <SectionTitle>Packing Service</SectionTitle>
+          <Dl
+            rows={[
+              ["Packing services", r.needs_packing_service ? "Yes" : "No"],
+              ["Packing materials", r.needs_packing_materials ? "Yes" : "No"],
+            ]}
+          />
+          <div className="mt-4 rounded-xl border border-accent/25 bg-accent-soft p-4">
+            <h2 className="mb-3 text-sm font-extrabold uppercase tracking-wide text-accent">
+              Service Details
+            </h2>
+            {r.service_names.length > 0 ? (
+              <ul className="space-y-2">
+                {r.service_names.map((s) => (
+                  <li key={s} className="flex items-center gap-2.5 text-[15px] font-bold text-ink">
+                    <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-accent text-[11px] font-bold text-white">
+                      ✓
+                    </span>
+                    {s}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-ink-soft">No service selected.</p>
+            )}
+            <p className="mt-3 border-t border-accent/20 pt-3 text-sm text-ink-soft">
+              Hours{" "}
+              <span className="text-lg font-extrabold text-ink">
+                {r.estimated_hours.length > 0 ? r.estimated_hours.join(", ") : "—"}
+              </span>
+            </p>
+          </div>
         </Card>
 
         <Card className="h-fit p-5">
@@ -114,28 +149,7 @@ export default async function SolicitacaoDetailPage({
           />
         </Card>
 
-        <Card className="h-fit p-5">
-          <SectionTitle>Packing Service</SectionTitle>
-          <Dl
-            rows={[
-              ["Packing services", r.needs_packing_service ? "Yes" : "No"],
-              ["Packing materials", r.needs_packing_materials ? "Yes" : "No"],
-            ]}
-          />
-          <SectionTitle>Service Details</SectionTitle>
-          <ul className="mt-1 space-y-1 text-sm">
-            {r.service_names.map((s) => (
-              <li key={s} className="flex items-center gap-2 text-ink">
-                <span className="font-bold text-emerald-700">✓</span> {s}
-              </li>
-            ))}
-          </ul>
-          <p className="mt-2 text-sm text-ink-soft">
-            Hours: <span className="font-semibold text-ink">{r.estimated_hours.join(", ")}</span>
-          </p>
-        </Card>
-
-        <Card className="h-fit p-5">
+        <Card className="h-fit p-5 xl:col-span-2">
           <SectionTitle>Inventory List</SectionTitle>
           <p className="whitespace-pre-wrap text-sm text-ink">
             {r.inventory_description}

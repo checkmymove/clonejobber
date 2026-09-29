@@ -26,26 +26,39 @@ function YesNo({
   return (
     <div>
       <p className={`text-sm ${ink}`}>{label}</p>
-      <div className="mt-2 grid grid-cols-2 gap-2 rounded-xl border border-[#d5dde1] bg-stone-50 p-1">
+      <div role="group" aria-label={label} className="mt-2 flex items-center justify-start gap-5">
         {[
           { v: true, label: "Yes" },
           { v: false, label: "No" },
-        ].map((o) => (
-          <button
-            key={o.label}
-            type="button"
-            aria-pressed={value === o.v}
-            aria-label={`${label} ${o.label}`}
-            onClick={() => onChange(o.v)}
-            className={`h-10 rounded-lg text-sm font-bold transition ${
-              value === o.v
-                ? "bg-[#042b3c] text-white shadow"
-                : "text-[#5d6f78] hover:bg-white"
-            }`}
-          >
-            {o.label}
-          </button>
-        ))}
+        ].map((o) => {
+          const selected = value === o.v;
+          return (
+            <button
+              key={o.label}
+              type="button"
+              aria-pressed={selected}
+              aria-label={`${label} ${o.label}`}
+              onClick={() => onChange(o.v)}
+              className={`inline-flex items-center gap-2 text-sm ${ink}`}
+            >
+              <span
+                aria-hidden
+                className={`grid h-4 w-4 shrink-0 place-items-center rounded-[3px] border ${
+                  selected
+                    ? "border-[#388623] bg-[#388623] text-white"
+                    : "border-[#8aa0a8] bg-white"
+                }`}
+              >
+                {selected ? (
+                  <svg viewBox="0 0 12 12" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M2.2 6.2 4.7 8.8 9.8 3.2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                ) : null}
+              </span>
+              {o.label}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -349,87 +362,89 @@ export function NewRequestForm({
             This will be the main contact for this request.
           </p>
         </div>
-        <div>
-          <label className="relative block">
+        <div className="grid grid-cols-2 items-start gap-3">
+          <div>
+            <label className="relative block">
+              <input
+                aria-label="Date"
+                placeholder="Date (dd/mm/yyyy)"
+                value={moveDateText}
+                onChange={(e) => {
+                  setMoveDateText(e.target.value);
+                  if (!e.target.value.trim()) {
+                    setMoveDateIso("");
+                    setMoveDateError("");
+                    return;
+                  }
+                  const iso = displayToIso(e.target.value);
+                  if (iso) {
+                    setMoveDateIso(iso);
+                    setMoveDateError("");
+                  }
+                }}
+                onBlur={() => {
+                  if (moveDateText.trim() && !displayToIso(moveDateText)) {
+                    setMoveDateError("Use the format dd/mm/yyyy.");
+                  } else {
+                    setMoveDateError("");
+                  }
+                }}
+                inputMode="numeric"
+                className={`${field} pr-10`}
+              />
+              <button
+                type="button"
+                aria-label="Open calendar"
+                onClick={() => datePickerRef.current?.showPicker?.()}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-[#5d6f78] hover:bg-[#f1f4f5]"
+              >
+                <Calendar size={16} />
+              </button>
+              <input
+                ref={datePickerRef}
+                type="date"
+                aria-hidden
+                tabIndex={-1}
+                className="absolute right-2 top-1/2 h-6 w-6 -translate-y-1/2 opacity-0"
+                value={moveDateIso}
+                onChange={(e) => {
+                  setMoveDateIso(e.target.value);
+                  setMoveDateText(isoToDisplay(e.target.value));
+                  setMoveDateError("");
+                }}
+              />
+            </label>
+            {moveDateError ? (
+              <p className="mt-1 text-xs font-semibold text-rose-700">
+                {moveDateError}
+              </p>
+            ) : null}
+          </div>
+          <div className="grid grid-cols-[minmax(0,1fr)_88px] gap-2">
             <input
-              aria-label="Date"
-              placeholder="Date (dd/mm/yyyy)"
-              value={moveDateText}
+              aria-label="Moving time"
+              placeholder="Moving time (e.g. 10:30)"
+              value={moveTimeText}
               onChange={(e) => {
-                setMoveDateText(e.target.value);
-                if (!e.target.value.trim()) {
-                  setMoveDateIso("");
-                  setMoveDateError("");
-                  return;
-                }
-                const iso = displayToIso(e.target.value);
-                if (iso) {
-                  setMoveDateIso(iso);
-                  setMoveDateError("");
+                const next = e.target.value;
+                setMoveTimeText(next);
+                const hour = Number((next.trim().match(/^(\d{1,2})/) ?? [])[1]);
+                if (Number.isInteger(hour) && hour >= 12 && hour <= 24) {
+                  setMovePeriod("PM");
                 }
               }}
-              onBlur={() => {
-                if (moveDateText.trim() && !displayToIso(moveDateText)) {
-                  setMoveDateError("Use the format dd/mm/yyyy.");
-                } else {
-                  setMoveDateError("");
-                }
-              }}
-              inputMode="numeric"
-              className={`${field} pr-10`}
+              className={field}
             />
-            <button
-              type="button"
-              aria-label="Open calendar"
-              onClick={() => datePickerRef.current?.showPicker?.()}
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-[#5d6f78] hover:bg-[#f1f4f5]"
+            <select
+              aria-label="AM or PM"
+              value={movePeriod}
+              onChange={(e) => setMovePeriod(e.target.value as "AM" | "PM")}
+              className={`${field} appearance-none text-center`}
             >
-              <Calendar size={16} />
-            </button>
-            <input
-              ref={datePickerRef}
-              type="date"
-              aria-hidden
-              tabIndex={-1}
-              className="absolute right-2 top-1/2 h-6 w-6 -translate-y-1/2 opacity-0"
-              value={moveDateIso}
-              onChange={(e) => {
-                setMoveDateIso(e.target.value);
-                setMoveDateText(isoToDisplay(e.target.value));
-                setMoveDateError("");
-              }}
-            />
-          </label>
-          {moveDateError ? (
-            <p className="mt-1 text-xs font-semibold text-rose-700">
-              {moveDateError}
-            </p>
-          ) : null}
-        </div>
-        <div className="grid grid-cols-[1fr_110px] gap-2">
-          <input
-            aria-label="Moving time"
-            placeholder="Moving time (e.g. 10:30)"
-            value={moveTimeText}
-            onChange={(e) => {
-              const next = e.target.value;
-              setMoveTimeText(next);
-              const hour = Number((next.trim().match(/^(\d{1,2})/) ?? [])[1]);
-              if (Number.isInteger(hour) && hour >= 12 && hour <= 24) {
-                setMovePeriod("PM");
-              }
-            }}
-            className={field}
-          />
-          <select
-            aria-label="AM or PM"
-            value={movePeriod}
-            onChange={(e) => setMovePeriod(e.target.value as "AM" | "PM")}
-            className={`${field} appearance-none text-center`}
-          >
-            <option value="AM">AM</option>
-            <option value="PM">PM</option>
-          </select>
+              <option value="AM">AM</option>
+              <option value="PM">PM</option>
+            </select>
+          </div>
         </div>
       </section>
 
