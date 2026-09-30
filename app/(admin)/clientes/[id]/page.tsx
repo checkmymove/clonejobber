@@ -179,7 +179,13 @@ export default async function ClientDetailPage({
               >
                 Appointment
               </a>
-              {["Quote", "Job", "Invoice"].map((m) => (
+              <Link
+                href={`/cotacoes/novo?clientId=${id}`}
+                className="block rounded-xl px-3 py-2.5 text-sm font-semibold text-ink hover:bg-cream"
+              >
+                Quote
+              </Link>
+              {["Job", "Invoice"].map((m) => (
                 <span
                   key={m}
                   className="block cursor-not-allowed rounded-xl px-3 py-2.5 text-sm font-semibold text-ink-mute"

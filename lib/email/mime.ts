@@ -16,18 +16,19 @@ export function encodeHeader(value: string): string {
 export function buildRawEmail(input: {
   from: string;
   to: string;
+  bcc?: string;
   subject: string;
   html: string;
 }): string {
   const subject = encodeHeader(input.subject.replace(/[\r\n]+/g, " ").trim());
-  return [
+  const headers = [
     `From: ${input.from}`,
     `To: ${input.to}`,
+    input.bcc ? `Bcc: ${input.bcc}` : "",
     `Subject: ${subject}`,
     "MIME-Version: 1.0",
     "Content-Type: text/html; charset=UTF-8",
     "Content-Transfer-Encoding: 8bit",
-    "",
-    input.html,
-  ].join("\r\n");
+  ].filter(Boolean);
+  return [...headers, "", input.html].join("\r\n");
 }

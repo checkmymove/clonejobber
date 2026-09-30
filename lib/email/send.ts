@@ -4,7 +4,8 @@ import type { ActionResult } from "@/lib/funnel/engine";
 import { changeInvoiceStatus, changeQuoteStatus } from "@/lib/funnel/engine";
 import { sendGmailMessage } from "./gmail";
 import { getValidAccessToken } from "./google";
-import { invoiceEmailHtml, quoteEmailHtml } from "./templates";
+import type { QuoteEmailDraft } from "./draft";
+import { invoiceEmailHtml, plainToEmailHtml, quoteEmailHtml, quoteEmailPlain } from "./templates";
 
 export type DeliveryRow = {
   id: string;
@@ -90,13 +91,14 @@ export async function sendQuoteEmail(
       message: string;
       total: number;
       valid_until: string | null;
+      move_time: string;
       client_id: string;
       client_name: string;
       client_email: string;
       company_name: string;
     }[]
   >`
-    select q.id, q.number, q.status, q.title, q.message, q.total, q.valid_until,
+    select q.id, q.number, q.status, q.title, q.message, q.total, q.valid_until, q.move_time,
            q.client_id,
            trim(c.first_name || ' ' || c.last_name) as client_name,
            c.email as client_email,
@@ -135,6 +137,7 @@ export async function sendQuoteEmail(
     title: q.title,
     message: q.message,
     validUntil: q.valid_until,
+    moveTime: q.move_time,
     total: q.total,
     lines,
   });
@@ -177,6 +180,162 @@ export async function sendQuoteEmail(
   });
   if (!sent.ok) return sent;
   return { ok: true, id: quoteId, number: q.number };
+}
+
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export type { QuoteEmailDraft };
+
+export async function buildQuoteEmailDraft(
+  companyId: string,
+  quoteId: string,
+): Promise<{ ok: true; draft: QuoteEmailDraft } | { ok: false; message: string }> {
+  const quotes = await sql<
+    {
+      id: string;
+      number: string;
+      status: string;
+      total: number;
+      deposit: number;
+      valid_until: string | null;
+      move_time: string;
+      client_name: string;
+      client_title: string;
+      client_email: string;
+      company_name: string;
+    }[]
+  >`
+    select q.id, q.number, q.status, q.total, q.deposit, q.valid_until, q.move_time,
+           trim(c.first_name || ' ' || c.last_name) as client_name,
+           coalesce(c.title, '') as client_title,
+           c.email as client_email,
+           co.name as company_name
+    from quotes q
+    join clients c on c.id = q.client_id
+    join companies co on co.id = q.company_id
+    where q.id = ${quoteId} and q.company_id = ${companyId}
+    limit 1
+  `;
+  const q = quotes[0];
+  if (!q) return { ok: false, message: "Quote not found" };
+  if (q.status === "rejected" || q.status === "expired") {
+    return { ok: false, message: "This quote cannot be emailed." };
+  }
+  if (q.total <= 0) {
+    return { ok: false, message: "Set line item prices before sending." };
+  }
+  const lines = await sql<
+    { name: string; description: string; quantity: number; unitPrice: number; total: number }[]
+  >`
+    select name, description, quantity::float as quantity,
+           unit_price as "unitPrice", total
+    from quote_line_items where quote_id = ${quoteId} order by sort
+  `;
+  const letter = quoteEmailPlain({
+    companyName: q.company_name,
+    clientName: q.client_name,
+    clientTitle: q.client_title,
+    total: q.total,
+    deposit: q.deposit,
+    validUntil: q.valid_until,
+    moveTime: q.move_time ?? "",
+    lines,
+  });
+  return {
+    ok: true,
+    draft: {
+      quoteId: q.id,
+      number: q.number,
+      clientName: q.client_name,
+      to: q.client_email,
+      subject: letter.subject,
+      message: letter.message,
+    },
+  };
+}
+
+export async function sendComposedQuoteEmail(input: {
+  quoteId: string;
+  to: string;
+  subject: string;
+  message: string;
+  copyToSender: boolean;
+}): Promise<ActionResult> {
+  const companyIdRows = await sql<{ company_id: string }[]>`
+    select company_id from quotes where id = ${input.quoteId} limit 1
+  `;
+  const companyId = companyIdRows[0]?.company_id;
+  if (!companyId) return { ok: false, message: "Quote not found" };
+
+  const token = await getValidAccessToken(companyId);
+  if (!token) {
+    return { ok: false, message: "Connect Gmail in Settings before sending." };
+  }
+
+  const to = input.to.trim();
+  const subject = input.subject.replace(/[\r\n]+/g, " ").trim();
+  const message = input.message.trim();
+  if (!EMAIL.test(to)) return { ok: false, message: "Enter a valid email address." };
+  if (!subject) return { ok: false, message: "Subject is required." };
+  if (!message) return { ok: false, message: "Message is required." };
+
+  const quotes = await sql<
+    { id: string; status: string; client_id: string; client_email: string; company_name: string }[]
+  >`
+    select q.id, q.status, q.client_id, c.email as client_email, co.name as company_name
+    from quotes q
+    join clients c on c.id = q.client_id
+    join companies co on co.id = q.company_id
+    where q.id = ${input.quoteId} and q.company_id = ${companyId}
+    limit 1
+  `;
+  const q = quotes[0];
+  if (!q) return { ok: false, message: "Quote not found" };
+  if (q.status === "rejected" || q.status === "expired") {
+    return { ok: false, message: "This quote cannot be emailed." };
+  }
+
+  const html = plainToEmailHtml(message);
+  const bcc = input.copyToSender ? token.email : undefined;
+  const sent = await deliverGmail({
+    send: () =>
+      sendGmailMessage({
+        accessToken: token.access_token,
+        from: `${q.company_name} <${token.email}>`,
+        to,
+        bcc,
+        subject,
+        html,
+      }),
+    record: async (gmailId) => {
+      await logDelivery({
+        companyId,
+        clientId: q.client_id,
+        documentType: "quote",
+        documentId: input.quoteId,
+        toEmail: to,
+        subject,
+        status: "sent",
+        gmailId,
+        body: html,
+      });
+      if (q.status === "draft") await changeQuoteStatus(sql, input.quoteId, "sent");
+    },
+    recordFailure: (error) =>
+      logDelivery({
+        companyId,
+        clientId: q.client_id,
+        documentType: "quote",
+        documentId: input.quoteId,
+        toEmail: to,
+        subject,
+        status: "failed",
+        error,
+        body: html,
+      }),
+  });
+  if (!sent.ok) return sent;
+  return { ok: true, id: input.quoteId };
 }
 
 export async function sendInvoiceEmail(

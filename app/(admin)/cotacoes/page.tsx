@@ -68,7 +68,7 @@ export default async function CotacoesPage({
                   <th className="py-2 pr-3 font-bold">Quote</th>
                   <th className="py-2 pr-3 font-bold">Client</th>
                   <th className="py-2 pr-3 font-bold">Source</th>
-                  <th className="py-2 pr-3 font-bold">Valid until</th>
+                  <th className="py-2 pr-3 font-bold">Moving date</th>
                   <th className="py-2 pr-3 font-bold">Status</th>
                   <th className="py-2 text-right font-bold">Total</th>
                 </tr>

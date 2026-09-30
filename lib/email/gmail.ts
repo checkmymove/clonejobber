@@ -5,6 +5,7 @@ export async function sendGmailMessage(input: {
   accessToken: string;
   from: string;
   to: string;
+  bcc?: string;
   subject: string;
   html: string;
 }): Promise<{ id: string }> {
@@ -12,6 +13,7 @@ export async function sendGmailMessage(input: {
     buildRawEmail({
       from: input.from,
       to: input.to,
+      bcc: input.bcc,
       subject: input.subject,
       html: input.html,
     }),

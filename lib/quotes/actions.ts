@@ -8,42 +8,126 @@ import { sql } from "@/lib/db";
 import { getCompanyId } from "@/lib/company";
 import {
   changeQuoteStatus,
+  isUniqueViolation,
   persistQuote,
+  prepareJobFromQuote,
   updateQuoteDocument,
   type ActionResult,
 } from "@/lib/funnel/engine";
-import type { QuoteInput } from "@/lib/funnel/validation";
+import type { QuoteEmailDraft } from "@/lib/email/draft";
+import { buildQuoteEmailDraft, sendComposedQuoteEmail } from "@/lib/email/send";
+import { isUuid, type QuoteInput } from "@/lib/funnel/validation";
+import { getQuotePrefillForClient, getQuotePrefillFromRequest } from "@/lib/quotes/queries";
+import type { QuotePrefill } from "@/lib/quotes/templates";
 
 export type { ActionResult };
 
-export async function createQuote(input: QuoteInput): Promise<ActionResult> {
+export async function loadQuotePrefill(input: {
+  clientId: string;
+  requestId?: string;
+  serviceName?: string;
+}): Promise<QuotePrefill | null> {
+  await requireAdmin();
+  if (!isUuid(input.clientId)) return null;
+  const companyId = await getCompanyId();
+  if (!companyId) return null;
+  const serviceName = input.serviceName?.trim() || undefined;
+  if (input.requestId && isUuid(input.requestId)) {
+    const pinned = await getQuotePrefillFromRequest(input.requestId, serviceName);
+    if (pinned?.clientId === input.clientId) return pinned;
+  }
+  return getQuotePrefillForClient(input.clientId, companyId, serviceName);
+}
+
+async function writeQuote(quoteId: string | undefined, input: QuoteInput): Promise<ActionResult> {
   await requireAdmin();
   const companyId = await getCompanyId();
   if (!companyId) return { ok: false, message: "Company not found." };
 
-  const created = await sql.begin(async (tx) => persistQuote(tx, companyId, input));
-  if (!created.ok) return created;
+  const saved = quoteId
+    ? await sql.begin(async (tx) => updateQuoteDocument(tx, companyId, quoteId, input))
+    : await sql.begin(async (tx) => persistQuote(tx, companyId, input));
+  if (saved.ok) {
+    revalidatePath("/cotacoes");
+    revalidatePath("/solicitacoes");
+    revalidatePath("/clientes");
+    if (saved.id) revalidatePath(`/cotacoes/${saved.id}`);
+  }
+  return saved;
+}
 
-  revalidatePath("/cotacoes");
-  revalidatePath("/solicitacoes");
-  revalidatePath("/clientes");
+export async function createQuote(input: QuoteInput): Promise<ActionResult> {
+  const created = await writeQuote(undefined, input);
+  if (!created.ok || !created.id) return created;
   redirect(`/cotacoes/${created.id}`);
 }
 
 export async function updateQuote(quoteId: string, input: QuoteInput): Promise<ActionResult> {
-  await requireAdmin();
-  const companyId = await getCompanyId();
-  if (!companyId) return { ok: false, message: "Company not found." };
-
-  const saved = await sql.begin(async (tx) =>
-    updateQuoteDocument(tx, companyId, quoteId, input),
-  );
+  const saved = await writeQuote(quoteId, input);
   if (!saved.ok) return saved;
-
-  revalidatePath("/cotacoes");
-  revalidatePath(`/cotacoes/${quoteId}`);
-  revalidatePath("/clientes");
   redirect(`/cotacoes/${quoteId}`);
+}
+
+export async function prepareQuoteEmail(
+  quoteId: string | undefined,
+  input: QuoteInput,
+): Promise<ActionResult & { draft?: QuoteEmailDraft }> {
+  const saved = await writeQuote(quoteId, input);
+  if (!saved.ok || !saved.id) return saved;
+  const companyId = await getCompanyId();
+  if (!companyId) return { ok: false, id: saved.id, message: "Company not found." };
+  const draft = await buildQuoteEmailDraft(companyId, saved.id);
+  if (!draft.ok) return { ok: false, id: saved.id, message: draft.message };
+  return { ok: true, id: saved.id, draft: draft.draft };
+}
+
+export async function sendPreparedQuoteEmail(input: {
+  quoteId: string;
+  to: string;
+  subject: string;
+  message: string;
+  copyToSender: boolean;
+}): Promise<ActionResult> {
+  await requireAdmin();
+  const sent = await sendComposedQuoteEmail(input);
+  if (sent.ok) {
+    revalidatePath("/cotacoes");
+    revalidatePath(`/cotacoes/${input.quoteId}`);
+    revalidatePath("/clientes");
+    redirect(`/cotacoes/${input.quoteId}`);
+  }
+  return sent;
+}
+
+export async function saveQuoteAndConvert(
+  quoteId: string | undefined,
+  input: QuoteInput,
+): Promise<ActionResult> {
+  const saved = await writeQuote(quoteId, input);
+  if (!saved.ok || !saved.id) return saved;
+  const companyId = await getCompanyId();
+  if (!companyId) return { ok: false, id: saved.id, message: "Company not found." };
+
+  const quoteIdSaved = saved.id;
+  let jobId: string | undefined;
+  try {
+    const job = await sql.begin(async (tx) => prepareJobFromQuote(tx, companyId, quoteIdSaved));
+    if (!job.ok) return { ok: false, id: quoteIdSaved, message: job.message };
+    jobId = job.id;
+  } catch (error) {
+    if (!isUniqueViolation(error)) throw error;
+    const existing = await sql<{ id: string }[]>`
+      select id from jobs where quote_id = ${quoteIdSaved} limit 1
+    `;
+    if (!existing[0]) throw error;
+    jobId = existing[0].id;
+  }
+  if (!jobId) return { ok: false, id: quoteIdSaved, message: "Job not found" };
+
+  revalidatePath("/servicos");
+  revalidatePath("/cotacoes");
+  revalidatePath("/clientes");
+  redirect(`/servicos/${jobId}`);
 }
 
 export async function updateQuoteStatus(

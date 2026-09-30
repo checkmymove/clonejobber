@@ -1,4 +1,4 @@
-import { parseLines, type LineInput, type ParsedLine } from "./money";
+import { parseGbpToPence, parseLines, type LineInput, type ParsedLine } from "./money";
 
 const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -13,7 +13,13 @@ export type QuoteInput = {
   title: string;
   message: string;
   notes: string;
+  /** Moving date. Stored in quotes.valid_until. */
   validUntil: string;
+  moveTime?: string;
+  inventory?: string;
+  discount?: string;
+  tax?: string;
+  deposit?: string;
   lines: LineInput[];
 };
 
@@ -78,6 +84,10 @@ export function validateQuoteInput(input: QuoteInput): {
   errors: Record<string, string>;
   parsed: ParsedLine[];
   subtotal: number;
+  discount: number;
+  tax: number;
+  deposit: number;
+  total: number;
 } {
   const errors: Record<string, string> = {};
   if (!isUuid(input.clientId)) errors.clientId = "Select a client";
@@ -87,7 +97,23 @@ export function validateQuoteInput(input: QuoteInput): {
   }
   const { errors: lineErrors, parsed, subtotal } = parseLines(input.lines);
   Object.assign(errors, lineErrors);
-  return { errors, parsed, subtotal };
+  const discount = parseGbpToPence(input.discount ?? "");
+  const tax = parseGbpToPence(input.tax ?? "");
+  const deposit = parseGbpToPence(input.deposit ?? "");
+  if (discount == null) errors.discount = "Invalid discount";
+  if (tax == null) errors.tax = "Invalid tax";
+  if (deposit == null) errors.deposit = "Invalid deposit";
+  if (discount != null && discount > subtotal) errors.discount = "Discount cannot exceed the subtotal";
+  const total = Math.max(0, subtotal - (discount ?? 0) + (tax ?? 0));
+  return {
+    errors,
+    parsed,
+    subtotal,
+    discount: discount ?? 0,
+    tax: tax ?? 0,
+    deposit: deposit ?? 0,
+    total,
+  };
 }
 
 export function validateJobInput(input: JobInput): {

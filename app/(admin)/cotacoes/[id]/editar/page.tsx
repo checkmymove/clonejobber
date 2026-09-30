@@ -28,9 +28,17 @@ export default async function EditCotacaoPage({
           requestId={q.request_id ?? undefined}
           initialClientId={q.client_id}
           initialTitle={q.title}
-          initialValidUntil={toDateInput(q.valid_until)}
+          initialMoveDate={toDateInput(q.valid_until)}
+          initialMoveTime={q.move_time}
           initialMessage={q.message}
           initialNotes={q.notes}
+          initialInventory={q.inventory}
+          initialCollection={q.collection}
+          initialDelivery={q.delivery}
+          initialPacking={q.packing}
+          initialDiscount={q.discount ? penceToInput(q.discount) : ""}
+          initialTax={q.tax ? penceToInput(q.tax) : ""}
+          initialDeposit={q.deposit ? penceToInput(q.deposit) : ""}
           initialLines={q.lines.map((l) => ({
             name: l.name,
             description: l.description,

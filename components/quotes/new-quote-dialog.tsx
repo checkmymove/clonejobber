@@ -1,31 +1,43 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
+import { QUOTE_TEMPLATES } from "@/lib/quotes/templates";
 
-const TEMPLATES = [
-  "Motorista + Ajudante",
-  "Somente motorista",
-  "Rubbish clearance",
-  "Fixed price",
-  "Helper service",
-  "Office relocation",
-  "Packing service",
-  "Piano move",
-];
-
-export function NewQuoteDialog() {
+export function NewQuoteDialog({
+  clientId,
+  requestId,
+}: {
+  clientId?: string;
+  requestId?: string;
+}) {
   const router = useRouter();
-  const close = () => router.push("/cotacoes");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const closeHref = requestId
+    ? `/solicitacoes/${requestId}`
+    : clientId
+      ? `/clientes/${clientId}`
+      : "/cotacoes";
+
+  const close = () => router.push(closeHref);
+
+  function continueWith(templateId?: string) {
+    const params = new URLSearchParams();
+    if (templateId) params.set("template", templateId);
+    else params.set("blank", "1");
+    if (clientId) params.set("clientId", clientId);
+    if (requestId) params.set("requestId", requestId);
+    router.push(`/cotacoes/novo?${params.toString()}`);
+  }
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") router.push("/cotacoes");
+      if (event.key === "Escape") router.push(closeHref);
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [router]);
+  }, [router, closeHref]);
 
   return (
     <div
@@ -55,31 +67,44 @@ export function NewQuoteDialog() {
 
         <div className="mt-5 overflow-hidden rounded-lg border border-[#d5dde1]">
           <p className="border-b border-[#e6ebed] px-4 py-3.5 text-[15px] font-bold text-[#042b3c]">
-            Usar modelo
+            Use template
           </p>
-          {TEMPLATES.map((name) => (
-            <button
-              key={name}
-              type="button"
-              className="block w-full border-b border-[#e6ebed] px-4 py-4 text-left text-[15px] text-[#1c3d46] last:border-b-0 hover:bg-[#f7f8f8]"
-            >
-              {name}
-            </button>
-          ))}
+          {QUOTE_TEMPLATES.map((template) => {
+            const selected = selectedId === template.id;
+            return (
+              <button
+                key={template.id}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => setSelectedId(template.id)}
+                className={`block w-full border-b border-[#e6ebed] px-4 py-4 text-left text-[15px] last:border-b-0 ${
+                  selected
+                    ? "bg-[#e7f3e3] font-semibold text-[#042b3c]"
+                    : "text-[#1c3d46] hover:bg-[#f7f8f8]"
+                }`}
+              >
+                {template.label}
+              </button>
+            );
+          })}
         </div>
 
         <div className="my-5 flex items-center gap-4 text-sm text-[#8aa0a8]">
           <span className="h-px flex-1 bg-[#e6ebed]" />
-          ou
+          or
           <span className="h-px flex-1 bg-[#e6ebed]" />
         </div>
 
         <button
           type="button"
-          className="h-12 w-full rounded-lg text-[15px] font-semibold text-white"
+          disabled={!selectedId}
+          onClick={() => {
+            if (selectedId) continueWith(selectedId);
+          }}
+          className="h-12 w-full rounded-lg text-[15px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
           style={{ background: "#388623" }}
         >
-          Create a new quote
+          Create new quote
         </button>
       </div>
     </div>

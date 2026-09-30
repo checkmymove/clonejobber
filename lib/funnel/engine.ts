@@ -28,7 +28,7 @@ export async function persistQuote(
   companyId: string,
   input: QuoteInput,
 ): Promise<ActionResult> {
-  const { errors, parsed, subtotal } = validateQuoteInput(input);
+  const { errors, parsed, subtotal, discount, tax, deposit, total } = validateQuoteInput(input);
   if (Object.keys(errors).length) return { ok: false, errors };
 
   const client = await db`
@@ -45,16 +45,18 @@ export async function persistQuote(
   }
 
   const validUntil = input.validUntil || null;
+  const moveTime = input.moveTime?.trim() ?? "";
+  const inventory = input.inventory?.trim() ?? "";
   const title = input.title.trim() || "Quote";
   const numbered = await db`select next_quote_number(${companyId}) as number`;
   const rows = await db`
     insert into quotes
       (number, company_id, client_id, request_id, status, title, message, notes,
-       valid_until, subtotal, total)
+       valid_until, move_time, inventory, subtotal, discount, tax, deposit, total)
     values
       (${numbered[0].number}, ${companyId}, ${input.clientId}, ${requestId},
        'draft', ${title}, ${input.message.trim()}, ${input.notes.trim()},
-       ${validUntil}, ${subtotal}, ${subtotal})
+       ${validUntil}, ${moveTime}, ${inventory}, ${subtotal}, ${discount}, ${tax}, ${deposit}, ${total})
     returning id, number
   `;
   for (let i = 0; i < parsed.length; i++) {
@@ -203,10 +205,11 @@ export function isUniqueViolation(error: unknown): boolean {
   );
 }
 
-export async function convertApprovedQuoteToJob(
+async function quoteToJob(
   db: Db,
   companyId: string,
   quoteId: string,
+  requireApproved: boolean,
 ): Promise<ActionResult> {
   const q = await db`
     select id, company_id, client_id, request_id, number, title, notes, status
@@ -216,7 +219,10 @@ export async function convertApprovedQuoteToJob(
   `;
   if (!q[0]) return { ok: false, message: "Quote not found" };
   if (q[0].company_id !== companyId) return { ok: false, message: "Quote not found" };
-  if (q[0].status !== "approved") {
+  if (q[0].status === "rejected" || q[0].status === "expired") {
+    return { ok: false, message: "This quote cannot become a job." };
+  }
+  if (requireApproved && q[0].status !== "approved") {
     return { ok: false, message: "Only an approved quote can become a job." };
   }
   const existing = await db`select id from jobs where quote_id = ${quoteId} limit 1`;
@@ -258,6 +264,23 @@ export async function convertApprovedQuoteToJob(
     })),
   };
   return persistJob(db, companyId, input);
+}
+
+export function convertApprovedQuoteToJob(
+  db: Db,
+  companyId: string,
+  quoteId: string,
+): Promise<ActionResult> {
+  return quoteToJob(db, companyId, quoteId, true);
+}
+
+/** Creates a job from a saved quote. Used by Save Quote → Convert to Job. */
+export function prepareJobFromQuote(
+  db: Db,
+  companyId: string,
+  quoteId: string,
+): Promise<ActionResult> {
+  return quoteToJob(db, companyId, quoteId, false);
 }
 
 export async function changeJobStatus(
@@ -416,7 +439,7 @@ export async function updateQuoteDocument(
   quoteId: string,
   input: QuoteInput,
 ): Promise<ActionResult> {
-  const { errors, parsed, subtotal } = validateQuoteInput(input);
+  const { errors, parsed, subtotal, discount, tax, deposit, total } = validateQuoteInput(input);
   if (Object.keys(errors).length) return { ok: false, errors };
 
   const rows = await db`
@@ -430,14 +453,21 @@ export async function updateQuoteDocument(
 
   const title = input.title.trim() || "Quote";
   const validUntil = input.validUntil || null;
+  const moveTime = input.moveTime?.trim() ?? "";
+  const inventory = input.inventory?.trim() ?? "";
   await db`
     update quotes set
       title = ${title},
       message = ${input.message.trim()},
       notes = ${input.notes.trim()},
       valid_until = ${validUntil},
+      move_time = ${moveTime},
+      inventory = ${inventory},
       subtotal = ${subtotal},
-      total = ${subtotal},
+      discount = ${discount},
+      tax = ${tax},
+      deposit = ${deposit},
+      total = ${total},
       updated_at = now()
     where id = ${quoteId}
   `;

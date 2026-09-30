@@ -65,6 +65,8 @@ try {
       message: "Hello",
       notes: "internal",
       validUntil: "2026-10-10",
+      moveTime: "10:30 AM",
+      inventory: "Sofa, boxes, fridge",
       lines: pricedLines,
     };
 
@@ -88,8 +90,17 @@ try {
       lines: [{ name: "Van + helper", description: "Luton", qty: "1", unitPrice: "300" }],
     });
     check("draft quote can be edited", editedQuote.ok);
-    const [editedQuoteRow] = await tx`select title, total from quotes where id = ${quote.id}`;
+    const [editedQuoteRow] = await tx`
+      select title, total, move_time, inventory, valid_until::text as valid_until, message
+      from quotes where id = ${quote.id}`;
     check("edited quote stored as 30000 pence", editedQuoteRow.total === 30000 && editedQuoteRow.title === "Move (revised)");
+    check(
+      "quote stores moving date, time, inventory and terms",
+      editedQuoteRow.valid_until.startsWith("2026-10-10") &&
+        editedQuoteRow.move_time === "10:30 AM" &&
+        editedQuoteRow.inventory === "Sofa, boxes, fridge" &&
+        editedQuoteRow.message === "Hello",
+    );
     const [editedLine] = await tx`select count(*)::int as n from quote_line_items where quote_id = ${quote.id}`;
     check("edited quote replaced line items", editedLine.n === 1);
 
