@@ -4,6 +4,8 @@ import { Eye } from "lucide-react";
 import { formatGBP, formatDateLondon } from "@/lib/format";
 import { COMPANY_SLUG, getCompanyId } from "@/lib/company";
 import { getQuoteDetail } from "@/lib/quotes/queries";
+import { getLatestRequestId, getRequestDetail } from "@/lib/requests/queries";
+import { QuoteRequestSidebar } from "@/components/quotes/quote-request-sidebar";
 import { updateQuoteStatus } from "@/lib/quotes/actions";
 import { convertQuoteToJob } from "@/lib/jobs/actions";
 import { emailQuote } from "@/lib/email/actions";
@@ -34,6 +36,8 @@ export default async function CotacaoDetailPage({
   const gmail = companyId ? await getGoogleConnection(companyId) : null;
   const deliveries = await listDeliveries("quote", id);
   const canEmail = q.status === "draft" || q.status === "sent";
+  const requestId = q.request_id ?? (await getLatestRequestId(q.client_id));
+  const request = requestId ? await getRequestDetail(requestId) : null;
 
   return (
     <div>
@@ -114,7 +118,8 @@ export default async function CotacaoDetailPage({
         </Link>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="flex items-start gap-4">
+      <div className="grid min-w-0 flex-1 gap-4">
         <Card className="h-fit p-5">
           <h2 className="mb-2 text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">
             Resumo
@@ -161,7 +166,7 @@ export default async function CotacaoDetailPage({
           </div>
         </Card>
         {q.packing ? (
-          <Card className="h-fit p-5 xl:col-span-2">
+          <Card className="h-fit p-5">
             <h2 className="mb-2 text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">
               Packing service
             </h2>
@@ -200,7 +205,7 @@ export default async function CotacaoDetailPage({
           </Card>
         ) : null}
         {q.inventory?.trim() ? (
-          <Card className="h-fit p-5 xl:col-span-2">
+          <Card className="h-fit p-5">
             <h2 className="mb-2 text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">
               Inventory list
             </h2>
@@ -208,7 +213,7 @@ export default async function CotacaoDetailPage({
           </Card>
         ) : null}
         {deliveries.length ? (
-          <Card className="h-fit p-5 xl:col-span-2">
+          <Card className="h-fit p-5">
             <h2 className="mb-2 text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">
               Sent
             </h2>
@@ -225,6 +230,8 @@ export default async function CotacaoDetailPage({
             </ul>
           </Card>
         ) : null}
+      </div>
+      <QuoteRequestSidebar request={request} />
       </div>
     </div>
   );

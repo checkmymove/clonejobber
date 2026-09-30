@@ -70,6 +70,16 @@ export interface AdminRequestDetail extends AdminRequestRow {
   timeline: { action: string; summary: string; created_at: string }[];
 }
 
+export async function getLatestRequestId(clientId: string): Promise<string | null> {
+  const rows = await sql<{ id: string }[]>`
+    select id from requests
+    where client_id = ${clientId}
+    order by submitted_at desc
+    limit 1
+  `;
+  return rows[0]?.id ?? null;
+}
+
 export async function getRequestDetail(
   id: string,
 ): Promise<AdminRequestDetail | null> {
