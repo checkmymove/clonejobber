@@ -17,6 +17,13 @@ export interface QuoteRow {
   request_number: string | null;
 }
 
+export interface QuoteListRow extends QuoteRow {
+  service_name: string;
+  property: string;
+  sent_at: string | null;
+  converted_at: string | null;
+}
+
 export interface QuoteDetail extends QuoteRow {
   request_id: string | null;
   message: string;
@@ -73,23 +80,66 @@ function toStop(input: {
 export async function listQuotes(
   companySlug: string,
   q = "",
-): Promise<QuoteRow[]> {
+): Promise<QuoteListRow[]> {
   const like = `%${q.trim()}%`;
-  return sql<QuoteRow[]>`
+  return sql<QuoteListRow[]>`
     select q.id, q.number, q.status, q.title, q.total, q.valid_until, q.created_at,
-           q.client_id,
-           trim(c.first_name || ' ' || c.last_name) as client_name,
-           r.number as request_number
+           q.sent_at, q.client_id,
+           trim(both ' ' from concat_ws(
+             ' ',
+             case
+               when lower(btrim(coalesce(c.title, ''))) in ('', 'no title', 'none') then null
+               else btrim(c.title)
+             end,
+             c.first_name,
+             c.last_name
+           )) as client_name,
+           r.number as request_number,
+           coalesce((
+             select li.name
+             from quote_line_items li
+             where li.quote_id = q.id
+             order by li.sort asc, li.id asc
+             limit 1
+           ), '') as service_name,
+           coalesce(
+             nullif(trim(both ', ' from concat_ws(', ', nullif(pl.address, ''), nullif(pl.postcode, ''))), ''),
+             nullif(trim(both ', ' from concat_ws(', ', nullif(ca.address_line, ''), nullif(ca.city, ''), nullif(ca.postcode, ''))), ''),
+             ''
+           ) as property,
+           (
+             select j.created_at
+             from jobs j
+             where j.quote_id = q.id
+             order by j.created_at asc
+             limit 1
+           ) as converted_at
     from quotes q
     join companies co on co.id = q.company_id
     join clients c on c.id = q.client_id
     left join requests r on r.id = q.request_id
+    left join request_locations pl on pl.request_id = r.id and pl.kind = 'pickup'
+    left join lateral (
+      select address_line, city, postcode
+      from client_addresses
+      where client_id = c.id
+      order by is_primary desc, created_at asc
+      limit 1
+    ) ca on true
     where co.slug = ${companySlug}
       and (${q.trim() === ""}
         or q.number ilike ${like}
         or q.title ilike ${like}
         or c.first_name ilike ${like}
-        or c.last_name ilike ${like})
+        or c.last_name ilike ${like}
+        or c.title ilike ${like}
+        or coalesce(pl.address, '') ilike ${like}
+        or coalesce(pl.postcode, '') ilike ${like}
+        or coalesce(ca.address_line, '') ilike ${like}
+        or exists (
+          select 1 from quote_line_items li
+          where li.quote_id = q.id and li.name ilike ${like}
+        ))
     order by q.created_at desc
   `;
 }

@@ -160,6 +160,15 @@ export function validateInvoiceInput(input: InvoiceInput): {
   return { errors, parsed, subtotal };
 }
 
+function bedroomsError(value: string): string | null {
+  const raw = value.trim();
+  if (!raw) return null;
+  if (!/^\d+$/.test(raw)) return "Bedrooms must be a whole number from 0 to 50";
+  const n = Number(raw);
+  if (n > 50) return "Bedrooms must be 0–50";
+  return null;
+}
+
 export function validateAdminRequest(input: AdminRequestInput): Record<string, string> {
   const errors: Record<string, string> = {};
   if (!isUuid(input.clientId)) errors.clientId = "Select a client";
@@ -168,9 +177,12 @@ export function validateAdminRequest(input: AdminRequestInput): Record<string, s
   if (!input.deliveryAddress.trim()) errors.deliveryAddress = "Delivery address is required";
   if (!input.deliveryPostcode.trim()) errors.deliveryPostcode = "Delivery postcode is required";
   if (!input.inventory.trim()) errors.inventory = "Inventory is required";
-  const bedrooms = Number(input.pickupBedrooms || "0");
-  if (!Number.isInteger(bedrooms) || bedrooms < 0 || bedrooms > 50) {
-    errors.pickupBedrooms = "Bedrooms must be 0–50";
+  const pickupBeds = bedroomsError(input.pickupBedrooms);
+  if (pickupBeds) errors.pickupBedrooms = pickupBeds;
+  const deliveryBeds = bedroomsError(input.deliveryBedrooms);
+  if (deliveryBeds) errors.deliveryBedrooms = deliveryBeds;
+  if (input.moveDate && Number.isNaN(Date.parse(`${input.moveDate}T00:00:00Z`))) {
+    errors.moveDate = "Use the format dd/mm/yyyy.";
   }
   return errors;
 }

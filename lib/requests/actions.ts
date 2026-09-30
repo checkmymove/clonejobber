@@ -405,8 +405,8 @@ export async function createAdminRequest(input: {
   `;
   if (!client[0]) return { ok: false, message: "Client not found." };
 
-  const pickupBeds = Number(input.pickupBedrooms || "0");
-  const deliveryBeds = Number(input.deliveryBedrooms || "0");
+  const pickupBeds = Number(input.pickupBedrooms.trim() || "0");
+  const deliveryBeds = Number(input.deliveryBedrooms.trim() || "0");
   const hours = input.hours ? [input.hours] : [];
   const idempotencyKey = crypto.randomUUID();
 
@@ -428,7 +428,9 @@ export async function createAdminRequest(input: {
     if (buffers.length >= 10) break;
   }
 
-  const created = await sql.begin(async (tx) => {
+  let created: { id: string; number: string };
+  try {
+    created = await sql.begin(async (tx) => {
     const numbered = await tx<{ number: string }[]>`
       select next_request_number(${companyId}) as number
     `;
@@ -460,7 +462,7 @@ export async function createAdminRequest(input: {
       values
         (${requestId}, 'delivery', ${input.deliveryAddress.trim()}, ${input.deliveryPostcode.trim()},
          ${input.deliveryFloor.trim() || "—"}, ${input.deliveryLift},
-         ${input.deliveryParking.trim() || "—"}, ${Number.isFinite(deliveryBeds) ? deliveryBeds : 0})
+         ${input.deliveryParking.trim() || "—"}, ${deliveryBeds})
     `;
     if (input.serviceId) {
       await tx`
@@ -492,7 +494,14 @@ export async function createAdminRequest(input: {
               ${`Request ${numbered[0].number} created internally`})
     `;
     return { id: requestId, number: numbered[0].number };
-  });
+    });
+  } catch (error) {
+    console.error("createAdminRequest failed", error);
+    return {
+      ok: false,
+      message: "Could not save the request. Nothing was stored. Try again.",
+    };
+  }
 
   revalidatePath("/solicitacoes");
   revalidatePath("/clientes");

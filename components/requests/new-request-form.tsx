@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { useMemo, useRef, useState } from "react";
 import { Calendar, ChevronDown, Search, UserRound } from "lucide-react";
 import { HOURS_OPTIONS } from "@/lib/requests/constants";
@@ -230,6 +231,7 @@ export function NewRequestForm({
           const iso = displayToIso(moveDateText);
           if (!iso) {
             setMoveDateError("Use the format dd/mm/yyyy.");
+            setError("Use the format dd/mm/yyyy for the moving date.");
             return;
           }
           setMoveDateIso(iso);
@@ -247,6 +249,11 @@ export function NewRequestForm({
         if (Object.keys(localErrors).length > 0) {
           setFieldErrors(localErrors);
           setError("Check the highlighted fields.");
+          return;
+        }
+        const photoBytes = images.reduce((sum, img) => sum + img.file.size, 0);
+        if (photoBytes > 12 * 1024 * 1024) {
+          setError("Photos must be 12 MB or less in total. Remove one and try again.");
           return;
         }
         setPending(true);
@@ -303,15 +310,22 @@ export function NewRequestForm({
           setPending(false);
           if (result && !result.ok) {
             setFieldErrors(result.errors ?? {});
+            if (result.errors?.moveDate) setMoveDateError(result.errors.moveDate);
             setError(
               result.message ||
                 Object.values(result.errors ?? {})[0] ||
                 "Could not save request.",
             );
           }
-        } catch {
+        } catch (err) {
+          if (isRedirectError(err)) throw err;
           setPending(false);
-          setError("Could not save request. Check your connection and try again.");
+          const message = err instanceof Error ? err.message : "";
+          setError(
+            /body exceeded/i.test(message)
+              ? "The photos are too large to save with the request. Remove one and try again."
+              : "Could not save request. Check your connection and try again.",
+          );
         }
       }}
     >
@@ -559,9 +573,13 @@ export function NewRequestForm({
           aria-label="How many bedrooms are you moving"
           placeholder="How many bedrooms are you moving?"
           value={delivery.bedrooms}
-          onChange={(e) => setDelivery((d) => ({ ...d, bedrooms: e.target.value }))}
-          className={field}
+          onChange={(e) => {
+            setDelivery((d) => ({ ...d, bedrooms: e.target.value }));
+            clearErr("deliveryBedrooms");
+          }}
+          className={`${field} ${fieldErrors.deliveryBedrooms ? errBorder : ""}`}
         />
+        <FieldErr msg={fieldErrors.deliveryBedrooms} />
       </section>
 
       <section className="space-y-5 border-t border-[#e6ebed] pt-8">
