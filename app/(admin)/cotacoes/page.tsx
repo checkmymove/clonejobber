@@ -184,18 +184,16 @@ export default async function CotacoesPage({
             <tbody>
               {visible.map((quote) => {
                 const status = quoteListStatus(quote.status, quote.converted_at);
+                const href = `/cotacoes/${quote.id}`;
                 return (
                   <tr key={quote.id} className="border-b border-line last:border-0">
                     <td className="px-4 py-3.5 font-semibold break-words text-ink">
-                      <Link href={`/clientes/${quote.client_id}`} className="hover:underline">
+                      <Link href={href} className="hover:underline">
                         {quote.client_name}
                       </Link>
                     </td>
                     <td className="px-4 py-3.5">
-                      <Link
-                        href={`/cotacoes/${quote.id}`}
-                        className="font-semibold text-accent hover:underline"
-                      >
+                      <Link href={href} className="font-semibold text-accent hover:underline">
                         {quote.number}
                       </Link>
                       {quote.service_name ? (
@@ -203,17 +201,21 @@ export default async function CotacoesPage({
                       ) : null}
                     </td>
                     <td className="px-4 py-3.5 text-[13px] break-words text-ink-soft">
-                      {quote.property || "—"}
+                      <Link href={href} className="hover:underline">
+                        {quote.property || "—"}
+                      </Link>
                     </td>
-                    <td className="px-4 py-3.5 text-ink-soft">{formatCreated(quote.created_at)}</td>
+                    <td className="px-4 py-3.5 text-ink-soft">
+                      <Link href={href}>{formatCreated(quote.created_at)}</Link>
+                    </td>
                     <td className="px-4 py-3.5">
-                      <span className="inline-flex items-center gap-2 text-ink">
+                      <Link href={href} className="inline-flex items-center gap-2 text-ink">
                         <span className={`size-2 shrink-0 rounded-full ${status.dot}`} />
                         {status.label}
-                      </span>
+                      </Link>
                     </td>
                     <td className="px-4 py-3.5 text-right font-semibold text-ink">
-                      {formatPounds(quote.total / 100)}
+                      <Link href={href}>{formatPounds(quote.total / 100)}</Link>
                     </td>
                   </tr>
                 );
