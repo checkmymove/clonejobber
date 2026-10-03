@@ -148,7 +148,7 @@ export default async function CotacaoDetailPage({
         </Card>
         <Card className="h-fit p-5">
           <h2 className="mb-2 text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">
-            Items
+            Services
           </h2>
           <div className="space-y-2 text-sm">
             {q.lines.map((l, i) => (
