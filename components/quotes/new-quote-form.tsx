@@ -13,7 +13,7 @@ import {
   updateQuote,
 } from "@/lib/quotes/actions";
 import { QUOTE_TERMS } from "@/lib/quotes/terms";
-import type { QuotePacking, QuoteStop } from "@/lib/quotes/templates";
+import type { QuotePacking, QuoteServiceChoice, QuoteStop } from "@/lib/quotes/types";
 import { ClientSelect } from "@/components/funnel/client-select";
 import { formatPounds } from "@/lib/format";
 
@@ -45,8 +45,7 @@ export function NewQuoteForm({
   initialDiscount,
   initialTax,
   initialDeposit,
-  templateServiceName,
-  templateSummary,
+  service,
 }: {
   clients: Client[];
   requestId?: string;
@@ -66,8 +65,7 @@ export function NewQuoteForm({
   initialDiscount?: string;
   initialTax?: string;
   initialDeposit?: string;
-  templateServiceName?: string;
-  templateSummary?: string;
+  service?: QuoteServiceChoice;
 }) {
   const [clientId, setClientId] = useState(initialClientId ?? "");
   const [linkedRequestId, setLinkedRequestId] = useState(requestId);
@@ -118,7 +116,7 @@ export function NewQuoteForm({
     const next = await loadQuotePrefill({
       clientId: id,
       requestId: sourceRequestId,
-      serviceName: templateServiceName,
+      serviceId: service?.id,
     });
     if (seq !== loadSeq.current) return;
     setLoadingClient(false);
@@ -132,14 +130,14 @@ export function NewQuoteForm({
       setPacking(null);
       const picked = clients.find((c) => c.id === id);
       setTitle(picked ? `${picked.first_name} ${picked.last_name}`.trim() : "");
-      if (templateServiceName) {
-        setSummary(templateSummary ?? "");
+      if (service) {
+        setSummary(service.description);
         setLines((rows) => [
           {
             id: rows[0]?.id ?? "line-1",
-            name: templateServiceName,
+            name: service.name,
             qty: "1",
-            price: rows[0]?.name === templateServiceName ? rows[0].price : "",
+            price: rows[0]?.name === service.name ? rows[0].price : service.unitPrice,
             description: "",
           },
         ]);

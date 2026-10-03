@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
-import { QUOTE_TEMPLATES } from "@/lib/quotes/templates";
 
 export function NewQuoteDialog({
+  services,
   clientId,
   requestId,
 }: {
+  services: { id: string; name: string }[];
   clientId?: string;
   requestId?: string;
 }) {
@@ -22,10 +24,9 @@ export function NewQuoteDialog({
 
   const close = () => router.push(closeHref);
 
-  function continueWith(templateId?: string) {
+  function continueWith(serviceId: string) {
     const params = new URLSearchParams();
-    if (templateId) params.set("template", templateId);
-    else params.set("blank", "1");
+    params.set("service", serviceId);
     if (clientId) params.set("clientId", clientId);
     if (requestId) params.set("requestId", requestId);
     router.push(`/cotacoes/novo?${params.toString()}`);
@@ -67,26 +68,38 @@ export function NewQuoteDialog({
 
         <div className="mt-5 overflow-hidden rounded-lg border border-[#d5dde1]">
           <p className="border-b border-[#e6ebed] px-4 py-3.5 text-[15px] font-bold text-[#042b3c]">
-            Use template
+            Services
           </p>
-          {QUOTE_TEMPLATES.map((template) => {
-            const selected = selectedId === template.id;
-            return (
-              <button
-                key={template.id}
-                type="button"
-                aria-pressed={selected}
-                onClick={() => setSelectedId(template.id)}
-                className={`block w-full border-b border-[#e6ebed] px-4 py-4 text-left text-[15px] last:border-b-0 ${
-                  selected
-                    ? "bg-[#e7f3e3] font-semibold text-[#042b3c]"
-                    : "text-[#1c3d46] hover:bg-[#f7f8f8]"
-                }`}
+          {services.length === 0 ? (
+            <div className="px-4 py-6 text-[15px] text-[#1c3d46]">
+              <p>You haven&apos;t created any services yet.</p>
+              <Link
+                href="/produtos-servicos"
+                className="mt-2 inline-block font-semibold text-[#388623] hover:underline"
               >
-                {template.label}
-              </button>
-            );
-          })}
+                Create a service
+              </Link>
+            </div>
+          ) : (
+            services.map((service) => {
+              const selected = selectedId === service.id;
+              return (
+                <button
+                  key={service.id}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => setSelectedId(service.id)}
+                  className={`block w-full border-b border-[#e6ebed] px-4 py-4 text-left text-[15px] last:border-b-0 ${
+                    selected
+                      ? "bg-[#e7f3e3] font-semibold text-[#042b3c]"
+                      : "text-[#1c3d46] hover:bg-[#f7f8f8]"
+                  }`}
+                >
+                  {service.name}
+                </button>
+              );
+            })
+          )}
         </div>
 
         <div className="my-5 flex items-center gap-4 text-sm text-[#8aa0a8]">

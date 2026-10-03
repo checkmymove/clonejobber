@@ -11,6 +11,7 @@ import {
   Inbox,
   Mail,
   Menu,
+  Package,
   Plus,
   Quote,
   Search,
@@ -28,6 +29,7 @@ const NAV = [
   { href: "/cotacoes", label: "Quotes", icon: Quote },
   { href: "/servicos", label: "Jobs", icon: Hammer },
   { href: "/faturas", label: "Invoices", icon: FileText },
+  { href: "/produtos-servicos", label: "Products & services", icon: Package },
   { href: "/configuracoes/email", label: "Email", icon: Mail },
 ];
 

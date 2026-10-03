@@ -1,8 +1,13 @@
 import "server-only";
 import { sql } from "@/lib/db";
 import type { ParsedLine } from "@/lib/funnel/money";
-import { buildServiceSummary, hoursToQty } from "@/lib/quotes/summary";
-import type { QuotePacking, QuotePrefill, QuoteStop } from "@/lib/quotes/templates";
+import { buildServiceSummary, describeService, hoursToQty } from "@/lib/quotes/summary";
+import type {
+  QuotePacking,
+  QuotePrefill,
+  QuoteServiceChoice,
+  QuoteStop,
+} from "@/lib/quotes/types";
 
 export interface QuoteRow {
   id: string;
@@ -240,7 +245,7 @@ export async function getQuoteDetail(id: string): Promise<QuoteDetail | null> {
 
 export async function getQuotePrefillFromRequest(
   requestId: string,
-  serviceName?: string,
+  service?: QuoteServiceChoice,
 ): Promise<QuotePrefill | null> {
   const req = await sql<
     {
@@ -292,9 +297,8 @@ export async function getQuotePrefillFromRequest(
     where rs.request_id = ${requestId} order by s.sort
   `;
   const requestNames = services.map((s) => s.name);
-  const chosen = serviceName?.trim() || "";
-  const names = chosen ? [chosen] : requestNames;
-  const summary = buildServiceSummary({
+  const names = service ? [service.name] : requestNames;
+  const builtSummary = buildServiceSummary({
     services: names,
     hours: row.estimated_hours ?? [],
     needsPacking: row.needs_packing_service,
@@ -316,6 +320,9 @@ export async function getQuotePrefillFromRequest(
       bedrooms: row.delivery_bedrooms,
     },
   });
+  const summary = service
+    ? service.description.trim() || describeService(service.name)
+    : builtSummary;
   const qty = hoursToQty(row.estimated_hours ?? []);
   const lines =
     names.length > 0
@@ -323,7 +330,7 @@ export async function getQuotePrefillFromRequest(
           name,
           description: i === 0 ? summary : "",
           qty: i === 0 ? qty : "1",
-          unitPrice: "",
+          unitPrice: i === 0 && service ? service.unitPrice : "",
         }))
       : [
           {
@@ -364,7 +371,7 @@ export async function getQuotePrefillFromRequest(
 export async function getQuotePrefillForClient(
   clientId: string,
   companyId: string,
-  serviceName?: string,
+  service?: QuoteServiceChoice,
 ): Promise<QuotePrefill | null> {
   const rows = await sql<{ id: string }[]>`
     select r.id
@@ -376,5 +383,5 @@ export async function getQuotePrefillForClient(
   `;
   const requestId = rows[0]?.id;
   if (!requestId) return null;
-  return getQuotePrefillFromRequest(requestId, serviceName);
+  return getQuotePrefillFromRequest(requestId, service);
 }

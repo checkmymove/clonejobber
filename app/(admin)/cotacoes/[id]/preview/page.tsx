@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatDateLondon, formatPounds } from "@/lib/format";
 import { getQuoteDetail } from "@/lib/quotes/queries";
-import type { QuoteStop } from "@/lib/quotes/templates";
+import type { QuoteStop } from "@/lib/quotes/types";
 
 export const dynamic = "force-dynamic";
 

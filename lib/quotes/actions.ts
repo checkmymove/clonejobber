@@ -17,26 +17,30 @@ import {
 import type { QuoteEmailDraft } from "@/lib/email/draft";
 import { buildQuoteEmailDraft, sendComposedQuoteEmail } from "@/lib/email/send";
 import { isUuid, type QuoteInput } from "@/lib/funnel/validation";
+import { getServiceForQuote } from "@/lib/products/queries";
 import { getQuotePrefillForClient, getQuotePrefillFromRequest } from "@/lib/quotes/queries";
-import type { QuotePrefill } from "@/lib/quotes/templates";
+import type { QuotePrefill } from "@/lib/quotes/types";
 
 export type { ActionResult };
 
 export async function loadQuotePrefill(input: {
   clientId: string;
   requestId?: string;
-  serviceName?: string;
+  serviceId?: string;
 }): Promise<QuotePrefill | null> {
   await requireAdmin();
   if (!isUuid(input.clientId)) return null;
   const companyId = await getCompanyId();
   if (!companyId) return null;
-  const serviceName = input.serviceName?.trim() || undefined;
+  const service =
+    input.serviceId && isUuid(input.serviceId)
+      ? ((await getServiceForQuote(companyId, input.serviceId)) ?? undefined)
+      : undefined;
   if (input.requestId && isUuid(input.requestId)) {
-    const pinned = await getQuotePrefillFromRequest(input.requestId, serviceName);
+    const pinned = await getQuotePrefillFromRequest(input.requestId, service);
     if (pinned?.clientId === input.clientId) return pinned;
   }
-  return getQuotePrefillForClient(input.clientId, companyId, serviceName);
+  return getQuotePrefillForClient(input.clientId, companyId, service);
 }
 
 async function writeQuote(quoteId: string | undefined, input: QuoteInput): Promise<ActionResult> {
