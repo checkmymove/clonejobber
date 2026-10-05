@@ -2,6 +2,8 @@
 
 > Documento de referência do produto. Última atualização: 26 de setembro de 2026.
 
+**Hospedagem (ler antes de git/deploy):** este projecto **não** é da conta GitHub `korenonline7` nem da equipa Vercel KOREN. Repositório, Vercel e Supabase estão em `AGENTS.md`.
+
 ## 1. Objetivo
 
 Construir uma ferramenta interna para gerir uma empresa de mudanças sediada em Londres, Reino Unido. A aplicação será usada por uma única pessoa e por uma única empresa; não é um SaaS, não haverá multiempresa, cobrança de assinatura ou gestão de equipa nesta primeira versão.

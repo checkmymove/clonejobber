@@ -1,0 +1,17 @@
+---
+description: Repositório GitHub, Vercel e Supabase correctos deste projecto (não Koren)
+alwaysApply: true
+---
+
+# Hospedagem Opero
+
+Este código vive **só** em `https://github.com/checkmymove/clonejobber` (owner `checkmymove`, branch `main`).
+
+Não usar `korenonline7`, `koren7`, KOREN, nem outro GitHub/Vercel. Não criar repo, projecto Vercel ou serviço Render novos.
+
+- Git: commit e push só em `https://checkmymove@github.com/checkmymove/clonejobber.git`. Não criar outro remote nem fazer `gh auth switch` global por este projecto.
+- Vercel: equipa **check-my-move**, projecto **clonejobber**, https://clonejobber.vercel.app. MCP autenticado na equipa KOREN está errado.
+- Supabase: `jstvjtbenlsasqjytxmx`. Migrações com `npm run migrate`. A Vercel não aplica SQL sozinha.
+- Render não faz parte deste projecto.
+
+Detalhe em `AGENTS.md`.
