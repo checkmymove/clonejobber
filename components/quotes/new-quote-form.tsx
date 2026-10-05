@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, Hammer, Mail, Pencil, Quote, Trash2, X } from "lucide-react";
+import { Calendar, ChevronDown, Hammer, Mail, Pencil, Quote, Trash2, X } from "lucide-react";
 import { EmailQuoteDialog } from "@/components/quotes/email-quote-dialog";
 import type { QuoteEmailDraft } from "@/lib/email/draft";
 import {
@@ -13,7 +13,7 @@ import {
   updateQuote,
 } from "@/lib/quotes/actions";
 import { QUOTE_TERMS } from "@/lib/quotes/terms";
-import type { QuotePacking, QuoteServiceChoice, QuoteStop } from "@/lib/quotes/types";
+import type { QuoteInventoryFile, QuotePacking, QuoteServiceChoice, QuoteStop } from "@/lib/quotes/types";
 import { ClientSelect } from "@/components/funnel/client-select";
 import { formatPounds } from "@/lib/format";
 
@@ -22,6 +22,8 @@ const line = "border-[#d5dde1]";
 const green = "#388623";
 const field = `h-11 w-full rounded-lg border ${line} bg-white px-3 text-[15px] ${ink} outline-none placeholder:text-[#667880] focus:border-[#388623] focus:ring-2 focus:ring-[#388623]/20`;
 const label = "mb-1 block text-[13px] text-[#5d6f78]";
+const datePicker =
+  "relative cursor-pointer pr-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0";
 
 type Line = { id: string; name: string; qty: string; price: string; description: string };
 type Client = { id: string; first_name: string; last_name: string; email: string };
@@ -38,6 +40,7 @@ export function NewQuoteForm({
   initialMessage,
   initialNotes,
   initialInventory,
+  initialFiles,
   initialLines,
   initialCollection,
   initialDelivery,
@@ -58,6 +61,7 @@ export function NewQuoteForm({
   initialMessage?: string;
   initialNotes?: string;
   initialInventory?: string;
+  initialFiles?: QuoteInventoryFile[];
   initialLines?: { name: string; description: string; qty: string; unitPrice: string }[];
   initialCollection?: QuoteStop | null;
   initialDelivery?: QuoteStop | null;
@@ -71,13 +75,16 @@ export function NewQuoteForm({
   const [linkedRequestId, setLinkedRequestId] = useState(requestId);
   const [loadingClient, setLoadingClient] = useState(false);
   const loadSeq = useRef(0);
-  const [title, setTitle] = useState(initialTitle ?? "");
+  const [title, setTitle] = useState(initialTitle ?? service?.name ?? "");
   const [moveDate, setMoveDate] = useState(initialMoveDate ?? "");
   const [moveTime, setMoveTime] = useState(initialMoveTime ?? "");
+  const dateRef = useRef<HTMLInputElement>(null);
   const [message] = useState(initialMessage?.trim() ? initialMessage : QUOTE_TERMS);
   const [termsOpen, setTermsOpen] = useState(false);
   const [notes, setNotes] = useState(initialNotes ?? "");
   const [inventory, setInventory] = useState(initialInventory ?? "");
+  const [inventoryOpen, setInventoryOpen] = useState(false);
+  const [files, setFiles] = useState<QuoteInventoryFile[]>(initialFiles ?? []);
   const [collection, setCollection] = useState<QuoteStop | null>(initialCollection ?? null);
   const [delivery, setDelivery] = useState<QuoteStop | null>(initialDelivery ?? null);
   const [packing, setPacking] = useState<QuotePacking | null>(initialPacking ?? null);
@@ -125,12 +132,12 @@ export function NewQuoteForm({
       setMoveDate("");
       setMoveTime("");
       setInventory("");
+      setFiles([]);
       setCollection(null);
       setDelivery(null);
       setPacking(null);
-      const picked = clients.find((c) => c.id === id);
-      setTitle(picked ? `${picked.first_name} ${picked.last_name}`.trim() : "");
       if (service) {
+        setTitle(service.name);
         setSummary(service.description);
         setLines((rows) => [
           {
@@ -142,16 +149,18 @@ export function NewQuoteForm({
           },
         ]);
       } else {
+        setTitle("");
         setSummary("");
         setLines([{ id: "line-1", name: "", qty: "1", price: "", description: "" }]);
       }
       return;
     }
     setLinkedRequestId(next.requestId);
-    setTitle(next.title);
+    setTitle(service?.name ?? next.title);
     setMoveDate(next.moveDate);
     setMoveTime(next.moveTime);
     setInventory(next.inventory);
+    setFiles(next.files);
     setCollection(next.collection);
     setDelivery(next.delivery);
     setPacking(next.packing);
@@ -277,19 +286,43 @@ export function NewQuoteForm({
         <span className={label}>Title</span>
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="removal service" className={field} />
       </label>
-      <label className="block">
-        <span className={label}>Moving date</span>
-        <input type="date" value={moveDate} onChange={(e) => setMoveDate(e.target.value)} className={field} />
-      </label>
-      <label className="block">
-        <span className={label}>Moving time</span>
-        <input
-          value={moveTime}
-          onChange={(e) => setMoveTime(e.target.value)}
-          placeholder="Moving time"
-          className={field}
-        />
-      </label>
+      <div className="grid grid-cols-2 gap-3">
+        <label className="block">
+          <span className={label}>Moving date</span>
+          <span
+            className="relative block cursor-pointer"
+            onClick={() => {
+              try {
+                dateRef.current?.showPicker?.();
+              } catch {
+                dateRef.current?.focus();
+              }
+            }}
+          >
+            <input
+              ref={dateRef}
+              type="date"
+              value={moveDate}
+              onChange={(e) => setMoveDate(e.target.value)}
+              className={`${field} ${datePicker}`}
+            />
+            <Calendar
+              size={16}
+              aria-hidden
+              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#5d6f78]"
+            />
+          </span>
+        </label>
+        <label className="block">
+          <span className={label}>Moving time</span>
+          <input
+            value={moveTime}
+            onChange={(e) => setMoveTime(e.target.value)}
+            placeholder="Moving time"
+            className={field}
+          />
+        </label>
+      </div>
 
       {packing ? (
         <section className={`rounded-lg border ${line} bg-white p-4 sm:p-5`}>
@@ -330,9 +363,17 @@ export function NewQuoteForm({
                   <input
                     aria-label="Service"
                     value={line.name}
-                    onChange={(e) =>
-                      setLines((rows) => rows.map((row) => (row.id === line.id ? { ...row, name: e.target.value } : row)))
-                    }
+                    onChange={(e) => {
+                      const name = e.target.value;
+                      setLines((rows) =>
+                        rows.map((row) => (row.id === line.id ? { ...row, name } : row)),
+                      );
+                      if (line.id === lines[0]?.id) {
+                        setTitle((current) =>
+                          !current.trim() || current === line.name ? name : current,
+                        );
+                      }
+                    }}
                     className={field}
                   />
                 </label>
@@ -419,14 +460,61 @@ export function NewQuoteForm({
         />
       </label>
 
-      <section className={`rounded-lg border ${line} bg-white p-4 sm:p-5`}>
-        <h2 className={`text-[17px] font-bold ${ink}`}>Inventory list</h2>
-        <textarea
-          aria-label="Inventory list"
-          value={inventory}
-          onChange={(e) => setInventory(e.target.value)}
-          className={`mt-3 min-h-[140px] w-full resize-y rounded-lg border ${line} px-3 py-2 text-[15px] leading-6 ${ink} outline-none focus:border-[#388623] focus:ring-2 focus:ring-[#388623]/20`}
-        />
+      <section className={`overflow-hidden rounded-lg border ${line} bg-white`}>
+        <button
+          type="button"
+          aria-expanded={inventoryOpen}
+          aria-controls="quote-inventory"
+          onClick={() => setInventoryOpen((open) => !open)}
+          className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+        >
+          <span className={`text-[17px] font-bold ${ink}`}>Inventory list</span>
+          <ChevronDown
+            size={18}
+            aria-hidden
+            className={`shrink-0 text-[#042b3c] transition-transform ${inventoryOpen ? "rotate-180" : ""}`}
+          />
+        </button>
+        {inventoryOpen ? (
+          <div id="quote-inventory" className={`space-y-3 border-t ${line} px-4 py-3`}>
+            <textarea
+              aria-label="Inventory list"
+              value={inventory}
+              onChange={(e) => setInventory(e.target.value)}
+              className={`min-h-[140px] w-full resize-y rounded-lg border ${line} px-3 py-2 text-[15px] leading-6 ${ink} outline-none focus:border-[#388623] focus:ring-2 focus:ring-[#388623]/20`}
+            />
+            {files.length > 0 && linkedRequestId ? (
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+                {files.map((file) => {
+                  const href = `/api/requests/${linkedRequestId}/files/${file.id}`;
+                  return (
+                    <a
+                      key={file.id}
+                      href={href}
+                      target="_blank"
+                      rel="noreferrer"
+                      title={file.file_name}
+                    >
+                      {file.mime_type.startsWith("image/") ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={href}
+                          alt={file.file_name}
+                          className="aspect-square w-full rounded-lg border border-[#d5dde1] object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <span className="grid aspect-square w-full place-items-center rounded-lg border border-[#d5dde1] bg-[#f7f8f8] text-2xl">
+                          📄
+                        </span>
+                      )}
+                    </a>
+                  );
+                })}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </section>
 
       {error ? <p className="text-sm font-semibold text-rose-700">{error}</p> : null}
@@ -638,10 +726,10 @@ export function NewQuoteForm({
 
 function Fact({ name, value }: { name: string; value: string }) {
   return (
-    <p className="flex justify-between gap-4 py-0.5">
+    <div className="flex justify-between gap-4 py-0.5">
       <dt className="text-[#5d6f78]">{name}</dt>
       <dd className={`text-right font-semibold ${ink}`}>{value}</dd>
-    </p>
+    </div>
   );
 }
 

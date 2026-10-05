@@ -3,6 +3,7 @@ import { sql } from "@/lib/db";
 import type { ParsedLine } from "@/lib/funnel/money";
 import { buildServiceSummary, describeService, hoursToQty } from "@/lib/quotes/summary";
 import type {
+  QuoteInventoryFile,
   QuotePacking,
   QuotePrefill,
   QuoteServiceChoice,
@@ -243,6 +244,17 @@ export async function getQuoteDetail(id: string): Promise<QuoteDetail | null> {
   };
 }
 
+export async function listRequestInventoryFiles(
+  requestId: string,
+): Promise<QuoteInventoryFile[]> {
+  return sql<QuoteInventoryFile[]>`
+    select id, file_name, mime_type
+    from request_attachments
+    where request_id = ${requestId}
+    order by created_at
+  `;
+}
+
 export async function getQuotePrefillFromRequest(
   requestId: string,
   service?: QuoteServiceChoice,
@@ -343,10 +355,11 @@ export async function getQuotePrefillFromRequest(
   return {
     requestId,
     clientId: row.client_id,
-    title: [row.client_name?.trim(), requestNames.join(", ")].filter(Boolean).join(" — "),
+    title: service?.name ?? names[0] ?? "",
     moveDate: row.move_date ? String(row.move_date).slice(0, 10) : "",
     moveTime: row.move_time?.trim() ?? "",
     inventory: row.inventory_description ?? "",
+    files: await listRequestInventoryFiles(requestId),
     collection: toStop({
       address: row.pickup_address,
       postcode: row.pickup_postcode,

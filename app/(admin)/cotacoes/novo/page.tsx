@@ -43,9 +43,6 @@ export default async function NovaCotacaoPage({
     prefill = await getQuotePrefillForClient(sp.clientId, companyId, service);
   }
 
-  const linkedClient = clients.find((c) => c.id === (prefill?.clientId ?? sp.clientId));
-  const clientName = linkedClient ? `${linkedClient.first_name} ${linkedClient.last_name}`.trim() : "";
-
   const serviceLine = [
     {
       name: service.name,
@@ -63,10 +60,11 @@ export default async function NovaCotacaoPage({
           requestId={prefill?.requestId ?? (sp.requestId || undefined)}
           sourceRequestId={sp.requestId}
           initialClientId={prefill?.clientId ?? sp.clientId}
-          initialTitle={prefill?.title || clientName}
+          initialTitle={service.name}
           initialMoveDate={prefill?.moveDate}
           initialMoveTime={prefill?.moveTime}
           initialInventory={prefill?.inventory}
+          initialFiles={prefill?.files}
           initialCollection={prefill?.collection}
           initialDelivery={prefill?.delivery}
           initialPacking={prefill?.packing}

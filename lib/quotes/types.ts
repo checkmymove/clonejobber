@@ -18,6 +18,12 @@ export type QuotePacking = {
   materials: string;
 };
 
+export type QuoteInventoryFile = {
+  id: string;
+  file_name: string;
+  mime_type: string;
+};
+
 export type QuotePrefill = {
   requestId: string;
   clientId: string;
@@ -25,6 +31,7 @@ export type QuotePrefill = {
   moveDate: string;
   moveTime: string;
   inventory: string;
+  files: QuoteInventoryFile[];
   collection: QuoteStop | null;
   delivery: QuoteStop | null;
   packing: QuotePacking | null;

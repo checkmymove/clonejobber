@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { listClientsForSelect } from "@/lib/clients/queries";
 import { COMPANY_SLUG } from "@/lib/company";
 import { penceToInput, toDateInput } from "@/lib/format";
-import { getQuoteDetail } from "@/lib/quotes/queries";
+import { getQuoteDetail, listRequestInventoryFiles } from "@/lib/quotes/queries";
 import { NewQuoteForm } from "@/components/quotes/new-quote-form";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +18,7 @@ export default async function EditCotacaoPage({
   if (q.status !== "draft") redirect(`/cotacoes/${id}`);
 
   const clients = await listClientsForSelect(COMPANY_SLUG);
+  const files = q.request_id ? await listRequestInventoryFiles(q.request_id) : [];
 
   return (
     <div className="min-h-[calc(100dvh-6.5rem)] rounded-2xl bg-white px-6 py-8 sm:px-10">
@@ -33,6 +34,7 @@ export default async function EditCotacaoPage({
           initialMessage={q.message}
           initialNotes={q.notes}
           initialInventory={q.inventory}
+          initialFiles={files}
           initialCollection={q.collection}
           initialDelivery={q.delivery}
           initialPacking={q.packing}
