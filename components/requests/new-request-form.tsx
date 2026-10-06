@@ -459,13 +459,26 @@ export function NewRequestForm({
                   }
                 }}
                 inputMode="numeric"
-                className={`${field} pr-10`}
+                onClick={() => {
+                  try {
+                    datePickerRef.current?.showPicker?.();
+                  } catch {
+                    datePickerRef.current?.focus();
+                  }
+                }}
+                className={`${field} cursor-pointer pr-10`}
               />
               <button
                 type="button"
                 aria-label="Open calendar"
-                onClick={() => datePickerRef.current?.showPicker?.()}
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-[#5d6f78] hover:bg-[#f1f4f5]"
+                onClick={() => {
+                  try {
+                    datePickerRef.current?.showPicker?.();
+                  } catch {
+                    datePickerRef.current?.focus();
+                  }
+                }}
+                className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded p-1 text-[#5d6f78] hover:bg-[#f1f4f5]"
               >
                 <Calendar size={16} />
               </button>
@@ -474,7 +487,7 @@ export function NewRequestForm({
                 type="date"
                 aria-hidden
                 tabIndex={-1}
-                className="absolute right-2 top-1/2 h-6 w-6 -translate-y-1/2 opacity-0"
+                className="pointer-events-none absolute right-2 top-1/2 h-6 w-6 -translate-y-1/2 opacity-0"
                 value={moveDateIso}
                 onChange={(e) => {
                   setMoveDateIso(e.target.value);
