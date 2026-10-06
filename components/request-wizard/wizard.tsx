@@ -408,15 +408,6 @@ export function RequestWizard({
                 autoComplete="email"
               />
             </Field>
-            <label className="flex cursor-pointer items-start gap-2.5 text-sm text-ink-soft">
-              <input
-                type="checkbox"
-                checked={contact.marketingEmail}
-                onChange={(e) => setC({ marketingEmail: e.target.checked })}
-                className="mt-0.5 h-4 w-4 accent-emerald-700"
-              />
-              I’d like to receive marketing emails
-            </label>
             <Field
               label="Phone"
               required
@@ -432,15 +423,6 @@ export function RequestWizard({
                 placeholder="+44 7700 900000"
               />
             </Field>
-            <label className="flex cursor-pointer items-start gap-2.5 text-sm text-ink-soft">
-              <input
-                type="checkbox"
-                checked={contact.marketingSms}
-                onChange={(e) => setC({ marketingSms: e.target.checked })}
-                className="mt-0.5 h-4 w-4 accent-emerald-700"
-              />
-              I’d like to receive marketing SMS messages
-            </label>
             <Field
               label="How did you hear about us?"
               required
