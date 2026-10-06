@@ -50,6 +50,7 @@ export interface QuoteDetail extends QuoteRow {
   collection: QuoteStop | null;
   delivery: QuoteStop | null;
   packing: QuotePacking | null;
+  job_id: string | null;
   lines: ParsedLine[];
 }
 
@@ -166,6 +167,7 @@ export async function getQuoteDetail(id: string): Promise<QuoteDetail | null> {
       delivery_bedrooms: number | null;
       needs_packing_service: boolean | null;
       needs_packing_materials: boolean | null;
+      job_id: string | null;
       client_phone: string;
       client_title: string;
       company_name: string;
@@ -187,6 +189,7 @@ export async function getQuoteDetail(id: string): Promise<QuoteDetail | null> {
            ca.postcode as client_postcode,
            r.number as request_number,
            r.needs_packing_service, r.needs_packing_materials,
+           (select j.id from jobs j where j.quote_id = q.id limit 1) as job_id,
            pl.address as pickup,
            pl.postcode as pickup_postcode, pl.floor as pickup_floor,
            pl.has_lift as pickup_has_lift, pl.parking_restrictions as pickup_parking,

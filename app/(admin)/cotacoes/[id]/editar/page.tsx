@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { listClientsForSelect } from "@/lib/clients/queries";
 import { COMPANY_SLUG } from "@/lib/company";
 import { penceToInput, toDateInput } from "@/lib/format";
@@ -15,7 +15,6 @@ export default async function EditCotacaoPage({
   const { id } = await params;
   const q = await getQuoteDetail(id);
   if (!q) notFound();
-  if (q.status !== "draft") redirect(`/cotacoes/${id}`);
 
   const clients = await listClientsForSelect(COMPANY_SLUG);
   const files = q.request_id ? await listRequestInventoryFiles(q.request_id) : [];

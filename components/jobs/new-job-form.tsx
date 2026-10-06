@@ -12,7 +12,6 @@ import {
   Flag,
   MoreHorizontal,
   Plus,
-  Upload,
   X,
 } from "lucide-react";
 
@@ -36,12 +35,12 @@ type Visit = {
   instructions: string;
 };
 
-type Line = { id: string; name: string; qty: string; price: string };
+type Line = { id: string; name: string; qty: string; price: string; description: string };
 
 const emptyVisit = (): Visit => ({
   id: `visit-${Date.now()}`,
   title: "",
-  date: "2026-09-14",
+  date: new Date().toISOString().slice(0, 10),
   later: false,
   start: "",
   end: "",
@@ -121,7 +120,7 @@ export function NewJobForm({
   initialNotes?: string;
   initialRemindInvoice?: boolean;
   initialVisits?: Visit[];
-  initialLines?: { name: string; qty: string; price: string }[];
+  initialLines?: { name: string; qty: string; price: string; description?: string }[];
 }) {
   const [title, setTitle] = useState(initialTitle ?? "");
   const [clientId, setClientId] = useState(initialClientId ?? "");
@@ -137,7 +136,7 @@ export function NewJobForm({
           {
             id: "visit-1",
             title: "",
-            date: "2026-09-14",
+            date: new Date().toISOString().slice(0, 10),
             later: false,
             start: "",
             end: "",
@@ -150,10 +149,17 @@ export function NewJobForm({
   const [checklist, setChecklist] = useState(true);
   const [remindInvoice, setRemindInvoice] = useState(initialRemindInvoice ?? true);
   const [splitInvoices, setSplitInvoices] = useState(false);
+  const [notes, setNotes] = useState(initialNotes ?? "");
   const [lines, setLines] = useState<Line[]>(
     initialLines?.length
-      ? initialLines.map((l, i) => ({ id: `line-${i}`, ...l }))
-      : [{ id: "line-1", name: "", qty: "1", price: "" }],
+      ? initialLines.map((l, i) => ({
+          id: `line-${i}`,
+          name: l.name,
+          qty: l.qty,
+          price: l.price,
+          description: l.description ?? "",
+        }))
+      : [{ id: "line-1", name: "", qty: "1", price: "", description: "" }],
   );
 
   const patchVisit = (id: string, patch: Partial<Visit>) =>
@@ -181,7 +187,7 @@ export function NewJobForm({
           quoteId,
           requestId,
           title,
-          notes: initialNotes ?? "",
+          notes,
           remindInvoice,
           visits: visits.map((v) => ({
             title: v.title,
@@ -195,6 +201,7 @@ export function NewJobForm({
           })),
           lines: lines.map((l) => ({
             name: l.name,
+            description: l.description,
             qty: l.qty,
             unitPrice: l.price,
           })),
@@ -222,7 +229,7 @@ export function NewJobForm({
       />
 
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
-        <ClientSelect clients={clients} value={clientId} onChange={setClientId} disabled={!!jobId} />
+        <ClientSelect clients={clients} value={clientId} onChange={setClientId} />
         <div className="space-y-3">
           <div className="grid grid-cols-[88px_1fr] items-center gap-3">
             <span className="text-sm text-[#5d6f78]">Job #</span>
@@ -545,6 +552,12 @@ export function NewJobForm({
                 <textarea
                   aria-label="Description"
                   placeholder="Description"
+                  value={line.description}
+                  onChange={(event) =>
+                    setLines((rows) =>
+                      rows.map((row) => (row.id === line.id ? { ...row, description: event.target.value } : row)),
+                    )
+                  }
                   className={`min-h-[72px] w-full resize-y rounded-lg border ${line} px-3 py-2 text-[15px] ${ink} outline-none ${ph}`}
                 />
               </div>
@@ -554,7 +567,7 @@ export function NewJobForm({
         <button
           type="button"
           onClick={() =>
-            setLines((rows) => [...rows, { id: `line-${Date.now()}`, name: "", qty: "1", price: "" }])
+            setLines((rows) => [...rows, { id: `line-${Date.now()}`, name: "", qty: "1", price: "", description: "" }])
           }
           className="mt-4 h-9 rounded-lg px-3 text-sm font-semibold text-white"
           style={{ background: green }}
@@ -587,24 +600,20 @@ export function NewJobForm({
 
       <section className="space-y-3">
         <h2 className={`text-[17px] font-bold ${ink}`}>Notes</h2>
-        <button
-          type="button"
-          className={`flex min-h-[150px] w-full flex-col items-center justify-center rounded-lg border border-dashed ${line} bg-white px-6 py-8 text-center`}
-        >
-          <span className="grid h-10 w-10 place-items-center rounded-full bg-[#f3f5f6] text-[#8aa0a8]">
-            <Upload size={18} />
-          </span>
-          <span className="mt-3 text-sm text-[#7b8e96]">
-            Leave an internal note for yourself or a team member.
-          </span>
-        </button>
+        <textarea
+          aria-label="Notes"
+          placeholder="Leave an internal note for yourself or a team member."
+          value={notes}
+          onChange={(event) => setNotes(event.target.value)}
+          className={`min-h-[150px] w-full resize-y rounded-lg border ${line} bg-white px-3 py-3 text-[15px] ${ink} outline-none ${ph}`}
+        />
       </section>
 
       {error ? <p className="text-sm font-semibold text-rose-700">{error}</p> : null}
 
       <div className="flex items-center justify-end gap-2">
         <Link
-          href={jobId ? `/servicos/${jobId}` : "/servicos"}
+          href={jobId ? `/servicos/${jobId}` : quoteId ? `/cotacoes/${quoteId}` : "/servicos"}
           className={`inline-flex h-10 items-center rounded-lg border ${line} bg-white px-4 text-sm font-semibold ${ink}`}
         >
           Cancel

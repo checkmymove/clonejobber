@@ -143,7 +143,6 @@ export function NewInvoiceForm({
             clients={clients}
             value={clientId}
             onChange={setClientId}
-            disabled={!!invoiceId}
           />
         </div>
 

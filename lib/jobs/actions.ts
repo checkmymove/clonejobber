@@ -23,7 +23,17 @@ export async function createJob(input: JobInput): Promise<ActionResult> {
   const companyId = await getCompanyId();
   if (!companyId) return { ok: false, message: "Company not found." };
 
-  const created = await sql.begin(async (tx) => persistJob(tx, companyId, input));
+  let created: ActionResult;
+  try {
+    created = await sql.begin(async (tx) => persistJob(tx, companyId, input));
+  } catch (error) {
+    if (!input.quoteId || !isUniqueViolation(error)) throw error;
+    const existing = await sql<{ id: string }[]>`
+      select id from jobs where quote_id = ${input.quoteId} limit 1
+    `;
+    if (!existing[0]) throw error;
+    redirect(`/servicos/${existing[0].id}`);
+  }
   if (!created.ok) return created;
 
   revalidatePath("/servicos");
@@ -60,18 +70,28 @@ export async function convertQuoteToJob(quoteId: string): Promise<ActionResult> 
   redirect(`/servicos/${jobId}`);
 }
 
-export async function updateJob(jobId: string, input: JobInput): Promise<ActionResult> {
+async function writeJob(jobId: string, input: JobInput): Promise<ActionResult> {
   await requireAdmin();
   const companyId = await getCompanyId();
   if (!companyId) return { ok: false, message: "Company not found." };
 
   const saved = await sql.begin(async (tx) => updateJobDocument(tx, companyId, jobId, input));
-  if (!saved.ok) return saved;
+  if (saved.ok) {
+    revalidatePath("/servicos");
+    revalidatePath(`/servicos/${jobId}`);
+    revalidatePath("/clientes");
+  }
+  return saved;
+}
 
-  revalidatePath("/servicos");
-  revalidatePath(`/servicos/${jobId}`);
-  revalidatePath("/clientes");
+export async function updateJob(jobId: string, input: JobInput): Promise<ActionResult> {
+  const saved = await writeJob(jobId, input);
+  if (!saved.ok) return saved;
   redirect(`/servicos/${jobId}`);
+}
+
+export async function saveJobInPlace(jobId: string, input: JobInput): Promise<ActionResult> {
+  return writeJob(jobId, input);
 }
 
 export async function updateJobStatus(

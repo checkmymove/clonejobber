@@ -1,9 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatDateLondon } from "@/lib/format";
+import { COMPANY_SLUG, getCompanyId } from "@/lib/company";
 import { updateRequestStatus } from "@/lib/requests/actions";
 import { createAssessment } from "@/lib/clients/crm-actions";
 import { getRequestDetail } from "@/lib/requests/queries";
+import { requestSnapshotFromDetail } from "@/lib/requests/edit-snapshot";
+import { getActiveServices } from "@/lib/requests/company";
+import {
+  RequestContactCard,
+  RequestInventoryCard,
+  RequestLocationCard,
+  RequestPackingCard,
+} from "@/components/requests/request-inline-cards";
 import { Badge, Card, PageHeader } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -23,16 +32,9 @@ export default async function SolicitacaoDetailPage({
   const { id } = await params;
   const r = await getRequestDetail(id);
   if (!r) notFound();
-
-  const contactRows: [string, string][] = [
-    ["Name", r.client_name],
-    ["Email", r.client_email],
-    ["Phone", r.client_phone],
-    ["Heard via", r.lead_source ?? "—"],
-    ["Marketing email", r.marketing_email ? "Yes" : "No"],
-    ["Marketing SMS", r.marketing_sms ? "Yes" : "No"],
-  ];
-  if (r.company_name) contactRows.splice(1, 0, ["Company", r.company_name]);
+  const companyId = await getCompanyId(COMPANY_SLUG);
+  const services = companyId ? await getActiveServices(companyId) : [];
+  const snapshot = requestSnapshotFromDetail(r);
 
   return (
     <div>
@@ -45,7 +47,7 @@ export default async function SolicitacaoDetailPage({
               href={`/cotacoes/novo?requestId=${r.id}`}
               className="inline-flex h-10 items-center rounded-xl bg-ink px-4 text-sm font-bold text-white hover:opacity-90"
             >
-              Create quote
+              Convert to Quote
             </Link>
             <Link
               href={`/clientes/${r.client_id}`}
@@ -83,104 +85,27 @@ export default async function SolicitacaoDetailPage({
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <Card className="h-fit p-5">
-          <SectionTitle>Contact Information</SectionTitle>
-          <Dl rows={contactRows} />
-        </Card>
-
-        <Card className="h-fit p-5" accent="#2f7d3b">
-          <SectionTitle>Packing Service</SectionTitle>
-          <Dl
-            rows={[
-              ["Packing services", r.needs_packing_service ? "Yes" : "No"],
-              ["Packing materials", r.needs_packing_materials ? "Yes" : "No"],
-            ]}
-          />
-          <div className="mt-4 rounded-xl border border-accent/25 bg-accent-soft p-4">
-            <h2 className="mb-3 text-sm font-extrabold uppercase tracking-wide text-accent">
-              Service Details
-            </h2>
-            {r.service_names.length > 0 ? (
-              <ul className="space-y-2">
-                {r.service_names.map((s) => (
-                  <li key={s} className="flex items-center gap-2.5 text-[15px] font-bold text-ink">
-                    <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-accent text-[11px] font-bold text-white">
-                      ✓
-                    </span>
-                    {s}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-ink-soft">No service selected.</p>
-            )}
-            <p className="mt-3 border-t border-accent/20 pt-3 text-sm text-ink-soft">
-              Hours{" "}
-              <span className="text-lg font-extrabold text-ink">
-                {r.estimated_hours.length > 0 ? r.estimated_hours.join(", ") : "—"}
-              </span>
-            </p>
-          </div>
-        </Card>
-
-        <Card className="h-fit p-5">
-          <SectionTitle>Collection Information</SectionTitle>
-          <Dl
-            rows={[
-              ["Address", `${r.pickup_address}, ${r.pickup_postcode}`],
-              ["Floor", r.pickup_floor ?? "—"],
-              ["Lift", r.pickup_has_lift ? "Yes" : "No"],
-              ["Parking", r.pickup_parking ?? "—"],
-              ["Bedrooms", String(r.pickup_bedrooms ?? "—")],
-            ]}
-          />
-        </Card>
-
-        <Card className="h-fit p-5">
-          <SectionTitle>Delivery Information</SectionTitle>
-          <Dl
-            rows={[
-              ["Address", `${r.delivery_address}, ${r.delivery_postcode}`],
-              ["Floor", r.delivery_floor ?? "—"],
-              ["Lift", r.delivery_has_lift ? "Yes" : "No"],
-              ["Parking", r.delivery_parking ?? "—"],
-              ["Bedrooms", String(r.delivery_bedrooms ?? "—")],
-            ]}
-          />
-        </Card>
+        <RequestContactCard
+          requestId={r.id}
+          clientId={r.client_id}
+          firstName={r.client_first_name}
+          lastName={r.client_last_name}
+          companyName={r.company_name ?? ""}
+          email={r.client_email}
+          phone={r.client_phone}
+          leadSource={r.lead_source ?? "—"}
+          marketingEmail={r.marketing_email}
+          marketingSms={r.marketing_sms}
+        />
+        <RequestPackingCard snapshot={snapshot} services={services} />
+        <RequestLocationCard title="Collection Information" snapshot={snapshot} kind="pickup" />
+        <RequestLocationCard title="Delivery Information" snapshot={snapshot} kind="delivery" />
+        <RequestInventoryCard snapshot={snapshot} files={r.files} />
 
         <Card className="h-fit p-5 xl:col-span-2">
-          <SectionTitle>Inventory List</SectionTitle>
-          <p className="whitespace-pre-wrap text-sm text-ink">
-            {r.inventory_description}
-          </p>
-          {r.files.length > 0 ? (
-            <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
-              {r.files.map((f) => (
-                <a
-                  key={f.id}
-                  href={`/api/requests/${r.id}/files/${f.id}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  title={f.file_name}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={`/api/requests/${r.id}/files/${f.id}`}
-                    alt={f.file_name}
-                    className="aspect-square w-full rounded-lg border border-line object-cover"
-                    loading="lazy"
-                  />
-                </a>
-              ))}
-            </div>
-          ) : (
-            <p className="mt-2 text-sm text-ink-mute">No images attached.</p>
-          )}
-        </Card>
-
-        <Card className="h-fit p-5 xl:col-span-2">
-          <SectionTitle>Timeline</SectionTitle>
+          <h2 className="mb-2 text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">
+            Timeline
+          </h2>
           <div className="space-y-2 text-sm">
             {r.timeline.map((t, i) => (
               <p key={i} className="flex justify-between gap-4">
@@ -194,27 +119,6 @@ export default async function SolicitacaoDetailPage({
         </Card>
       </div>
     </div>
-  );
-}
-
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return (
-    <h2 className="mb-2 text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">
-      {children}
-    </h2>
-  );
-}
-
-function Dl({ rows }: { rows: [string, string][] }) {
-  return (
-    <dl className="text-sm">
-      {rows.map(([k, v]) => (
-        <p key={k} className="flex justify-between gap-4 py-0.5">
-          <dt className="text-ink-soft">{k}</dt>
-          <dd className="text-right font-semibold text-ink">{v}</dd>
-        </p>
-      ))}
-    </dl>
   );
 }
 

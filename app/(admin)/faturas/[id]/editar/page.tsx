@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { listClientsForSelect } from "@/lib/clients/queries";
 import { COMPANY_SLUG } from "@/lib/company";
 import { penceToInput } from "@/lib/format";
@@ -15,7 +15,6 @@ export default async function EditInvoicePage({
   const { id } = await params;
   const inv = await getInvoiceDetail(id);
   if (!inv) notFound();
-  if (inv.status !== "draft") redirect(`/faturas/${id}`);
 
   const clients = await listClientsForSelect(COMPANY_SLUG);
 

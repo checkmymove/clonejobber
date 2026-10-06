@@ -60,10 +60,7 @@ export async function convertJobToInvoice(jobId: string): Promise<ActionResult> 
   redirect(`/faturas/${invoiceId}`);
 }
 
-export async function updateInvoice(
-  invoiceId: string,
-  input: InvoiceInput,
-): Promise<ActionResult> {
+async function writeInvoice(invoiceId: string, input: InvoiceInput): Promise<ActionResult> {
   await requireAdmin();
   const companyId = await getCompanyId();
   if (!companyId) return { ok: false, message: "Company not found." };
@@ -71,12 +68,28 @@ export async function updateInvoice(
   const saved = await sql.begin(async (tx) =>
     updateInvoiceDocument(tx, companyId, invoiceId, input),
   );
-  if (!saved.ok) return saved;
+  if (saved.ok) {
+    revalidatePath("/faturas");
+    revalidatePath(`/faturas/${invoiceId}`);
+    revalidatePath("/clientes");
+  }
+  return saved;
+}
 
-  revalidatePath("/faturas");
-  revalidatePath(`/faturas/${invoiceId}`);
-  revalidatePath("/clientes");
+export async function updateInvoice(
+  invoiceId: string,
+  input: InvoiceInput,
+): Promise<ActionResult> {
+  const saved = await writeInvoice(invoiceId, input);
+  if (!saved.ok) return saved;
   redirect(`/faturas/${invoiceId}`);
+}
+
+export async function saveInvoiceInPlace(
+  invoiceId: string,
+  input: InvoiceInput,
+): Promise<ActionResult> {
+  return writeInvoice(invoiceId, input);
 }
 
 export async function updateInvoiceStatus(

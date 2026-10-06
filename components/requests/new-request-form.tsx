@@ -5,7 +5,7 @@ import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { useMemo, useRef, useState } from "react";
 import { Calendar, ChevronDown, Search, UserRound } from "lucide-react";
 import { HOURS_OPTIONS } from "@/lib/requests/constants";
-import { createAdminRequest } from "@/lib/requests/actions";
+import { createAdminRequest, updateAdminRequest } from "@/lib/requests/actions";
 import { ClientSelect, type RichClient } from "@/components/funnel/client-select";
 
 const ink = "text-[#042b3c]";
@@ -124,17 +124,58 @@ function FieldErr({ msg }: { msg?: string }) {
 
 const errBorder = "border-rose-500 focus:border-rose-500 focus:ring-rose-200";
 
+function parkingToYesNo(raw: string | null | undefined): boolean | null {
+  if (!raw || raw === "—") return null;
+  const t = raw.trim();
+  if (/^no$/i.test(t) || /no parking/i.test(t)) return false;
+  if (/^yes$/i.test(t) || /has parking/i.test(t)) return true;
+  return null;
+}
+
+function parseStoredMoveTime(raw: string | null | undefined): { text: string; period: "AM" | "PM" } {
+  if (!raw?.trim()) return { text: "", period: "AM" };
+  const match = raw.trim().match(/^(.+?)\s*(AM|PM)$/i);
+  if (match) return { text: match[1].trim(), period: match[2].toUpperCase() as "AM" | "PM" };
+  return { text: raw.trim(), period: "AM" };
+}
+
 export function NewRequestForm({
   services,
   clients,
   leadSources,
+  requestId,
+  initial,
 }: {
   services: { id: string; name: string }[];
   clients: RichClient[];
   leadSources: { id: string; name: string }[];
+  requestId?: string;
+  initial?: {
+    clientId: string;
+    moveDate: string;
+    moveTime: string;
+    pickupAddress: string;
+    pickupPostcode: string;
+    pickupFloor: string;
+    pickupLift: boolean;
+    pickupParking: string | null;
+    pickupBedrooms: string;
+    deliveryAddress: string;
+    deliveryPostcode: string;
+    deliveryFloor: string;
+    deliveryLift: boolean;
+    deliveryParking: string | null;
+    deliveryBedrooms: string;
+    needsPacking: boolean;
+    needsBoxes: boolean;
+    serviceId: string;
+    hours: string;
+    inventory: string;
+  };
 }) {
+  const storedTime = parseStoredMoveTime(initial?.moveTime);
   const [title, setTitle] = useState("");
-  const [clientId, setClientId] = useState("");
+  const [clientId, setClientId] = useState(initial?.clientId ?? "");
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const clearErr = (key: string) =>
@@ -146,32 +187,32 @@ export function NewRequestForm({
     });
   const [pending, setPending] = useState(false);
   const [salesperson, setSalesperson] = useState("");
-  const [moveDateIso, setMoveDateIso] = useState("");
-  const [moveDateText, setMoveDateText] = useState("");
+  const [moveDateIso, setMoveDateIso] = useState(initial?.moveDate ?? "");
+  const [moveDateText, setMoveDateText] = useState(isoToDisplay(initial?.moveDate ?? ""));
   const [moveDateError, setMoveDateError] = useState("");
-  const [moveTimeText, setMoveTimeText] = useState("");
-  const [movePeriod, setMovePeriod] = useState<"AM" | "PM">("AM");
+  const [moveTimeText, setMoveTimeText] = useState(storedTime.text);
+  const [movePeriod, setMovePeriod] = useState<"AM" | "PM">(storedTime.period);
   const [pickup, setPickup] = useState({
-    address: "",
-    postcode: "",
-    floor: "",
-    lift: false,
-    parkingYes: null as boolean | null,
-    bedrooms: "",
+    address: initial?.pickupAddress ?? "",
+    postcode: initial?.pickupPostcode ?? "",
+    floor: initial?.pickupFloor ?? "",
+    lift: initial?.pickupLift ?? false,
+    parkingYes: parkingToYesNo(initial?.pickupParking),
+    bedrooms: initial?.pickupBedrooms ?? "",
   });
   const [delivery, setDelivery] = useState({
-    address: "",
-    postcode: "",
-    floor: "",
-    lift: false,
-    parkingYes: null as boolean | null,
-    bedrooms: "",
+    address: initial?.deliveryAddress ?? "",
+    postcode: initial?.deliveryPostcode ?? "",
+    floor: initial?.deliveryFloor ?? "",
+    lift: initial?.deliveryLift ?? false,
+    parkingYes: parkingToYesNo(initial?.deliveryParking),
+    bedrooms: initial?.deliveryBedrooms ?? "",
   });
-  const [needsPacking, setNeedsPacking] = useState<boolean | null>(true);
-  const [needsBoxes, setNeedsBoxes] = useState<boolean | null>(true);
-  const [serviceId, setServiceId] = useState("");
-  const [hours, setHours] = useState("");
-  const [inventory, setInventory] = useState("");
+  const [needsPacking, setNeedsPacking] = useState<boolean | null>(initial?.needsPacking ?? true);
+  const [needsBoxes, setNeedsBoxes] = useState<boolean | null>(initial?.needsBoxes ?? true);
+  const [serviceId, setServiceId] = useState(initial?.serviceId ?? "");
+  const [hours, setHours] = useState(initial?.hours ?? "");
+  const [inventory, setInventory] = useState(initial?.inventory ?? "");
   const [notes, setNotes] = useState("");
   const [images, setImages] = useState<{ file: File; preview: string }[]>([]);
   const [imagesError, setImagesError] = useState("");
@@ -272,7 +313,7 @@ export function NewRequestForm({
           const moveTime = moveTimeText.trim()
             ? `${moveTimeText.trim()} ${movePeriod}`
             : "";
-          const result = await createAdminRequest({
+          const payload = {
             clientId,
             title,
             moveDate: iso,
@@ -306,7 +347,10 @@ export function NewRequestForm({
             inventory,
             notes,
             images: payloadImages,
-          });
+          };
+          const result = requestId
+            ? await updateAdminRequest(requestId, payload)
+            : await createAdminRequest(payload);
           setPending(false);
           if (result && !result.ok) {
             setFieldErrors(result.errors ?? {});
@@ -723,7 +767,7 @@ export function NewRequestForm({
       <div className="flex items-center justify-end gap-2 border-t border-[#e6ebed] pt-6">
         {error ? <p className="mr-auto text-sm font-semibold text-rose-700">{error}</p> : null}
         <Link
-          href="/solicitacoes"
+          href={requestId ? `/solicitacoes/${requestId}` : "/solicitacoes"}
           className={`inline-flex h-10 items-center rounded-lg px-4 text-sm font-semibold ${ink} hover:bg-[#f4f6f7]`}
         >
           Cancel
@@ -734,7 +778,7 @@ export function NewRequestForm({
           className="h-10 rounded-lg px-4 text-sm font-semibold text-white disabled:opacity-60"
           style={{ background: green }}
         >
-          {pending ? "Saving…" : "Save request"}
+          {pending ? "Saving…" : requestId ? "Update request" : "Save request"}
         </button>
       </div>
     </form>

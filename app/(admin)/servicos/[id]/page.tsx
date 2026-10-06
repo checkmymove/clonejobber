@@ -1,10 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { formatGBP, formatDateLondon } from "@/lib/format";
 import { getJobDetail } from "@/lib/jobs/queries";
+import { jobSnapshotFromDetail } from "@/lib/jobs/edit-snapshot";
 import { updateJobStatus } from "@/lib/jobs/actions";
 import { convertJobToInvoice } from "@/lib/invoices/actions";
-import { Badge, Card, PageHeader } from "@/components/ui";
+import {
+  JobItemsCard,
+  JobScheduleCard,
+  JobVisitsCard,
+} from "@/components/jobs/job-inline-cards";
+import { Badge, PageHeader } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -23,9 +28,7 @@ export default async function ServicoDetailPage({
   const { id } = await params;
   const j = await getJobDetail(id);
   if (!j) notFound();
-
-  const window =
-    j.anytime ? "Anytime" : `${j.window_start || "—"} – ${j.window_end || "—"}`;
+  const snapshot = jobSnapshotFromDetail(j);
 
   return (
     <div>
@@ -44,14 +47,6 @@ export default async function ServicoDetailPage({
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Badge tone={j.status}>{LABELS[j.status] ?? j.status}</Badge>
-        {j.status !== "cancelled" && j.status !== "done" ? (
-          <Link
-            href={`/servicos/${id}/editar`}
-            className="h-9 rounded-xl border border-line bg-card px-3 text-sm font-bold leading-9 text-ink hover:bg-cream"
-          >
-            Edit
-          </Link>
-        ) : null}
         {j.status === "scheduled" ? (
           <StatusForm id={id} status="in_progress" label="Start" />
         ) : null}
@@ -82,57 +77,11 @@ export default async function ServicoDetailPage({
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <Card className="h-fit p-5">
-          <h2 className="mb-2 text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">Schedule</h2>
-          <dl className="text-sm">
-            <Row k="Date" v={j.scheduled_date ? formatDateLondon(j.scheduled_date) : "Schedule mais tarde"} />
-            <Row k="Janela" v={window} />
-            <Row k="Collection" v={j.pickup_address || "—"} />
-            <Row k="Delivery" v={j.delivery_address || "—"} />
-            <Row k="Quote" v={j.quote_number ?? "Direct"} />
-            <Row k="Total" v={formatGBP(j.total)} />
-          </dl>
-        </Card>
-        <Card className="h-fit p-5">
-          <h2 className="mb-2 text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">Visits</h2>
-          <div className="space-y-2 text-sm">
-            {j.visits.map((v) => (
-              <p key={v.id} className="rounded-xl border border-line p-3">
-                <span className="font-bold text-ink">{v.visit_date ? formatDateLondon(v.visit_date) : "No date"}</span>
-                <span className="text-ink-soft">
-                  {" "}
-                  · {v.anytime ? "Anytime" : `${v.start_time || "—"}–${v.end_time || "—"}`}
-                </span>
-                {v.instructions ? <span className="mt-1 block text-ink-soft">{v.instructions}</span> : null}
-              </p>
-            ))}
-          </div>
-        </Card>
-        <Card className="h-fit p-5 xl:col-span-2">
-          <h2 className="mb-2 text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">Items</h2>
-          {j.lines.map((l, i) => (
-            <div key={i} className="flex justify-between gap-3 border-b border-line py-2 text-sm last:border-0">
-              <div>
-                <p className="font-bold text-ink">{l.name}</p>
-                <p className="text-xs text-ink-mute">
-                  {l.quantity} × {formatGBP(l.unitPrice)}
-                </p>
-              </div>
-              <p className="font-bold text-ink">{formatGBP(l.total)}</p>
-            </div>
-          ))}
-        </Card>
+        <JobScheduleCard snapshot={snapshot} />
+        <JobVisitsCard snapshot={snapshot} />
+        <JobItemsCard snapshot={snapshot} />
       </div>
     </div>
-  );
-}
-
-function Row({ k, v }: { k: string; v: string }) {
-  return (
-    <p className="flex justify-between gap-4 py-0.5">
-      <span className="text-ink-soft">{k}</span>
-      <span className="text-right font-semibold text-ink">{v}</span>
-    </p>
   );
 }
 

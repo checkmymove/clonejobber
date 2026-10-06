@@ -447,9 +447,11 @@ export async function updateQuoteDocument(
     where id = ${quoteId} and company_id = ${companyId} limit 1
   `;
   if (!rows[0]) return { ok: false, message: "Quote not found" };
-  if (rows[0].status !== "draft") {
-    return { ok: false, message: "Only a draft quote can be edited." };
-  }
+
+  const client = await db`
+    select id from clients where id = ${input.clientId} and company_id = ${companyId}
+  `;
+  if (!client[0]) return { ok: false, errors: { clientId: "Client not found" } };
 
   const title = input.title.trim() || "Quote";
   const validUntil = input.validUntil || null;
@@ -457,6 +459,7 @@ export async function updateQuoteDocument(
   const inventory = input.inventory?.trim() ?? "";
   await db`
     update quotes set
+      client_id = ${input.clientId},
       title = ${title},
       message = ${input.message.trim()},
       notes = ${input.notes.trim()},
@@ -500,13 +503,15 @@ export async function updateJobDocument(
   if (Object.keys(errors).length) return { ok: false, errors };
 
   const rows = await db`
-    select id, company_id, number, status from jobs
+    select id, company_id, number, status, pickup_address, delivery_address from jobs
     where id = ${jobId} and company_id = ${companyId} limit 1
   `;
   if (!rows[0]) return { ok: false, message: "Job not found" };
-  if (rows[0].status === "done" || rows[0].status === "cancelled") {
-    return { ok: false, message: "Completed or cancelled jobs cannot be edited." };
-  }
+
+  const client = await db`
+    select id from clients where id = ${input.clientId} and company_id = ${companyId}
+  `;
+  if (!client[0]) return { ok: false, errors: { clientId: "Client not found" } };
 
   const first = input.visits[0];
   const scheduled = first?.later ? null : first?.date || null;
@@ -516,6 +521,7 @@ export async function updateJobDocument(
 
   await db`
     update jobs set
+      client_id = ${input.clientId},
       title = ${title},
       notes = ${input.notes.trim()},
       scheduled_date = ${scheduled},
@@ -524,6 +530,8 @@ export async function updateJobDocument(
       anytime = ${!!first?.anytime},
       schedule_later = ${!!first?.later},
       remind_invoice = ${input.remindInvoice},
+      pickup_address = ${input.pickupAddress ?? rows[0].pickup_address},
+      delivery_address = ${input.deliveryAddress ?? rows[0].delivery_address},
       subtotal = ${subtotal},
       total = ${subtotal},
       updated_at = now()
@@ -574,15 +582,19 @@ export async function updateInvoiceDocument(
     where id = ${invoiceId} and company_id = ${companyId} limit 1
   `;
   if (!rows[0]) return { ok: false, message: "Invoice not found" };
-  if (rows[0].status !== "draft") {
-    return { ok: false, message: "Only a draft invoice can be edited." };
-  }
+
+  const client = await db`
+    select id from clients where id = ${input.clientId} and company_id = ${companyId}
+  `;
+  if (!client[0]) return { ok: false, errors: { clientId: "Client not found" } };
 
   const issued = new Date(rows[0].issued_on);
   const due = isoDate(dueOnFromTerms(input.paymentTerms, issued));
   const subject = input.subject.trim();
+  const balance = rows[0].status === "paid" ? 0 : subtotal;
   await db`
     update invoices set
+      client_id = ${input.clientId},
       subject = ${subject},
       message = ${input.message.trim()},
       notes = ${input.notes.trim()},
@@ -590,7 +602,7 @@ export async function updateInvoiceDocument(
       due_on = ${due},
       subtotal = ${subtotal},
       total = ${subtotal},
-      balance = ${subtotal},
+      balance = ${balance},
       updated_at = now()
     where id = ${invoiceId}
   `;

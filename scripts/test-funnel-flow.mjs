@@ -104,10 +104,36 @@ try {
     const [editedLine] = await tx`select count(*)::int as n from quote_line_items where quote_id = ${quote.id}`;
     check("edited quote replaced line items", editedLine.n === 1);
 
+    const twoLineQuote = await persistQuote(tx, company.id, {
+      ...quoteInput,
+      title: "Two lines",
+      lines: [
+        { name: "Removal", description: "Two-person team", qty: "1", unitPrice: "250" },
+        { name: "Packing", description: "Full packing service", qty: "2", unitPrice: "40" },
+      ],
+    });
+    check("quote with two line items saved", twoLineQuote.ok && twoLineQuote.id);
+    const twoLines = await tx`
+      select name, description, quantity::float as quantity, unit_price, total, sort
+      from quote_line_items
+      where quote_id = ${twoLineQuote.id}
+      order by sort`;
+    check("two line items persisted", twoLines.length === 2);
+    check(
+      "each line item stored its own summary",
+      twoLines[0].name === "Removal" &&
+        twoLines[0].description === "Two-person team" &&
+        twoLines[0].unit_price === 25000 &&
+        twoLines[1].name === "Packing" &&
+        twoLines[1].description === "Full packing service" &&
+        twoLines[1].quantity === 2 &&
+        twoLines[1].unit_price === 4000,
+    );
+
     const sent = await changeQuoteStatus(tx, quote.id, "sent");
     check("quote marked sent", sent.ok);
     const editSent = await updateQuoteDocument(tx, company.id, quote.id, quoteInput);
-    check("sent quote cannot be overwritten", !editSent.ok);
+    check("sent quote can be edited", editSent.ok);
 
     const approved = await changeQuoteStatus(tx, quote.id, "approved");
     check("quote approved", approved.ok);
@@ -175,7 +201,7 @@ try {
       ],
       lines: [{ name: "Labour", qty: "2", unitPrice: "80" }],
     });
-    check("completed job cannot be edited", !editDone.ok);
+    check("completed job can be edited", editDone.ok);
 
     const invoice = await convertCompletedJobToInvoice(tx, company.id, job.id);
     check("completed job became an invoice", invoice.ok && invoice.number.startsWith("INV-"));
@@ -208,7 +234,7 @@ try {
       paymentTerms: "net_7",
       lines: [{ name: "Labour", qty: "2", unitPrice: "90" }],
     });
-    check("sent invoice cannot be overwritten", !editSentInv.ok);
+    check("sent invoice can be edited", editSentInv.ok);
     const paid = await changeInvoiceStatus(tx, invoice.id, "paid");
     check("invoice paid", paid.ok);
 
@@ -217,7 +243,7 @@ try {
     check("paid invoice has zero balance", row.status === "paid" && row.balance === 0);
 
     const [quoteRow] = await tx`select total from quotes where id = ${quote.id}`;
-    check("quote stored as 30000 pence", quoteRow.total === 30000);
+    check("quote stored as 25000 pence after later edit", quoteRow.total === 25000);
 
     const ids = [quote.id, job.id, invoice.id];
     const [logCount] = await tx`

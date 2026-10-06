@@ -100,7 +100,6 @@ export function NewQuoteForm({
   const [saveMenuOpen, setSaveMenuOpen] = useState(false);
   const [emailDraft, setEmailDraft] = useState<QuoteEmailDraft | null>(null);
   const saveMenuRef = useRef<HTMLDivElement>(null);
-  const [summary, setSummary] = useState(initialLines?.[0]?.description ?? "");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const [lines, setLines] = useState<Line[]>(
@@ -110,7 +109,7 @@ export function NewQuoteForm({
           name: l.name,
           qty: l.qty,
           price: l.unitPrice,
-          description: i === 0 ? "" : l.description,
+          description: l.description,
         }))
       : [{ id: "line-1", name: "", qty: "1", price: "", description: "" }],
   );
@@ -138,19 +137,17 @@ export function NewQuoteForm({
       setPacking(null);
       if (service) {
         setTitle(service.name);
-        setSummary(service.description);
         setLines((rows) => [
           {
             id: rows[0]?.id ?? "line-1",
             name: service.name,
             qty: "1",
             price: rows[0]?.name === service.name ? rows[0].price : service.unitPrice,
-            description: "",
+            description: service.description,
           },
         ]);
       } else {
         setTitle("");
-        setSummary("");
         setLines([{ id: "line-1", name: "", qty: "1", price: "", description: "" }]);
       }
       return;
@@ -164,14 +161,13 @@ export function NewQuoteForm({
     setCollection(next.collection);
     setDelivery(next.delivery);
     setPacking(next.packing);
-    setSummary(next.lines[0]?.description ?? "");
     setLines((rows) =>
       next.lines.map((line, i) => ({
         id: rows[i]?.id ?? `line-${i}`,
         name: line.name,
         qty: line.qty,
         price: rows[i]?.name === line.name ? rows[i].price : line.unitPrice,
-        description: i === 0 ? "" : line.description,
+        description: line.description,
       })),
     );
   }
@@ -222,9 +218,9 @@ export function NewQuoteForm({
       discount,
       tax,
       deposit,
-      lines: lines.map((l, i) => ({
+      lines: lines.map((l) => ({
         name: l.name,
-        description: i === 0 ? summary : l.description,
+        description: l.description,
         qty: l.qty,
         unitPrice: l.price,
       })),
@@ -276,7 +272,7 @@ export function NewQuoteForm({
         onChange={(id) => {
           void applyClient(id);
         }}
-        disabled={!!quoteId || loadingClient}
+        disabled={loadingClient}
       />
       {loadingClient ? (
         <p className="text-sm text-[#5d6f78]">Loading client and request details…</p>
@@ -343,68 +339,74 @@ export function NewQuoteForm({
 
       <section className={`rounded-lg border ${line} bg-white p-4 sm:p-5`}>
         <h2 className={`text-[17px] font-bold ${ink}`}>Product / Service</h2>
-        <label className="mt-4 block">
-          <span className={label}>Service summary</span>
-          <textarea
-            aria-label="Service summary"
-            value={summary}
-            onChange={(e) => setSummary(e.target.value)}
-            className={`min-h-[180px] w-full resize-y rounded-lg border ${line} px-3 py-2 text-[15px] leading-6 ${ink} outline-none focus:border-[#388623] focus:ring-2 focus:ring-[#388623]/20`}
-          />
-        </label>
-        <div className="mt-4 space-y-4">
+        <div className="mt-4 space-y-6">
           {lines.map((line) => {
             const qty = Number(line.qty.replace(",", ".")) || 0;
             const price = Number(line.price.replace(",", ".")) || 0;
             return (
-              <div key={line.id} className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[minmax(0,1fr)_110px_150px_110px]">
-                <label className="block">
-                  <span className={label}>Service</span>
-                  <input
-                    aria-label="Service"
-                    value={line.name}
-                    onChange={(e) => {
-                      const name = e.target.value;
-                      setLines((rows) =>
-                        rows.map((row) => (row.id === line.id ? { ...row, name } : row)),
-                      );
-                      if (line.id === lines[0]?.id) {
-                        setTitle((current) =>
-                          !current.trim() || current === line.name ? name : current,
+              <div key={line.id} className="space-y-3">
+                <div className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[minmax(0,1fr)_110px_150px_110px]">
+                  <label className="block">
+                    <span className={label}>Service</span>
+                    <input
+                      aria-label="Service"
+                      value={line.name}
+                      onChange={(e) => {
+                        const name = e.target.value;
+                        setLines((rows) =>
+                          rows.map((row) => (row.id === line.id ? { ...row, name } : row)),
                         );
+                        if (line.id === lines[0]?.id) {
+                          setTitle((current) =>
+                            !current.trim() || current === line.name ? name : current,
+                          );
+                        }
+                      }}
+                      className={field}
+                    />
+                  </label>
+                  <label className="block">
+                    <span className={label}>Quantity</span>
+                    <input
+                      aria-label="Quantity"
+                      value={line.qty}
+                      onChange={(e) =>
+                        setLines((rows) => rows.map((row) => (row.id === line.id ? { ...row, qty: e.target.value } : row)))
                       }
-                    }}
-                    className={field}
-                  />
-                </label>
+                      className={field}
+                    />
+                  </label>
+                  <label className="block">
+                    <span className={label}>Unit price</span>
+                    <input
+                      aria-label="Unit price"
+                      placeholder="£ 0.00"
+                      value={line.price}
+                      onChange={(e) =>
+                        setLines((rows) => rows.map((row) => (row.id === line.id ? { ...row, price: e.target.value } : row)))
+                      }
+                      className={field}
+                    />
+                  </label>
+                  <label className="block">
+                    <span className={label}>Total</span>
+                    <div className={`flex h-11 items-center justify-end rounded-lg border ${line} px-3 text-sm ${ink}`}>
+                      {formatPounds(qty * price)}
+                    </div>
+                  </label>
+                </div>
                 <label className="block">
-                  <span className={label}>Quantity</span>
-                  <input
-                    aria-label="Quantity"
-                    value={line.qty}
+                  <span className={label}>Service summary</span>
+                  <textarea
+                    aria-label="Service summary"
+                    value={line.description}
                     onChange={(e) =>
-                      setLines((rows) => rows.map((row) => (row.id === line.id ? { ...row, qty: e.target.value } : row)))
+                      setLines((rows) =>
+                        rows.map((row) => (row.id === line.id ? { ...row, description: e.target.value } : row)),
+                      )
                     }
-                    className={field}
+                    className={`min-h-[180px] w-full resize-y rounded-lg border ${line} px-3 py-2 text-[15px] leading-6 ${ink} outline-none focus:border-[#388623] focus:ring-2 focus:ring-[#388623]/20`}
                   />
-                </label>
-                <label className="block">
-                  <span className={label}>Unit price</span>
-                  <input
-                    aria-label="Unit price"
-                    placeholder="£ 0.00"
-                    value={line.price}
-                    onChange={(e) =>
-                      setLines((rows) => rows.map((row) => (row.id === line.id ? { ...row, price: e.target.value } : row)))
-                    }
-                    className={field}
-                  />
-                </label>
-                <label className="block">
-                  <span className={label}>Total</span>
-                  <div className={`flex h-11 items-center justify-end rounded-lg border ${line} px-3 text-sm ${ink}`}>
-                    {formatPounds(qty * price)}
-                  </div>
                 </label>
               </div>
             );

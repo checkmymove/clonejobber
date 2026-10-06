@@ -1,7 +1,8 @@
 import "server-only";
 import { sql } from "@/lib/db";
-import { toDateInput } from "@/lib/format";
+import { penceToInput, toDateInput } from "@/lib/format";
 import type { ParsedLine } from "@/lib/funnel/money";
+import { getQuoteDetail, type QuoteDetail } from "@/lib/quotes/queries";
 
 export interface JobRow {
   id: string;
@@ -113,6 +114,101 @@ export async function getJobDetail(id: string): Promise<JobDetail | null> {
     visits: visits.map((visit) => ({
       ...visit,
       visit_date: asDateString(visit.visit_date),
+    })),
+  };
+}
+
+export type JobVisitDraft = {
+  id: string;
+  title: string;
+  date: string;
+  later: boolean;
+  start: string;
+  end: string;
+  anytime: boolean;
+  assignee: string;
+  instructions: string;
+};
+
+export type JobPrefill = {
+  quoteId: string;
+  requestId?: string;
+  clientId: string;
+  title: string;
+  notes: string;
+  visits: JobVisitDraft[];
+  lines: { name: string; qty: string; price: string; description: string }[];
+};
+
+export async function getJobIdForQuote(quoteId: string): Promise<string | null> {
+  const rows = await sql<{ id: string }[]>`
+    select id from jobs where quote_id = ${quoteId} limit 1
+  `;
+  return rows[0]?.id ?? null;
+}
+
+function parseMoveTimeToInput(raw: string): string {
+  const t = raw.trim();
+  if (!t) return "";
+  const match = t.match(/^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/i);
+  if (!match) return "";
+  let hour = Number(match[1]);
+  const minutes = match[2];
+  const period = match[3]?.toUpperCase();
+  if (period === "PM" && hour < 12) hour += 12;
+  if (period === "AM" && hour === 12) hour = 0;
+  if (hour < 0 || hour > 23) return "";
+  return `${String(hour).padStart(2, "0")}:${minutes}`;
+}
+
+function visitInstructionsFromQuote(q: QuoteDetail): string {
+  const blocks: string[] = [];
+  if (q.collection) {
+    blocks.push(
+      `Collection: ${q.collection.address}\nFloor: ${q.collection.floor} · Lift: ${q.collection.lift} · Parking: ${q.collection.parking} · Bedrooms: ${q.collection.bedrooms}`,
+    );
+  }
+  if (q.delivery) {
+    blocks.push(
+      `Delivery: ${q.delivery.address}\nFloor: ${q.delivery.floor} · Lift: ${q.delivery.lift} · Parking: ${q.delivery.parking} · Bedrooms: ${q.delivery.bedrooms}`,
+    );
+  }
+  if (q.packing) {
+    blocks.push(`Packing services: ${q.packing.service}\nPacking materials: ${q.packing.materials}`);
+  }
+  if (q.inventory.trim()) blocks.push(q.inventory.trim());
+  return blocks.join("\n\n");
+}
+
+export async function getJobPrefillFromQuote(quoteId: string): Promise<JobPrefill | null> {
+  const q = await getQuoteDetail(quoteId);
+  if (!q) return null;
+  const moveDate = toDateInput(q.valid_until);
+  const start = parseMoveTimeToInput(q.move_time);
+  return {
+    quoteId: q.id,
+    requestId: q.request_id ?? undefined,
+    clientId: q.client_id,
+    title: q.title,
+    notes: q.notes,
+    visits: [
+      {
+        id: "visit-1",
+        title: "",
+        date: moveDate || new Date().toISOString().slice(0, 10),
+        later: !moveDate,
+        start,
+        end: "",
+        anytime: false,
+        assignee: "",
+        instructions: visitInstructionsFromQuote(q),
+      },
+    ],
+    lines: q.lines.map((line) => ({
+      name: line.name,
+      description: line.description,
+      qty: String(line.quantity),
+      price: penceToInput(line.unitPrice),
     })),
   };
 }

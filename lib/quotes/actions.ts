@@ -8,9 +8,7 @@ import { sql } from "@/lib/db";
 import { getCompanyId } from "@/lib/company";
 import {
   changeQuoteStatus,
-  isUniqueViolation,
   persistQuote,
-  prepareJobFromQuote,
   updateQuoteDocument,
   type ActionResult,
 } from "@/lib/funnel/engine";
@@ -72,6 +70,10 @@ export async function updateQuote(quoteId: string, input: QuoteInput): Promise<A
   redirect(`/cotacoes/${quoteId}`);
 }
 
+export async function saveQuoteInPlace(quoteId: string, input: QuoteInput): Promise<ActionResult> {
+  return writeQuote(quoteId, input);
+}
+
 export async function prepareQuoteEmail(
   quoteId: string | undefined,
   input: QuoteInput,
@@ -109,29 +111,7 @@ export async function saveQuoteAndConvert(
 ): Promise<ActionResult> {
   const saved = await writeQuote(quoteId, input);
   if (!saved.ok || !saved.id) return saved;
-  const companyId = await getCompanyId();
-  if (!companyId) return { ok: false, id: saved.id, message: "Company not found." };
-
-  const quoteIdSaved = saved.id;
-  let jobId: string | undefined;
-  try {
-    const job = await sql.begin(async (tx) => prepareJobFromQuote(tx, companyId, quoteIdSaved));
-    if (!job.ok) return { ok: false, id: quoteIdSaved, message: job.message };
-    jobId = job.id;
-  } catch (error) {
-    if (!isUniqueViolation(error)) throw error;
-    const existing = await sql<{ id: string }[]>`
-      select id from jobs where quote_id = ${quoteIdSaved} limit 1
-    `;
-    if (!existing[0]) throw error;
-    jobId = existing[0].id;
-  }
-  if (!jobId) return { ok: false, id: quoteIdSaved, message: "Job not found" };
-
-  revalidatePath("/servicos");
-  revalidatePath("/cotacoes");
-  revalidatePath("/clientes");
-  redirect(`/servicos/${jobId}`);
+  redirect(`/servicos/novo?quoteId=${saved.id}`);
 }
 
 export async function updateQuoteStatus(

@@ -40,6 +40,8 @@ export type JobInput = {
   requestId?: string;
   title: string;
   notes: string;
+  pickupAddress?: string;
+  deliveryAddress?: string;
   remindInvoice: boolean;
   visits: VisitInput[];
   lines: LineInput[];
@@ -76,6 +78,7 @@ export type AdminRequestInput = {
   needsPacking: boolean;
   needsBoxes: boolean;
   serviceId: string;
+  serviceIds?: string[];
   hours: string;
   inventory: string;
 };

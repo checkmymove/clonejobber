@@ -46,6 +46,8 @@ export async function listRequests(
 
 export interface AdminRequestDetail extends AdminRequestRow {
   client_id: string;
+  client_first_name: string;
+  client_last_name: string;
   move_time: string | null;
   needs_packing_service: boolean;
   needs_packing_materials: boolean;
@@ -65,6 +67,7 @@ export interface AdminRequestDetail extends AdminRequestRow {
   pickup_has_lift: boolean | null;
   pickup_parking: string | null;
   pickup_bedrooms: number | null;
+  service_ids: string[];
   service_names: string[];
   files: { id: string; file_name: string; file_size: number }[];
   timeline: { action: string; summary: string; created_at: string }[];
@@ -89,6 +92,8 @@ export async function getRequestDetail(
       r.estimated_hours, r.inventory_description,
       ls.name as lead_source,
       c.id as client_id,
+      c.first_name as client_first_name,
+      c.last_name as client_last_name,
       trim(c.first_name || ' ' || c.last_name) as client_name,
       c.email as client_email, c.phone as client_phone,
       c.company_name, c.marketing_email_consent as marketing_email,
@@ -113,8 +118,8 @@ export async function getRequestDetail(
   if (!row) return null;
 
   const [serviceRows, fileRows, logRows] = await Promise.all([
-    sql<{ name: string }[]>`
-      select s.name from request_services rs
+    sql<{ id: string; name: string }[]>`
+      select s.id, s.name from request_services rs
       join services s on s.id = rs.service_id
       where rs.request_id = ${id} order by s.sort
     `,
@@ -131,6 +136,7 @@ export async function getRequestDetail(
 
   return {
     ...row,
+    service_ids: serviceRows.map((s) => s.id),
     service_names: serviceRows.map((s) => s.name),
     files: fileRows,
     timeline: logRows,

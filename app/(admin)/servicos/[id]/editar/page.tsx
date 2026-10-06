@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { listClientsForSelect } from "@/lib/clients/queries";
 import { COMPANY_SLUG } from "@/lib/company";
 import { penceToInput, toDateInput } from "@/lib/format";
@@ -15,7 +15,6 @@ export default async function EditServicoPage({
   const { id } = await params;
   const j = await getJobDetail(id);
   if (!j) notFound();
-  if (j.status === "done" || j.status === "cancelled") redirect(`/servicos/${id}`);
 
   const clients = await listClientsForSelect(COMPANY_SLUG);
 
@@ -49,6 +48,7 @@ export default async function EditServicoPage({
           }
           initialLines={j.lines.map((l) => ({
             name: l.name,
+            description: l.description,
             qty: String(l.quantity),
             price: penceToInput(l.unitPrice),
           }))}

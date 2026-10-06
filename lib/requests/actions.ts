@@ -507,3 +507,234 @@ export async function createAdminRequest(input: {
   revalidatePath("/clientes");
   redirect(`/solicitacoes/${created.id}`);
 }
+
+type AdminRequestUpdateInput = {
+  clientId: string;
+  title: string;
+  moveDate: string;
+  moveTime: string;
+  pickupAddress: string;
+  pickupPostcode: string;
+  pickupFloor: string;
+  pickupLift: boolean;
+  pickupParking: string;
+  pickupBedrooms: string;
+  deliveryAddress: string;
+  deliveryPostcode: string;
+  deliveryFloor: string;
+  deliveryLift: boolean;
+  deliveryParking: string;
+  deliveryBedrooms: string;
+  needsPacking: boolean;
+  needsBoxes: boolean;
+  serviceId: string;
+  serviceIds?: string[];
+  hours: string;
+  inventory: string;
+  notes?: string;
+  images?: { name: string; mime: string; size: number; data: string }[];
+};
+
+async function persistAdminRequest(
+  requestId: string,
+  input: AdminRequestUpdateInput,
+): Promise<SubmitResult> {
+  await requireAdmin();
+  const { validateAdminRequest } = await import("@/lib/funnel/validation");
+  const { getCompanyId } = await import("@/lib/company");
+  const errors = validateAdminRequest(input);
+  if (Object.keys(errors).length) {
+    return { ok: false, errors, message: "Check the highlighted fields." };
+  }
+
+  const companyId = await getCompanyId();
+  if (!companyId) return { ok: false, message: "Company not found." };
+
+  const existing = await sql<{ id: string; number: string; client_id: string }[]>`
+    select id, number, client_id from requests
+    where id = ${requestId} and company_id = ${companyId}
+    limit 1
+  `;
+  if (!existing[0]) return { ok: false, message: "Request not found." };
+
+  const client = await sql<{ id: string }[]>`
+    select id from clients where id = ${input.clientId} and company_id = ${companyId}
+  `;
+  if (!client[0]) return { ok: false, message: "Client not found." };
+
+  const pickupBeds = Number(input.pickupBedrooms.trim() || "0");
+  const deliveryBeds = Number(input.deliveryBedrooms.trim() || "0");
+  const hours = input.hours ? [input.hours] : [];
+  const serviceIds = (input.serviceIds?.length ? input.serviceIds : input.serviceId ? [input.serviceId] : [])
+    .filter((id, index, all) => id && all.indexOf(id) === index);
+
+  const { sniffImageMime } = await import("@/lib/requests/validation");
+  const { MAX_FILE_SIZE_BYTES } = await import("@/lib/requests/constants");
+  const buffers: { name: string; mime: string; size: number; data: Buffer }[] = [];
+  for (const img of input.images ?? []) {
+    if (!img?.data) continue;
+    const buf = Buffer.from(img.data, "base64");
+    if (buf.length === 0 || buf.length > MAX_FILE_SIZE_BYTES) {
+      return { ok: false, message: `Image ${img.name} exceeds 8 MB.` };
+    }
+    const sniffed = sniffImageMime(new Uint8Array(buf));
+    if (!sniffed) {
+      return { ok: false, message: `Image ${img.name} is not a valid JPG, PNG or WEBP file.` };
+    }
+    buffers.push({ name: img.name.slice(0, 200), mime: sniffed, size: buf.length, data: buf });
+    if (buffers.length >= 10) break;
+  }
+
+  try {
+    await sql.begin(async (tx) => {
+      await tx`
+        update requests set
+          client_id = ${input.clientId},
+          move_date = ${input.moveDate || null},
+          move_time = ${input.moveTime || null},
+          needs_packing_service = ${input.needsPacking},
+          needs_packing_materials = ${input.needsBoxes},
+          estimated_hours = ${tx.array(hours)},
+          inventory_description = ${input.inventory.trim() || input.title.trim() || "Internal request"},
+          updated_at = now()
+        where id = ${requestId}
+      `;
+      await tx`delete from request_locations where request_id = ${requestId}`;
+      await tx`
+        insert into request_locations
+          (request_id, kind, address, postcode, floor, has_lift, parking_restrictions, bedrooms)
+        values
+          (${requestId}, 'pickup', ${input.pickupAddress.trim()}, ${input.pickupPostcode.trim()},
+           ${input.pickupFloor.trim() || "—"}, ${input.pickupLift},
+           ${input.pickupParking.trim() || "—"}, ${pickupBeds})
+      `;
+      await tx`
+        insert into request_locations
+          (request_id, kind, address, postcode, floor, has_lift, parking_restrictions, bedrooms)
+        values
+          (${requestId}, 'delivery', ${input.deliveryAddress.trim()}, ${input.deliveryPostcode.trim()},
+           ${input.deliveryFloor.trim() || "—"}, ${input.deliveryLift},
+           ${input.deliveryParking.trim() || "—"}, ${deliveryBeds})
+      `;
+      await tx`delete from request_services where request_id = ${requestId}`;
+      for (const serviceId of serviceIds) {
+        await tx`
+          insert into request_services (request_id, service_id)
+          values (${requestId}, ${serviceId})
+        `;
+      }
+      for (const b of buffers) {
+        await tx`
+          insert into request_attachments
+            (request_id, file_name, mime_type, file_size, data)
+          values (${requestId}, ${b.name}, ${b.mime}, ${b.size}, ${b.data})
+        `;
+        await tx`
+          insert into client_files (client_id, file_name, mime_type, file_size, data)
+          values (${input.clientId}, ${b.name}, ${b.mime}, ${b.size}, ${b.data})
+        `;
+      }
+      if (input.notes?.trim()) {
+        await tx`
+          insert into client_notes (client_id, author, content)
+          values (${input.clientId}, 'admin', ${input.notes.trim()})
+        `;
+      }
+      await tx`
+        insert into activity_log (company_id, actor, action, entity, entity_id, summary)
+        values (${companyId}, 'admin', 'request.updated', 'request', ${requestId},
+                ${`Request ${existing[0].number} updated`})
+      `;
+    });
+  } catch (error) {
+    console.error("updateAdminRequest failed", error);
+    return {
+      ok: false,
+      message: "Could not save the request. Nothing was stored. Try again.",
+    };
+  }
+
+  revalidatePath("/solicitacoes");
+  revalidatePath(`/solicitacoes/${requestId}`);
+  revalidatePath("/cotacoes", "layout");
+  revalidatePath("/clientes");
+  return { ok: true, requestId };
+}
+
+export async function updateAdminRequest(
+  requestId: string,
+  input: AdminRequestUpdateInput,
+): Promise<SubmitResult> {
+  const saved = await persistAdminRequest(requestId, input);
+  if (!saved.ok) return saved;
+  redirect(`/solicitacoes/${requestId}`);
+}
+
+export async function saveRequestInPlace(
+  requestId: string,
+  input: AdminRequestUpdateInput,
+): Promise<SubmitResult> {
+  return persistAdminRequest(requestId, input);
+}
+
+export async function saveRequestContact(
+  clientId: string,
+  requestId: string,
+  input: {
+    firstName: string;
+    lastName: string;
+    companyName: string;
+    email: string;
+    phone: string;
+    marketingEmail: boolean;
+    marketingSms: boolean;
+  },
+): Promise<SubmitResult> {
+  await requireAdmin();
+  const { isValidEmail, isValidPhone } = await import("@/lib/requests/validation");
+  const errors: Errors = {};
+  if (!input.firstName.trim()) errors.firstName = "First name is required";
+  if (!input.lastName.trim()) errors.lastName = "Last name is required";
+  if (!input.email.trim()) errors.email = "Email is required";
+  else if (!isValidEmail(input.email)) errors.email = "Enter a valid email address";
+  if (!input.phone.trim()) errors.phone = "Phone is required";
+  else if (!isValidPhone(input.phone)) errors.phone = "Enter a valid phone number";
+  if (Object.keys(errors).length) {
+    return { ok: false, errors, message: "Check the highlighted fields." };
+  }
+
+  const { getCompanyId } = await import("@/lib/company");
+  const companyId = await getCompanyId();
+  if (!companyId) return { ok: false, message: "Company not found." };
+
+  const owned = await sql<{ id: string }[]>`
+    select id from clients where id = ${clientId} and company_id = ${companyId} limit 1
+  `;
+  if (!owned[0]) return { ok: false, message: "Client not found." };
+
+  try {
+    await sql`
+      update clients set
+        first_name = ${input.firstName.trim()},
+        last_name = ${input.lastName.trim()},
+        company_name = ${input.companyName.trim() || null},
+        email = ${input.email.trim()},
+        phone = ${input.phone.trim()},
+        marketing_email_consent = ${input.marketingEmail},
+        marketing_sms_consent = ${input.marketingSms},
+        updated_at = now()
+      where id = ${clientId}
+    `;
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      return { ok: false, errors: { email: "A client with this email already exists" } };
+    }
+    throw error;
+  }
+
+  revalidatePath("/solicitacoes");
+  revalidatePath(`/solicitacoes/${requestId}`);
+  revalidatePath(`/clientes/${clientId}`);
+  revalidatePath("/clientes");
+  return { ok: true };
+}

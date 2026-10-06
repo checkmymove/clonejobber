@@ -25,6 +25,17 @@ describe("money", () => {
     const r = parseLines([{ name: "", qty: "1", unitPrice: "10" }]);
     assert.ok(r.errors.lines);
   });
+  it("keeps a description on every named line", () => {
+    const r = parseLines([
+      { name: "Removal", description: "Two-person team", qty: "1", unitPrice: "250" },
+      { name: "Packing", description: "Full packing service", qty: "2", unitPrice: "40" },
+    ]);
+    assert.deepEqual(r.errors, {});
+    assert.equal(r.parsed.length, 2);
+    assert.equal(r.parsed[0].description, "Two-person team");
+    assert.equal(r.parsed[1].description, "Full packing service");
+    assert.equal(r.subtotal, 33000);
+  });
 });
 
 describe("quote input", () => {
