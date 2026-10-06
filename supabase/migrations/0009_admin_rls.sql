@@ -56,7 +56,12 @@ begin
     select tablename
     from pg_tables
     where schemaname = 'public'
-      and tablename not in ('google_oauth_tokens', 'google_oauth_states')
+      and tablename not in (
+        'google_oauth_tokens',
+        'google_oauth_states',
+        'public_submit_limits',
+        'sms_settings'
+      )
   loop
     execute format('drop policy if exists admin_all on public.%I', t);
     execute format(

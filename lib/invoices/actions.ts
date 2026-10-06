@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { sql } from "@/lib/db";
 import { getCompanyId } from "@/lib/company";
+import { emailInvoice } from "@/lib/email/actions";
 import {
   changeInvoiceStatus,
   convertCompletedJobToInvoice,
@@ -18,17 +19,29 @@ import type { InvoiceInput } from "@/lib/funnel/validation";
 
 export type { ActionResult };
 
-export async function createInvoice(input: InvoiceInput): Promise<ActionResult> {
+async function saveInvoiceRecord(
+  invoiceId: string | undefined,
+  input: InvoiceInput,
+): Promise<ActionResult> {
+  if (invoiceId) return writeInvoice(invoiceId, input);
+
   await requireAdmin();
   const companyId = await getCompanyId();
   if (!companyId) return { ok: false, message: "Company not found." };
 
   const created = await sql.begin(async (tx) => persistInvoice(tx, companyId, input));
-  if (!created.ok) return created;
+  if (created.ok) {
+    revalidatePath("/faturas");
+    revalidatePath("/servicos");
+    revalidatePath("/clientes");
+    if (created.id) revalidatePath(`/faturas/${created.id}`);
+  }
+  return created;
+}
 
-  revalidatePath("/faturas");
-  revalidatePath("/servicos");
-  revalidatePath("/clientes");
+export async function createInvoice(input: InvoiceInput): Promise<ActionResult> {
+  const created = await saveInvoiceRecord(undefined, input);
+  if (!created.ok || !created.id) return created;
   redirect(`/faturas/${created.id}`);
 }
 
@@ -90,6 +103,28 @@ export async function saveInvoiceInPlace(
   input: InvoiceInput,
 ): Promise<ActionResult> {
   return writeInvoice(invoiceId, input);
+}
+
+export async function saveInvoiceAndEmail(
+  invoiceId: string | undefined,
+  input: InvoiceInput,
+): Promise<ActionResult> {
+  const saved = await saveInvoiceRecord(invoiceId, input);
+  if (!saved.ok || !saved.id) return saved;
+  const emailed = await emailInvoice(saved.id);
+  if (!emailed.ok) return { ok: false, id: saved.id, message: emailed.message };
+  redirect(`/faturas/${saved.id}`);
+}
+
+export async function saveInvoiceAndMarkSent(
+  invoiceId: string | undefined,
+  input: InvoiceInput,
+): Promise<ActionResult> {
+  const saved = await saveInvoiceRecord(invoiceId, input);
+  if (!saved.ok || !saved.id) return saved;
+  const marked = await updateInvoiceStatus(saved.id, "sent");
+  if (!marked.ok) return { ok: false, id: saved.id, message: marked.message };
+  redirect(`/faturas/${saved.id}`);
 }
 
 export async function updateInvoiceStatus(

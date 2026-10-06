@@ -2,7 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { buildRawEmail, encodeHeader, toBase64Url } from "../.testbuild/email/mime.js";
 import { googleRedirectUri } from "../.testbuild/email/config.js";
-import { quoteEmailHtml } from "../.testbuild/email/templates.js";
+import { quoteEmailHtml, quoteEmailPlain } from "../.testbuild/email/templates.js";
 
 describe("mime", () => {
   it("encodes ascii subjects unchanged", () => {
@@ -34,18 +34,43 @@ describe("oauth config", () => {
 });
 
 describe("templates", () => {
-  it("includes quote number and total", () => {
-    const html = quoteEmailHtml({
-      companyName: "Moving London",
-      clientName: "Ada",
-      number: "Q-0009",
-      title: "Move",
-      message: "Thanks",
-      validUntil: "2026-10-10",
-      total: 17500,
-      lines: [{ name: "Van", quantity: 1, unitPrice: 17500, total: 17500 }],
+  it("builds the short branded quote letter", () => {
+    const letter = quoteEmailPlain({
+      companyName: "Moving London Removals & Transport",
+      clientName: "Andre Dutra",
+      clientTitle: "Mr",
+      deposit: 5000,
     });
-    assert.match(html, /Q-0009/);
-    assert.match(html, /£175/);
+    assert.equal(letter.subject, "Quote from Moving London Removals & Transport");
+    assert.match(letter.message, /Hi Mr\. Andre Dutra,/);
+    assert.match(letter.message, /Klarna/);
+    assert.match(letter.message, /Deposit required: £50\.00/);
+    assert.match(letter.message, /020 335 52161/);
+    assert.match(letter.message, /\+44 7710 251699/);
+    assert.match(letter.message, /Best wishes,/);
+    assert.equal(letter.message.includes("Van"), false);
+    assert.equal(letter.message.includes("Total:"), false);
+
+    const html = quoteEmailHtml({
+      companyName: "Moving London Removals & Transport",
+      viewQuoteUrl: "http://127.0.0.1:3010/q/abc",
+      message: letter.message,
+    });
+    assert.match(html, />Quote</);
+    assert.match(html, /View Quote/);
+    assert.match(html, /http:\/\/127\.0\.0\.1:3010\/q\/abc/);
+    assert.match(html, /wa\.me\/447710251699/);
+    assert.equal(html.includes("Q-0009"), false);
+  });
+
+  it("omits the deposit line when none is required", () => {
+    const letter = quoteEmailPlain({
+      companyName: "Moving London Transport",
+      clientName: "Ada Lovelace",
+      clientTitle: "no title",
+      deposit: 0,
+    });
+    assert.match(letter.message, /Hi Ada Lovelace,/);
+    assert.equal(letter.message.includes("Deposit required"), false);
   });
 });

@@ -2,7 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { submitRequest } from "@/lib/requests/actions";
-import { HOURS_OPTIONS, STEP_TITLES } from "@/lib/requests/constants";
+import {
+  HOURS_OPTIONS,
+  LAST_STEP,
+  STEP_TITLES,
+  TOTAL_STEPS,
+} from "@/lib/requests/constants";
 import {
   validateContact,
   validateFileList,
@@ -49,24 +54,34 @@ const emptyLocation: LocationStep = {
   bedrooms: "",
 };
 
+const DRAFT_FORM_STEPS = TOTAL_STEPS;
+
 const ERROR_STEP: [RegExp, number][] = [
   [/^(firstName|lastName|companyName|email|phone|leadSourceId|moveDate|moveTime)$/, 0],
   [/^pickup\./, 1],
   [/^delivery\./, 2],
   [/^(needsService|needsMaterials)$/, 3],
-  [/^(services|hours)$/, 4],
-  [/^(inventory|images)$/, 5],
-  [/^terms$/, 6],
+  [/^(services|hours|inventory|images)$/, 4],
+  [/^terms$/, LAST_STEP],
 ];
 
 function stepForErrors(errors: Errors): number {
-  let first = 6;
+  let first = LAST_STEP;
   for (const key of Object.keys(errors)) {
     for (const [re, step] of ERROR_STEP) {
       if (re.test(key) && step < first) first = step;
     }
   }
   return first;
+}
+
+/** Map a saved draft onto the current 6-step form (older drafts had 7). */
+function restoreDraftStep(rawStep: unknown, formSteps: unknown): number {
+  const step = typeof rawStep === "number" && Number.isFinite(rawStep) ? rawStep : 0;
+  if (formSteps !== DRAFT_FORM_STEPS && step >= 5) {
+    return Math.min(step - 1, LAST_STEP);
+  }
+  return Math.min(Math.max(step, 0), LAST_STEP);
 }
 
 export function RequestWizard({
@@ -130,7 +145,9 @@ export function RequestWizard({
         if (Array.isArray(d.serviceIds)) setServiceIds(d.serviceIds);
         if (Array.isArray(d.hours)) setHours(d.hours);
         if (typeof d.inventory === "string") setInventory(d.inventory);
-        if (typeof d.step === "number") setStep(Math.min(d.step, 6));
+        if (typeof d.step === "number") {
+          setStep(restoreDraftStep(d.step, d.formSteps));
+        }
         if (typeof d.startedAt === "number") startedAt.current = d.startedAt;
         if (typeof d.idemKey === "string") idemKey.current = d.idemKey;
       }
@@ -156,6 +173,7 @@ export function RequestWizard({
           hours,
           inventory,
           step,
+          formSteps: DRAFT_FORM_STEPS,
           startedAt: startedAt.current,
           idemKey: idemKey.current,
         }),
@@ -193,9 +211,6 @@ export function RequestWizard({
         return {
           ...validateServices(serviceIds, validServiceIds),
           ...validateHours(hours),
-        };
-      case 5:
-        return {
           ...validateInventory(inventory),
           ...validateFileList(
             images.map((i) => ({
@@ -216,7 +231,7 @@ export function RequestWizard({
     setErrors(e);
     if (Object.keys(e).length === 0) {
       setSubmitMessage(null);
-      setStep((s) => Math.min(s + 1, 6));
+      setStep((s) => Math.min(s + 1, LAST_STEP));
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
@@ -272,7 +287,7 @@ export function RequestWizard({
     });
 
   const confirm = async () => {
-    const e = validateStep(6);
+    const e = validateStep(LAST_STEP);
     // Re-validate everything server will check, surfacing the first bad step.
     const all: Errors = {
       ...validateContact(contact),
@@ -362,12 +377,12 @@ export function RequestWizard({
 
   return (
     <div className="rounded-2xl bg-white p-5 shadow-sm sm:p-8">
-      <ProgressBar total={7} current={step} color={primaryColor} />
+      <ProgressBar total={TOTAL_STEPS} current={step} color={primaryColor} />
       <h2 className="mt-4 text-xl font-extrabold text-ink">
         {STEP_TITLES[step]}
       </h2>
       <p className="mt-0.5 text-xs text-ink-mute">
-        Step {step + 1} of 7
+        Step {step + 1} of {TOTAL_STEPS}
       </p>
 
       <div className="mt-5 space-y-4">
@@ -506,99 +521,100 @@ export function RequestWizard({
 
         {step === 4 ? (
           <>
-            <MultiSelect
-              label="Which service do you require?"
-              required
-              options={services.map((s) => ({ id: s.id, label: s.name }))}
-              selected={serviceIds}
-              onChange={setServiceIds}
-              placeholder="Select options"
-              error={errors.services}
-            />
-            <MultiSelect
-              label="How many hours do you need?"
-              required
-              options={HOURS_OPTIONS.map((h) => ({ id: h, label: h }))}
-              selected={hours}
-              onChange={setHours}
-              placeholder="Select options"
-              error={errors.hours}
-            />
-          </>
-        ) : null}
-
-        {step === 5 ? (
-          <>
-            <Field
-              label="Inventory List"
-              required
-              error={errors.inventory}
-              hint="Please provide as much information as you can."
-            >
-              <textarea
-                className="min-h-28 w-full rounded-xl border border-line bg-white px-3 py-2.5 text-[15px] text-ink outline-none focus:border-accent focus:ring-2 focus:ring-emerald-100"
-                value={inventory}
-                onChange={(e) => setInventory(e.target.value)}
-                placeholder="3 bedrooms, wardrobe, 40 boxes, sofa, dinner table, 6 chairs, piano, bags…"
-              />
-            </Field>
-            <div>
-              <p className="mb-1.5 text-sm font-semibold text-ink">
-                Share images of the work to be done
-              </p>
-              <button
-                type="button"
-                onClick={() => fileInput.current?.click()}
-                className="flex min-h-28 w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-line bg-stone-50 px-4 py-6 text-sm text-ink-soft transition hover:border-accent hover:bg-emerald-50/50"
+            <StepBlock title="Service">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <MultiSelect
+                  label="Which service do you require?"
+                  required
+                  options={services.map((s) => ({ id: s.id, label: s.name }))}
+                  selected={serviceIds}
+                  onChange={setServiceIds}
+                  placeholder="Select options"
+                  error={errors.services}
+                />
+                <MultiSelect
+                  label="How many hours do you need?"
+                  required
+                  options={HOURS_OPTIONS.map((h) => ({ id: h, label: h }))}
+                  selected={hours}
+                  onChange={setHours}
+                  placeholder="Select options"
+                  error={errors.hours}
+                />
+              </div>
+            </StepBlock>
+            <StepBlock title="Inventory">
+              <Field
+                label="Inventory List"
+                required
+                error={errors.inventory}
+                hint="Please provide as much information as you can."
               >
-                <span className="text-2xl" aria-hidden>
-                  🖼
-                </span>
-                Upload here
-                <span className="text-xs">
-                  {images.length}/{maxImages} · JPG, PNG or WEBP up to 8 MB each
-                </span>
-              </button>
-              <input
-                ref={fileInput}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                multiple
-                className="hidden"
-                onChange={(e) => onPickFiles(e.target.files)}
-              />
-              {errors.images ? (
-                <p className="mt-1 text-xs font-semibold text-rose-700">
-                  {errors.images}
+                <textarea
+                  className="min-h-28 w-full rounded-xl border border-line bg-white px-3 py-2.5 text-[15px] text-ink outline-none focus:border-accent focus:ring-2 focus:ring-emerald-100"
+                  value={inventory}
+                  onChange={(e) => setInventory(e.target.value)}
+                  placeholder="3 bedrooms, wardrobe, 40 boxes, sofa, dinner table, 6 chairs, piano, bags…"
+                />
+              </Field>
+              <div>
+                <p className="mb-1.5 text-sm font-semibold text-ink">
+                  Share images of the work to be done
                 </p>
-              ) : null}
-              {images.length > 0 ? (
-                <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5">
-                  {images.map((img) => (
-                    <div key={img.key} className="relative group">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={img.preview}
-                        alt={img.file.name}
-                        className="aspect-square w-full rounded-lg border border-line object-cover"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeImage(img.key)}
-                        aria-label={`Remove ${img.file.name}`}
-                        className="absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-full bg-ink/80 text-xs text-white hover:bg-rose-700"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </div>
+                <button
+                  type="button"
+                  onClick={() => fileInput.current?.click()}
+                  className="flex min-h-28 w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-line bg-stone-50 px-4 py-6 text-sm text-ink-soft transition hover:border-accent hover:bg-emerald-50/50"
+                >
+                  <span className="text-2xl" aria-hidden>
+                    🖼
+                  </span>
+                  Upload here
+                  <span className="text-xs">
+                    {images.length}/{maxImages} · JPG, PNG or WEBP up to 8 MB each
+                  </span>
+                </button>
+                <input
+                  ref={fileInput}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => onPickFiles(e.target.files)}
+                />
+                {errors.images ? (
+                  <p className="mt-1 text-xs font-semibold text-rose-700">
+                    {errors.images}
+                  </p>
+                ) : null}
+                {images.length > 0 ? (
+                  <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5">
+                    {images.map((img) => (
+                      <div key={img.key} className="relative group">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={img.preview}
+                          alt={img.file.name}
+                          className="aspect-square w-full rounded-lg border border-line object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeImage(img.key)}
+                          aria-label={`Remove ${img.file.name}`}
+                          className="absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-full bg-ink/80 text-xs text-white hover:bg-rose-700"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </StepBlock>
           </>
         ) : null}
 
-        {step === 6 ? (
+        {step === LAST_STEP ? (
           <div className="space-y-4 text-sm">
             <ReviewSection title="Contact Information">
               <ReviewRow
@@ -730,7 +746,7 @@ export function RequestWizard({
               Back
             </button>
           ) : null}
-          {step < 6 ? (
+          {step < LAST_STEP ? (
             <button
               type="button"
               onClick={next}
@@ -828,6 +844,23 @@ function LocationFields({
         />
       </Field>
     </>
+  );
+}
+
+function StepBlock({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-4 rounded-xl border border-line p-4">
+      <h3 className="text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">
+        {title}
+      </h3>
+      {children}
+    </section>
   );
 }
 

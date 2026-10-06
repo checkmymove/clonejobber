@@ -29,7 +29,9 @@ export const STEP_TITLES = [
   "Collection Information",
   "Delivery Information",
   "Packing Service",
-  "Service Details",
-  "Inventory List",
+  "Service & Inventory",
   "Review",
 ] as const;
+
+export const TOTAL_STEPS = STEP_TITLES.length;
+export const LAST_STEP = TOTAL_STEPS - 1;

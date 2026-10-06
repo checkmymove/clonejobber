@@ -87,9 +87,9 @@ export default async function CotacoesPage({
   const { q = "" } = await searchParams;
   const [visible, all] = await Promise.all([
     listQuotes(COMPANY_SLUG, q),
-    q.trim() ? listQuotes(COMPANY_SLUG, "") : Promise.resolve(null),
+    listQuotes(COMPANY_SLUG, q.trim() ? "" : q, { includeArchived: true }),
   ]);
-  const stats = quoteWindowStats(all ?? visible);
+  const stats = quoteWindowStats(all);
 
   return (
     <div>
@@ -183,7 +183,7 @@ export default async function CotacoesPage({
             </thead>
             <tbody>
               {visible.map((quote) => {
-                const status = quoteListStatus(quote.status, quote.converted_at);
+                const status = quoteListStatus(quote.status, quote.converted_at, quote.archived_at);
                 const href = `/cotacoes/${quote.id}`;
                 return (
                   <tr key={quote.id} className="border-b border-line last:border-0">

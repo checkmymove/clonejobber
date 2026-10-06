@@ -5,7 +5,8 @@ import { changeInvoiceStatus, changeQuoteStatus } from "@/lib/funnel/engine";
 import { sendGmailMessage } from "./gmail";
 import { getValidAccessToken } from "./google";
 import type { QuoteEmailDraft } from "./draft";
-import { invoiceEmailHtml, plainToEmailHtml, quoteEmailHtml, quoteEmailPlain } from "./templates";
+import { clientQuoteUrl } from "./config";
+import { invoiceEmailHtml, quoteEmailHtml, quoteEmailPlain } from "./templates";
 
 export type DeliveryRow = {
   id: string;
@@ -87,22 +88,22 @@ export async function sendQuoteEmail(
       id: string;
       number: string;
       status: string;
-      title: string;
-      message: string;
       total: number;
-      valid_until: string | null;
-      move_time: string;
+      deposit: number;
       client_id: string;
       client_name: string;
+      client_title: string;
       client_email: string;
       company_name: string;
+      logo_url: string | null;
     }[]
   >`
-    select q.id, q.number, q.status, q.title, q.message, q.total, q.valid_until, q.move_time,
-           q.client_id,
+    select q.id, q.number, q.status, q.total, q.deposit, q.client_id,
            trim(c.first_name || ' ' || c.last_name) as client_name,
+           coalesce(c.title, '') as client_title,
            c.email as client_email,
-           co.name as company_name
+           co.name as company_name,
+           co.logo_url
     from quotes q
     join clients c on c.id = q.client_id
     join companies co on co.id = q.company_id
@@ -121,25 +122,18 @@ export async function sendQuoteEmail(
     return { ok: false, message: "Client has no email address." };
   }
 
-  const lines = await sql<
-    { name: string; description: string; quantity: number; unitPrice: number; total: number }[]
-  >`
-    select name, description, quantity::float as quantity,
-           unit_price as "unitPrice", total
-    from quote_line_items where quote_id = ${quoteId} order by sort
-  `;
-
-  const subject = `Quote ${q.number} from ${q.company_name}`;
-  const html = quoteEmailHtml({
+  const letter = quoteEmailPlain({
     companyName: q.company_name,
     clientName: q.client_name,
-    number: q.number,
-    title: q.title,
-    message: q.message,
-    validUntil: q.valid_until,
-    moveTime: q.move_time,
-    total: q.total,
-    lines,
+    clientTitle: q.client_title,
+    deposit: q.deposit,
+  });
+  const subject = letter.subject;
+  const html = quoteEmailHtml({
+    companyName: q.company_name,
+    logoUrl: q.logo_url,
+    viewQuoteUrl: clientQuoteUrl(quoteId),
+    message: letter.message,
   });
 
   const sent = await deliverGmail({
@@ -197,15 +191,13 @@ export async function buildQuoteEmailDraft(
       status: string;
       total: number;
       deposit: number;
-      valid_until: string | null;
-      move_time: string;
       client_name: string;
       client_title: string;
       client_email: string;
       company_name: string;
     }[]
   >`
-    select q.id, q.number, q.status, q.total, q.deposit, q.valid_until, q.move_time,
+    select q.id, q.number, q.status, q.total, q.deposit,
            trim(c.first_name || ' ' || c.last_name) as client_name,
            coalesce(c.title, '') as client_title,
            c.email as client_email,
@@ -224,22 +216,11 @@ export async function buildQuoteEmailDraft(
   if (q.total <= 0) {
     return { ok: false, message: "Set line item prices before sending." };
   }
-  const lines = await sql<
-    { name: string; description: string; quantity: number; unitPrice: number; total: number }[]
-  >`
-    select name, description, quantity::float as quantity,
-           unit_price as "unitPrice", total
-    from quote_line_items where quote_id = ${quoteId} order by sort
-  `;
   const letter = quoteEmailPlain({
     companyName: q.company_name,
     clientName: q.client_name,
     clientTitle: q.client_title,
-    total: q.total,
     deposit: q.deposit,
-    validUntil: q.valid_until,
-    moveTime: q.move_time ?? "",
-    lines,
   });
   return {
     ok: true,
@@ -280,9 +261,17 @@ export async function sendComposedQuoteEmail(input: {
   if (!message) return { ok: false, message: "Message is required." };
 
   const quotes = await sql<
-    { id: string; status: string; client_id: string; client_email: string; company_name: string }[]
+    {
+      id: string;
+      status: string;
+      client_id: string;
+      client_email: string;
+      company_name: string;
+      logo_url: string | null;
+    }[]
   >`
-    select q.id, q.status, q.client_id, c.email as client_email, co.name as company_name
+    select q.id, q.status, q.client_id, c.email as client_email,
+           co.name as company_name, co.logo_url
     from quotes q
     join clients c on c.id = q.client_id
     join companies co on co.id = q.company_id
@@ -295,7 +284,12 @@ export async function sendComposedQuoteEmail(input: {
     return { ok: false, message: "This quote cannot be emailed." };
   }
 
-  const html = plainToEmailHtml(message);
+  const html = quoteEmailHtml({
+    companyName: q.company_name,
+    logoUrl: q.logo_url,
+    viewQuoteUrl: clientQuoteUrl(input.quoteId),
+    message,
+  });
   const bcc = input.copyToSender ? token.email : undefined;
   const sent = await deliverGmail({
     send: () =>

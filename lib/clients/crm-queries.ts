@@ -146,7 +146,7 @@ const SCOPE: Record<
   { active: string[]; archived: string[] }
 > = {
   request: { active: ["new", "review", "quoted"], archived: ["archived"] },
-  quote: { active: ["draft", "sent", "approved"], archived: ["rejected", "expired"] },
+  quote: { active: ["draft", "sent", "changes_requested", "approved"], archived: ["rejected", "expired"] },
   job: { active: ["scheduled", "in_progress"], archived: ["done", "cancelled"] },
   invoice: { active: ["draft", "sent", "overdue"], archived: ["paid", "cancelled"] },
 };
@@ -196,26 +196,37 @@ export async function getWorkOverview(
   }
 
   if (types.includes("quote")) {
-    const rows = await sql<{ id: string; number: string; status: string; created_at: string; total: number }[]>`
-      select id, number, status, created_at, total from quotes
+    const rows = await sql<{
+      id: string;
+      number: string;
+      status: string;
+      created_at: string;
+      total: number;
+      archived_at: string | null;
+    }[]>`
+      select id, number, status, created_at, total, archived_at from quotes
       where client_id = ${clientId} order by created_at desc
     `;
     const labels: Record<string, string> = {
       draft: "Draft",
       sent: "Sent",
+      changes_requested: "Changes requested",
       approved: "Approved",
       rejected: "Declined",
       expired: "Expired",
     };
     for (const r of rows) {
-      if (!inScope("quote", r.status, scope)) continue;
+      const archived = Boolean(r.archived_at);
+      if (scope === "active" && archived) continue;
+      if (scope === "archived" && !archived && !inScope("quote", r.status, "archived")) continue;
+      if (scope === "active" && !inScope("quote", r.status, "active")) continue;
       items.push({
         id: r.id,
         kind: "quote",
         ref: r.number,
         date: r.created_at,
-        status: r.status,
-        statusLabel: labels[r.status] ?? r.status,
+        status: archived ? "archived" : r.status,
+        statusLabel: archived ? "Archived" : labels[r.status] ?? r.status,
         detail: `${(r.total / 100).toFixed(2)}`,
       });
     }

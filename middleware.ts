@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { isAllowedAdminEmail } from "@/lib/auth/allowlist";
 
 function isPublicPath(pathname: string) {
-  return pathname === "/login" || pathname.startsWith("/r/");
+  return pathname === "/login" || pathname.startsWith("/r/") || pathname.startsWith("/q/");
 }
 
 function withSessionCookies(from: NextResponse, to: NextResponse) {

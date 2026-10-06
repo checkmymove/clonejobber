@@ -28,10 +28,13 @@ export interface QuoteListRow extends QuoteRow {
   property: string;
   sent_at: string | null;
   converted_at: string | null;
+  archived_at: string | null;
 }
 
 export interface QuoteDetail extends QuoteRow {
+  company_id: string;
   request_id: string | null;
+  archived_at: string | null;
   message: string;
   notes: string;
   move_time: string;
@@ -47,6 +50,9 @@ export interface QuoteDetail extends QuoteRow {
   client_title: string;
   company_name: string;
   client_address: string;
+  client_address_line: string | null;
+  client_city: string | null;
+  client_postcode: string | null;
   collection: QuoteStop | null;
   delivery: QuoteStop | null;
   packing: QuotePacking | null;
@@ -87,11 +93,13 @@ function toStop(input: {
 export async function listQuotes(
   companySlug: string,
   q = "",
+  opts: { includeArchived?: boolean } = {},
 ): Promise<QuoteListRow[]> {
   const like = `%${q.trim()}%`;
+  const includeArchived = Boolean(opts.includeArchived);
   return sql<QuoteListRow[]>`
     select q.id, q.number, q.status, q.title, q.total, q.valid_until, q.created_at,
-           q.sent_at, q.client_id,
+           q.sent_at, q.archived_at, q.client_id,
            trim(both ' ' from concat_ws(
              ' ',
              case
@@ -134,6 +142,7 @@ export async function listQuotes(
       limit 1
     ) ca on true
     where co.slug = ${companySlug}
+      and (${includeArchived} or q.archived_at is null)
       and (${q.trim() === ""}
         or q.number ilike ${like}
         or q.title ilike ${like}
@@ -177,8 +186,8 @@ export async function getQuoteDetail(id: string): Promise<QuoteDetail | null> {
     })[]
   >`
     select q.id, q.number, q.status, q.title, q.total, q.valid_until, q.created_at,
-           q.client_id, q.request_id, q.message, q.notes, q.move_time, q.inventory,
-           q.subtotal, q.discount, q.tax, q.deposit, q.sent_at,
+           q.company_id, q.client_id, q.request_id, q.message, q.notes, q.move_time, q.inventory,
+           q.subtotal, q.discount, q.tax, q.deposit, q.sent_at, q.archived_at,
            trim(c.first_name || ' ' || c.last_name) as client_name,
            c.email as client_email,
            coalesce(c.phone, '') as client_phone,

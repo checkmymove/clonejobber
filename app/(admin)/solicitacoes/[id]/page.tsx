@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { formatDateLondon } from "@/lib/format";
 import { COMPANY_SLUG, getCompanyId } from "@/lib/company";
 import { updateRequestStatus } from "@/lib/requests/actions";
-import { createAssessment } from "@/lib/clients/crm-actions";
 import { getRequestDetail } from "@/lib/requests/queries";
 import { requestSnapshotFromDetail } from "@/lib/requests/edit-snapshot";
 import { getActiveServices } from "@/lib/requests/company";
@@ -67,20 +66,6 @@ export default async function SolicitacaoDetailPage({
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Badge tone={r.status}>{STATUS_LABEL[r.status] ?? r.status}</Badge>
-        <form
-          action={async () => {
-            "use server";
-            await createAssessment(id);
-          }}
-        >
-          <button
-            type="submit"
-            className="h-9 rounded-xl bg-accent px-3 text-sm font-bold text-white hover:opacity-90"
-            title="Creates an on-site assessment linked to the client and the request"
-          >
-            Schedule Assessment
-          </button>
-        </form>
         <StatusChanger id={r.id} current={r.status} />
       </div>
 

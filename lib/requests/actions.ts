@@ -364,7 +364,7 @@ export async function updateRequestStatus(
   return { ok: true };
 }
 
-export async function createAdminRequest(input: {
+type AdminRequestWriteInput = {
   clientId: string;
   title: string;
   moveDate: string;
@@ -384,11 +384,14 @@ export async function createAdminRequest(input: {
   needsPacking: boolean;
   needsBoxes: boolean;
   serviceId: string;
+  serviceIds?: string[];
   hours: string;
   inventory: string;
   notes?: string;
   images?: { name: string; mime: string; size: number; data: string }[];
-}): Promise<SubmitResult> {
+};
+
+async function persistNewAdminRequest(input: AdminRequestWriteInput): Promise<SubmitResult> {
   await requireAdmin();
   const { validateAdminRequest } = await import("@/lib/funnel/validation");
   const { getCompanyId } = await import("@/lib/company");
@@ -505,35 +508,18 @@ export async function createAdminRequest(input: {
 
   revalidatePath("/solicitacoes");
   revalidatePath("/clientes");
-  redirect(`/solicitacoes/${created.id}`);
+  return { ok: true, requestId: created.id, number: created.number };
 }
 
-type AdminRequestUpdateInput = {
-  clientId: string;
-  title: string;
-  moveDate: string;
-  moveTime: string;
-  pickupAddress: string;
-  pickupPostcode: string;
-  pickupFloor: string;
-  pickupLift: boolean;
-  pickupParking: string;
-  pickupBedrooms: string;
-  deliveryAddress: string;
-  deliveryPostcode: string;
-  deliveryFloor: string;
-  deliveryLift: boolean;
-  deliveryParking: string;
-  deliveryBedrooms: string;
-  needsPacking: boolean;
-  needsBoxes: boolean;
-  serviceId: string;
-  serviceIds?: string[];
-  hours: string;
-  inventory: string;
-  notes?: string;
-  images?: { name: string; mime: string; size: number; data: string }[];
-};
+export async function createAdminRequest(
+  input: AdminRequestWriteInput,
+): Promise<SubmitResult> {
+  const created = await persistNewAdminRequest(input);
+  if (!created.ok || !created.requestId) return created;
+  redirect(`/solicitacoes/${created.requestId}`);
+}
+
+type AdminRequestUpdateInput = AdminRequestWriteInput;
 
 async function persistAdminRequest(
   requestId: string,
@@ -675,6 +661,17 @@ export async function saveRequestInPlace(
   input: AdminRequestUpdateInput,
 ): Promise<SubmitResult> {
   return persistAdminRequest(requestId, input);
+}
+
+export async function saveRequestAndConvert(
+  requestId: string | undefined,
+  input: AdminRequestWriteInput,
+): Promise<SubmitResult> {
+  const saved = requestId
+    ? await persistAdminRequest(requestId, input)
+    : await persistNewAdminRequest(input);
+  if (!saved.ok || !saved.requestId) return saved;
+  redirect(`/cotacoes/novo?requestId=${saved.requestId}`);
 }
 
 export async function saveRequestContact(

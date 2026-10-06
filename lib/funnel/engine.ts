@@ -86,15 +86,17 @@ export async function persistQuote(
 export async function changeQuoteStatus(
   db: Db,
   quoteId: string,
-  status: "sent" | "approved" | "rejected" | "expired" | "draft",
+  status: "sent" | "approved" | "rejected" | "expired" | "draft" | "changes_requested",
+  actor = "admin",
 ): Promise<ActionResult> {
   const rows = await db`
     select company_id, number, status, total from quotes where id = ${quoteId} limit 1
   `;
   if (!rows[0]) return { ok: false, message: "Quote not found" };
   const quoteNext: Record<string, string[]> = {
-    draft: ["sent"],
-    sent: ["approved", "rejected"],
+    draft: ["sent", "approved", "changes_requested"],
+    sent: ["approved", "rejected", "changes_requested"],
+    changes_requested: ["sent", "approved", "rejected"],
   };
   if (!quoteNext[rows[0].status]?.includes(status)) {
     return { ok: false, message: "This status change is not allowed." };
@@ -111,10 +113,46 @@ export async function changeQuoteStatus(
   `;
   await db`
     insert into activity_log (company_id, actor, action, entity, entity_id, summary)
-    values (${rows[0].company_id}, 'admin', 'quote.status_changed', 'quote', ${quoteId},
+    values (${rows[0].company_id}, ${actor}, 'quote.status_changed', 'quote', ${quoteId},
             ${`Quote ${rows[0].number} → ${status}`})
   `;
   return { ok: true, id: quoteId };
+}
+
+export async function archiveQuote(db: Db, quoteId: string, archived: boolean): Promise<ActionResult> {
+  const rows = await db`
+    select company_id, number, archived_at from quotes where id = ${quoteId} limit 1
+  `;
+  if (!rows[0]) return { ok: false, message: "Quote not found" };
+  const already = Boolean(rows[0].archived_at);
+  if (already === archived) return { ok: true, id: quoteId, number: rows[0].number };
+  await db`
+    update quotes set
+      archived_at = case when ${archived} then now() else null end,
+      updated_at = now()
+    where id = ${quoteId}
+  `;
+  await db`
+    insert into activity_log (company_id, actor, action, entity, entity_id, summary)
+    values (${rows[0].company_id}, 'admin', ${archived ? "quote.archived" : "quote.unarchived"},
+            'quote', ${quoteId},
+            ${`Quote ${rows[0].number} ${archived ? "archived" : "unarchived"}`})
+  `;
+  return { ok: true, id: quoteId, number: rows[0].number };
+}
+
+export async function deleteQuote(db: Db, quoteId: string): Promise<ActionResult> {
+  const rows = await db`
+    select company_id, number from quotes where id = ${quoteId} limit 1
+  `;
+  if (!rows[0]) return { ok: false, message: "Quote not found" };
+  await db`delete from quotes where id = ${quoteId}`;
+  await db`
+    insert into activity_log (company_id, actor, action, entity, entity_id, summary)
+    values (${rows[0].company_id}, 'admin', 'quote.deleted', 'quote', ${quoteId},
+            ${`Quote ${rows[0].number} deleted`})
+  `;
+  return { ok: true, id: quoteId, number: rows[0].number };
 }
 
 export async function persistJob(
@@ -212,13 +250,16 @@ async function quoteToJob(
   requireApproved: boolean,
 ): Promise<ActionResult> {
   const q = await db`
-    select id, company_id, client_id, request_id, number, title, notes, status
+    select id, company_id, client_id, request_id, number, title, notes, status, archived_at
     from quotes where id = ${quoteId}
     limit 1
     for update
   `;
   if (!q[0]) return { ok: false, message: "Quote not found" };
   if (q[0].company_id !== companyId) return { ok: false, message: "Quote not found" };
+  if (q[0].archived_at) {
+    return { ok: false, message: "Unarchive this quote before converting it to a job." };
+  }
   if (q[0].status === "rejected" || q[0].status === "expired") {
     return { ok: false, message: "This quote cannot become a job." };
   }

@@ -1,14 +1,15 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
-import { createJob, updateJob } from "@/lib/jobs/actions";
+import { createJob, saveJobAndConvert, updateJob } from "@/lib/jobs/actions";
 import { ClientSelect } from "@/components/funnel/client-select";
+import { StickySaveBar } from "@/components/forms/sticky-save-bar";
 import { formatPounds } from "@/lib/format";
 import {
   Calendar,
   ChevronDown,
   Clock,
+  FileText,
   Flag,
   MoreHorizontal,
   Plus,
@@ -175,42 +176,51 @@ export function NewJobForm({
     [lines],
   );
 
+  async function submit(followUp?: "invoice") {
+    setError("");
+    setPending(true);
+    const payload = {
+      clientId,
+      quoteId,
+      requestId,
+      title,
+      notes,
+      remindInvoice,
+      visits: visits.map((v) => ({
+        title: v.title,
+        date: v.date,
+        later: v.later,
+        start: v.start,
+        end: v.end,
+        anytime: v.anytime,
+        assignee: v.assignee,
+        instructions: v.instructions,
+      })),
+      lines: lines.map((l) => ({
+        name: l.name,
+        description: l.description,
+        qty: l.qty,
+        unitPrice: l.price,
+      })),
+    };
+    const result =
+      followUp === "invoice"
+        ? await saveJobAndConvert(jobId, payload)
+        : jobId
+          ? await updateJob(jobId, payload)
+          : await createJob(payload);
+    setPending(false);
+    if (result && !result.ok) {
+      setError(result.message || Object.values(result.errors ?? {})[0] || "Could not save job.");
+    }
+  }
+
   return (
     <form
-      className="space-y-5"
+      className="space-y-5 pb-24"
       onSubmit={async (event) => {
         event.preventDefault();
-        setError("");
-        setPending(true);
-        const payload = {
-          clientId,
-          quoteId,
-          requestId,
-          title,
-          notes,
-          remindInvoice,
-          visits: visits.map((v) => ({
-            title: v.title,
-            date: v.date,
-            later: v.later,
-            start: v.start,
-            end: v.end,
-            anytime: v.anytime,
-            assignee: v.assignee,
-            instructions: v.instructions,
-          })),
-          lines: lines.map((l) => ({
-            name: l.name,
-            description: l.description,
-            qty: l.qty,
-            unitPrice: l.price,
-          })),
-        };
-        const result = jobId ? await updateJob(jobId, payload) : await createJob(payload);
-        setPending(false);
-        if (result && !result.ok) {
-          setError(result.message || Object.values(result.errors ?? {})[0] || "Could not save job.");
-        }
+        await submit();
       }}
     >
       <div className="flex items-center gap-2">
@@ -609,24 +619,19 @@ export function NewJobForm({
         />
       </section>
 
-      {error ? <p className="text-sm font-semibold text-rose-700">{error}</p> : null}
-
-      <div className="flex items-center justify-end gap-2">
-        <Link
-          href={jobId ? `/servicos/${jobId}` : quoteId ? `/cotacoes/${quoteId}` : "/servicos"}
-          className={`inline-flex h-10 items-center rounded-lg border ${line} bg-white px-4 text-sm font-semibold ${ink}`}
-        >
-          Cancel
-        </Link>
-        <div className="inline-flex overflow-hidden rounded-lg text-white" style={{ background: green }}>
-          <button type="submit" disabled={pending} className="h-10 px-4 text-sm font-semibold disabled:opacity-60">
-            {pending ? "Saving…" : jobId ? "Update job" : "Save job"}
-          </button>
-          <button type="button" aria-label="More save options" className="grid h-10 w-9 place-items-center border-l border-white/30">
-            <ChevronDown size={16} />
-          </button>
-        </div>
-      </div>
+      <StickySaveBar
+        cancelHref={jobId ? `/servicos/${jobId}` : quoteId ? `/cotacoes/${quoteId}` : "/servicos"}
+        error={error}
+        pending={pending}
+        saveLabel={jobId ? "Update job" : "Save job"}
+        menuItems={[
+          {
+            label: "Convert to Invoice",
+            icon: <FileText size={18} style={{ color: green }} />,
+            onClick: () => void submit("invoice"),
+          },
+        ]}
+      />
     </form>
   );
 }

@@ -166,25 +166,30 @@ export function RequestPackingCard({
   const [draft, setDraft] = useState(snapshot);
   useEffect(() => setDraft(snapshot), [snapshot]);
   const selected = services.filter((s) => snapshot.serviceIds.includes(s.id));
+  const showPacking = snapshot.needsPacking || snapshot.needsBoxes;
 
   return (
     <InlineEditCard
-      title="Packing Service"
+      title={showPacking ? "Packing Service" : "Service Details"}
       accent="#2f7d3b"
       onCancel={() => setDraft(snapshot)}
       onSave={() => saveRequestInPlace(snapshot.id, toAdminRequestInput(draft))}
       view={
         <>
-          <Dl
-            rows={[
-              ["Packing services", snapshot.needsPacking ? "Yes" : "No"],
-              ["Packing materials", snapshot.needsBoxes ? "Yes" : "No"],
-            ]}
-          />
-          <div className="mt-4 rounded-xl border border-accent/25 bg-accent-soft p-4">
-            <h2 className="mb-3 text-sm font-extrabold uppercase tracking-wide text-accent">
-              Service Details
-            </h2>
+          {showPacking ? (
+            <Dl
+              rows={[
+                ["Packing services", snapshot.needsPacking ? "Yes" : "No"],
+                ["Packing materials", snapshot.needsBoxes ? "Yes" : "No"],
+              ]}
+            />
+          ) : null}
+          <div className={`${showPacking ? "mt-4 " : ""}rounded-xl border border-accent/25 bg-accent-soft p-4`}>
+            {showPacking ? (
+              <h2 className="mb-3 text-sm font-extrabold uppercase tracking-wide text-accent">
+                Service Details
+              </h2>
+            ) : null}
             {selected.length > 0 ? (
               <ul className="space-y-2">
                 {selected.map((s) => (

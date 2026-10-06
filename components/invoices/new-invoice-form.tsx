@@ -1,14 +1,16 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
-import { createInvoice, updateInvoice } from "@/lib/invoices/actions";
+import { createInvoice, saveInvoiceAndEmail, saveInvoiceAndMarkSent, updateInvoice } from "@/lib/invoices/actions";
 import { ClientSelect } from "@/components/funnel/client-select";
+import { StickySaveBar } from "@/components/forms/sticky-save-bar";
 import { formatPounds } from "@/lib/format";
 import {
+  CheckCircle,
   ChevronDown,
   Eye,
   FileText,
+  Mail,
   Pencil,
   Plus,
   Trash2,
@@ -64,6 +66,7 @@ export function NewInvoiceForm({
   const [clientId, setClientId] = useState(initialClientId ?? "");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const [savedInvoiceId, setSavedInvoiceId] = useState(invoiceId);
   const [number, setNumber] = useState(initialNumber ?? "554");
   const [terms, setTerms] = useState(initialTerms ?? "due_on_receipt");
   const [askReview, setAskReview] = useState(true);
@@ -89,35 +92,46 @@ export function NewInvoiceForm({
     [lines],
   );
 
+  async function submit(followUp?: "email" | "sent") {
+    setError("");
+    setPending(true);
+    const payload = {
+      clientId,
+      jobId,
+      quoteId,
+      subject,
+      message: contract,
+      notes: initialNotes ?? "",
+      paymentTerms: terms,
+      lines: lines.map((l) => ({
+        name: l.name,
+        description: l.description,
+        qty: l.qty,
+        unitPrice: l.price,
+      })),
+    };
+    const currentId = savedInvoiceId;
+    const result =
+      followUp === "email"
+        ? await saveInvoiceAndEmail(currentId, payload)
+        : followUp === "sent"
+          ? await saveInvoiceAndMarkSent(currentId, payload)
+          : currentId
+            ? await updateInvoice(currentId, payload)
+            : await createInvoice(payload);
+    setPending(false);
+    if (result && !result.ok) {
+      if (result.id) setSavedInvoiceId(result.id);
+      setError(result.message || Object.values(result.errors ?? {})[0] || "Could not save invoice.");
+    }
+  }
+
   return (
     <form
-      className="space-y-5"
+      className="space-y-5 pb-24"
       onSubmit={async (event) => {
         event.preventDefault();
-        setError("");
-        setPending(true);
-        const payload = {
-          clientId,
-          jobId,
-          quoteId,
-          subject,
-          message: contract,
-          notes: initialNotes ?? "",
-          paymentTerms: terms,
-          lines: lines.map((l) => ({
-            name: l.name,
-            description: l.description,
-            qty: l.qty,
-            unitPrice: l.price,
-          })),
-        };
-        const result = invoiceId
-          ? await updateInvoice(invoiceId, payload)
-          : await createInvoice(payload);
-        setPending(false);
-        if (result && !result.ok) {
-          setError(result.message || Object.values(result.errors ?? {})[0] || "Could not save invoice.");
-        }
+        await submit();
       }}
     >
       <div className="flex items-center gap-2">
@@ -410,24 +424,24 @@ export function NewInvoiceForm({
         </button>
       </section>
 
-      {error ? <p className="text-sm font-semibold text-rose-700">{error}</p> : null}
-
-      <div className="flex items-center justify-end gap-2">
-        <Link
-          href={invoiceId ? `/faturas/${invoiceId}` : "/faturas"}
-          className={`inline-flex h-10 items-center rounded-lg border ${line} bg-white px-4 text-sm font-semibold ${ink}`}
-        >
-          Cancel
-        </Link>
-        <div className="inline-flex overflow-hidden rounded-lg text-white" style={{ background: green }}>
-          <button type="submit" disabled={pending} className="h-10 px-4 text-sm font-semibold disabled:opacity-60">
-            {pending ? "Saving…" : invoiceId ? "Update invoice" : "Save invoice"}
-          </button>
-          <button type="button" aria-label="More save options" className="grid h-10 w-9 place-items-center border-l border-white/30">
-            <ChevronDown size={16} />
-          </button>
-        </div>
-      </div>
+      <StickySaveBar
+        cancelHref={savedInvoiceId ? `/faturas/${savedInvoiceId}` : jobId ? `/servicos/${jobId}` : "/faturas"}
+        error={error}
+        pending={pending}
+        saveLabel={savedInvoiceId ? "Update invoice" : "Save invoice"}
+        menuItems={[
+          {
+            label: "Send as Email",
+            icon: <Mail size={18} />,
+            onClick: () => void submit("email"),
+          },
+          {
+            label: "Mark as sent",
+            icon: <CheckCircle size={18} />,
+            onClick: () => void submit("sent"),
+          },
+        ]}
+      />
     </form>
   );
 }

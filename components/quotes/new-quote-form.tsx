@@ -1,14 +1,17 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Calendar, ChevronDown, Hammer, Mail, Pencil, Quote, Trash2, X } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Calendar, ChevronDown, Hammer, Mail, MessageSquare, Pencil, Quote, Trash2, X } from "lucide-react";
+import { StickySaveBar } from "@/components/forms/sticky-save-bar";
 import { EmailQuoteDialog } from "@/components/quotes/email-quote-dialog";
+import { SmsQuoteDialog } from "@/components/quotes/sms-quote-dialog";
 import type { QuoteEmailDraft } from "@/lib/email/draft";
+import type { QuoteSmsDraft } from "@/lib/sms/draft";
 import {
   createQuote,
   loadQuotePrefill,
   prepareQuoteEmail,
+  prepareQuoteSms,
   saveQuoteAndConvert,
   updateQuote,
 } from "@/lib/quotes/actions";
@@ -97,9 +100,8 @@ export function NewQuoteForm({
   const [paymentsOn, setPaymentsOn] = useState(false);
   const [marginOpen, setMarginOpen] = useState(true);
   const [savedQuoteId, setSavedQuoteId] = useState(quoteId);
-  const [saveMenuOpen, setSaveMenuOpen] = useState(false);
   const [emailDraft, setEmailDraft] = useState<QuoteEmailDraft | null>(null);
-  const saveMenuRef = useRef<HTMLDivElement>(null);
+  const [smsDraft, setSmsDraft] = useState<QuoteSmsDraft | null>(null);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const [lines, setLines] = useState<Line[]>(
@@ -190,22 +192,9 @@ export function NewQuoteForm({
   const taxAmount = money(tax);
   const quoteTotal = Math.max(0, subtotal - discountAmount + taxAmount);
 
-  useEffect(() => {
-    if (!saveMenuOpen) return;
-    function onPointerDown(event: PointerEvent) {
-      const target = event.target;
-      if (!(target instanceof Node)) return;
-      if (saveMenuRef.current?.contains(target)) return;
-      setSaveMenuOpen(false);
-    }
-    document.addEventListener("pointerdown", onPointerDown);
-    return () => document.removeEventListener("pointerdown", onPointerDown);
-  }, [saveMenuOpen]);
-
-  async function submit(followUp?: "email" | "job") {
+  async function submit(followUp?: "email" | "job" | "sms") {
     setError("");
     setPending(true);
-    setSaveMenuOpen(false);
     const payload = {
       clientId,
       requestId: linkedRequestId,
@@ -237,6 +226,17 @@ export function NewQuoteForm({
       setEmailDraft(prepared.draft);
       return;
     }
+    if (followUp === "sms") {
+      const prepared = await prepareQuoteSms(currentId, payload);
+      setPending(false);
+      if (prepared.id) setSavedQuoteId(prepared.id);
+      if (!prepared.ok || !prepared.draft) {
+        setError(prepared.message || Object.values(prepared.errors ?? {})[0] || "Could not prepare the text message.");
+        return;
+      }
+      setSmsDraft(prepared.draft);
+      return;
+    }
     const result =
       followUp === "job"
         ? await saveQuoteAndConvert(currentId, payload)
@@ -253,7 +253,7 @@ export function NewQuoteForm({
   return (
     <>
     <form
-      className="space-y-5"
+      className="space-y-5 pb-24"
       onSubmit={async (event) => {
         event.preventDefault();
         await submit();
@@ -519,8 +519,6 @@ export function NewQuoteForm({
         ) : null}
       </section>
 
-      {error ? <p className="text-sm font-semibold text-rose-700">{error}</p> : null}
-
       <div className="flex justify-end">
         <div className="w-full max-w-[440px]">
           <div className="space-y-3 text-sm">
@@ -661,67 +659,37 @@ export function NewQuoteForm({
               </button>
             </div>
           ) : null}
-
-          <div className="mt-4 flex justify-end gap-2">
-            <Link
-              href={quoteId ? `/cotacoes/${quoteId}` : "/cotacoes"}
-              className={`inline-flex h-10 items-center rounded-lg border ${line} bg-white px-4 text-sm font-semibold ${ink}`}
-            >
-              Cancel
-            </Link>
-            <div ref={saveMenuRef} className="relative">
-              <div
-                className="inline-flex h-10 overflow-hidden rounded-lg text-sm font-semibold text-white"
-                style={{ background: green }}
-              >
-                <button type="submit" disabled={pending} className="px-4 disabled:opacity-60">
-                  {pending ? "Saving…" : "Save Quote"}
-                </button>
-                <button
-                  type="button"
-                  aria-label="Save and..."
-                  aria-expanded={saveMenuOpen}
-                  disabled={pending}
-                  onClick={() => setSaveMenuOpen((open) => !open)}
-                  className="grid w-9 place-items-center border-l border-white/30 disabled:opacity-60"
-                >
-                  <ChevronDown size={16} />
-                </button>
-              </div>
-              {saveMenuOpen ? (
-                <div
-                  role="menu"
-                  className="absolute bottom-12 right-0 z-20 w-56 rounded-xl border border-[#d5dde1] bg-white p-2 shadow-xl"
-                >
-                  <p className="px-3 py-2 text-sm text-[#5d6f78]">Save and...</p>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => void submit("email")}
-                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] font-semibold text-[#1c3d46] hover:bg-[#f7f8f8]"
-                  >
-                    <Mail size={18} />
-                    Send as Email
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => void submit("job")}
-                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] font-semibold text-[#1c3d46] hover:bg-[#f7f8f8]"
-                  >
-                    <Hammer size={18} style={{ color: green }} />
-                    Convert to Job
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          </div>
         </div>
       </div>
+
+      <StickySaveBar
+        cancelHref={quoteId ? `/cotacoes/${quoteId}` : "/cotacoes"}
+        error={error}
+        pending={pending}
+        saveLabel="Save Quote"
+        menuItems={[
+          {
+            label: "Send as Email",
+            icon: <Mail size={18} />,
+            onClick: () => void submit("email"),
+          },
+          {
+            label: "Send Text Message",
+            icon: <MessageSquare size={18} />,
+            onClick: () => void submit("sms"),
+          },
+          {
+            label: "Convert to Job",
+            icon: <Hammer size={18} style={{ color: green }} />,
+            onClick: () => void submit("job"),
+          },
+        ]}
+      />
     </form>
     {emailDraft ? (
       <EmailQuoteDialog draft={emailDraft} onClose={() => setEmailDraft(null)} />
     ) : null}
+    {smsDraft ? <SmsQuoteDialog draft={smsDraft} onClose={() => setSmsDraft(null)} /> : null}
     </>
   );
 }

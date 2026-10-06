@@ -27,6 +27,16 @@ export function formatDateLondon(iso: string | Date): string {
   }).format(date);
 }
 
+export function formatDateNumericLondon(iso: string | Date): string {
+  const date = iso instanceof Date ? iso : new Date(iso);
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "Europe/London",
+  }).format(date);
+}
+
 export function toDateInput(value: string | Date | null | undefined): string {
   if (!value) return "";
   const s = value instanceof Date ? value.toISOString() : String(value);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
@@ -15,7 +15,6 @@ export function NewQuoteDialog({
   requestId?: string;
 }) {
   const router = useRouter();
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const closeHref = requestId
     ? `/solicitacoes/${requestId}`
     : clientId
@@ -81,44 +80,18 @@ export function NewQuoteDialog({
               </Link>
             </div>
           ) : (
-            services.map((service) => {
-              const selected = selectedId === service.id;
-              return (
-                <button
-                  key={service.id}
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() => setSelectedId(service.id)}
-                  className={`block w-full border-b border-[#e6ebed] px-4 py-4 text-left text-[15px] last:border-b-0 ${
-                    selected
-                      ? "bg-[#e7f3e3] font-semibold text-[#042b3c]"
-                      : "text-[#1c3d46] hover:bg-[#f7f8f8]"
-                  }`}
-                >
-                  {service.name}
-                </button>
-              );
-            })
+            services.map((service) => (
+              <button
+                key={service.id}
+                type="button"
+                onClick={() => continueWith(service.id)}
+                className="block w-full border-b border-[#e6ebed] px-4 py-4 text-left text-[15px] text-[#1c3d46] last:border-b-0 hover:bg-[#e7f3e3] hover:font-semibold hover:text-[#042b3c]"
+              >
+                {service.name}
+              </button>
+            ))
           )}
         </div>
-
-        <div className="my-5 flex items-center gap-4 text-sm text-[#8aa0a8]">
-          <span className="h-px flex-1 bg-[#e6ebed]" />
-          or
-          <span className="h-px flex-1 bg-[#e6ebed]" />
-        </div>
-
-        <button
-          type="button"
-          disabled={!selectedId}
-          onClick={() => {
-            if (selectedId) continueWith(selectedId);
-          }}
-          className="h-12 w-full rounded-lg text-[15px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
-          style={{ background: "#388623" }}
-        >
-          Create new quote
-        </button>
       </div>
     </div>
   );

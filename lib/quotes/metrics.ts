@@ -40,7 +40,11 @@ export interface QuoteWindowStats {
 export function quoteListStatus(
   status: string,
   convertedAt: string | Date | null,
+  archivedAt?: string | Date | null,
 ): QuoteListStatus {
+  if (archivedAt) {
+    return { key: "archived", label: "Archived", dot: "bg-stone-400" };
+  }
   if (convertedAt) {
     return { key: "converted", label: "Converted", dot: "bg-emerald-600" };
   }
@@ -49,6 +53,8 @@ export function quoteListStatus(
       return { key: "draft", label: "Draft", dot: "bg-stone-400" };
     case "sent":
       return { key: "awaiting", label: "Awaiting response", dot: "bg-amber-400" };
+    case "changes_requested":
+      return { key: "changes", label: "Changes requested", dot: "bg-sky-500" };
     case "approved":
       return { key: "approved", label: "Approved", dot: "bg-emerald-500" };
     case "rejected":
@@ -100,7 +106,10 @@ export function quoteWindowStats(
     const display = quoteListStatus(quote.status, quote.converted_at);
     if (
       inCurrent(stamp(quote.created_at)) &&
-      (display.key === "draft" || display.key === "awaiting" || display.key === "approved")
+      (display.key === "draft" ||
+        display.key === "awaiting" ||
+        display.key === "changes" ||
+        display.key === "approved")
     ) {
       overview[display.key] += 1;
     }

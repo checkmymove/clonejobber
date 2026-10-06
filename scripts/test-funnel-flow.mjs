@@ -11,6 +11,8 @@ import {
   convertApprovedQuoteToJob,
   convertCompletedJobToInvoice,
   persistQuote,
+  archiveQuote,
+  deleteQuote,
   updateInvoiceDocument,
   updateJobDocument,
   updateQuoteDocument,
@@ -244,6 +246,25 @@ try {
 
     const [quoteRow] = await tx`select total from quotes where id = ${quote.id}`;
     check("quote stored as 25000 pence after later edit", quoteRow.total === 25000);
+
+    const archived = await archiveQuote(tx, quote.id, true);
+    check("quote archived", archived.ok);
+    const [archivedRow] = await tx`select archived_at from quotes where id = ${quote.id}`;
+    check("archived_at set", !!archivedRow.archived_at);
+    const convertArchived = await convertApprovedQuoteToJob(tx, company.id, quote.id);
+    check("cannot convert an archived quote", !convertArchived.ok);
+    const unarchived = await archiveQuote(tx, quote.id, false);
+    check("quote unarchived", unarchived.ok);
+
+    const extra = await persistQuote(tx, company.id, {
+      ...quoteInput,
+      title: "To delete",
+    });
+    check("extra quote created", extra.ok && extra.id);
+    const removed = await deleteQuote(tx, extra.id);
+    check("quote deleted", removed.ok);
+    const [gone] = await tx`select count(*)::int as n from quotes where id = ${extra.id}`;
+    check("deleted quote is gone", gone.n === 0);
 
     const ids = [quote.id, job.id, invoice.id];
     const [logCount] = await tx`

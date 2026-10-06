@@ -67,10 +67,12 @@ export function QuoteRequestSidebar({ request }: { request: AdminRequestDetail |
             />
           </Section>
 
-          <Section title="Packing service">
-            <Field label="Will you need packing?" value={request.needs_packing_service ? "Yes" : "No"} />
-            <Field label="Do you need packing boxes?" value={request.needs_packing_materials ? "Yes" : "No"} />
-          </Section>
+          {request.needs_packing_service || request.needs_packing_materials ? (
+            <Section title="Packing service">
+              <Field label="Will you need packing?" value={request.needs_packing_service ? "Yes" : "No"} />
+              <Field label="Do you need packing boxes?" value={request.needs_packing_materials ? "Yes" : "No"} />
+            </Section>
+          ) : null}
 
           <Section title="Service details">
             <Field

@@ -1,12 +1,16 @@
 "use client";
 
-import Link from "next/link";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { useMemo, useRef, useState } from "react";
-import { Calendar, ChevronDown, Search, UserRound } from "lucide-react";
+import { Calendar, ChevronDown, Quote, Search, UserRound } from "lucide-react";
 import { HOURS_OPTIONS } from "@/lib/requests/constants";
-import { createAdminRequest, updateAdminRequest } from "@/lib/requests/actions";
+import {
+  createAdminRequest,
+  saveRequestAndConvert,
+  updateAdminRequest,
+} from "@/lib/requests/actions";
 import { ClientSelect, type RichClient } from "@/components/funnel/client-select";
+import { StickySaveBar } from "@/components/forms/sticky-save-bar";
 
 const ink = "text-[#042b3c]";
 const line = "border-[#d5dde1]";
@@ -255,11 +259,7 @@ export function NewRequestForm({
       reader.readAsDataURL(file);
     });
 
-  return (
-    <form
-      className="mt-6 space-y-8"
-      onSubmit={async (e) => {
-        e.preventDefault();
+  async function submit(followUp?: "quote") {
         setError("");
         setFieldErrors({});
         setMoveDateError("");
@@ -348,9 +348,12 @@ export function NewRequestForm({
             notes,
             images: payloadImages,
           };
-          const result = requestId
-            ? await updateAdminRequest(requestId, payload)
-            : await createAdminRequest(payload);
+          const result =
+            followUp === "quote"
+              ? await saveRequestAndConvert(requestId, payload)
+              : requestId
+                ? await updateAdminRequest(requestId, payload)
+                : await createAdminRequest(payload);
           setPending(false);
           if (result && !result.ok) {
             setFieldErrors(result.errors ?? {});
@@ -371,6 +374,14 @@ export function NewRequestForm({
               : "Could not save request. Check your connection and try again.",
           );
         }
+  }
+
+  return (
+    <form
+      className="mt-6 space-y-8 pb-24"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        await submit();
       }}
     >
       <input
@@ -764,23 +775,20 @@ export function NewRequestForm({
         />
       </section>
 
-      <div className="flex items-center justify-end gap-2 border-t border-[#e6ebed] pt-6">
-        {error ? <p className="mr-auto text-sm font-semibold text-rose-700">{error}</p> : null}
-        <Link
-          href={requestId ? `/solicitacoes/${requestId}` : "/solicitacoes"}
-          className={`inline-flex h-10 items-center rounded-lg px-4 text-sm font-semibold ${ink} hover:bg-[#f4f6f7]`}
-        >
-          Cancel
-        </Link>
-        <button
-          type="submit"
-          disabled={pending}
-          className="h-10 rounded-lg px-4 text-sm font-semibold text-white disabled:opacity-60"
-          style={{ background: green }}
-        >
-          {pending ? "Saving…" : requestId ? "Update request" : "Save request"}
-        </button>
-      </div>
+      <StickySaveBar
+        cancelHref={requestId ? `/solicitacoes/${requestId}` : "/solicitacoes"}
+        error={error}
+        pending={pending}
+        saveLabel={requestId ? "Update request" : "Save request"}
+        maxWidthClass="max-w-[760px]"
+        menuItems={[
+          {
+            label: "Convert to Quote",
+            icon: <Quote size={18} style={{ color: green }} />,
+            onClick: () => void submit("quote"),
+          },
+        ]}
+      />
     </form>
   );
 }

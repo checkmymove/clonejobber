@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, CopyPlus } from "lucide-react";
 import { createClientFull } from "@/lib/clients/crm-actions";
+import { StickySaveBar } from "@/components/forms/sticky-save-bar";
 import type {
   ContactInput,
   FullPropertyInput,
@@ -181,8 +181,20 @@ export function NewClientForm({
 
   const err = (k: string) => errors[k];
 
+  const submitWith = (intent: "save" | "another") => {
+    const fd = new FormData();
+    fd.set("intent", intent);
+    return submit(fd);
+  };
+
   return (
-    <form action={submit} className="mt-8">
+    <form
+      className="mt-8 pb-24"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void submitWith("save");
+      }}
+    >
       {justCreated ? (
         <p className="mb-6 rounded-lg bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900">
           Client saved. You can create another one below.
@@ -619,35 +631,20 @@ export function NewClientForm({
         </div>
       </div>
 
-      <div className="mt-8 grid items-center gap-3 lg:grid-cols-[240px_minmax(0,640px)] lg:gap-x-16">
-        <Link
-          href="/clientes"
-          className={`inline-flex h-10 w-fit items-center rounded-lg border ${line} bg-white px-4 text-sm font-semibold ${ink} hover:bg-[#f7f8f8]`}
-        >
-          Cancel
-        </Link>
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <button
-            type="submit"
-            name="intent"
-            value="another"
-            disabled={saving}
-            className={`h-10 rounded-lg border ${line} bg-white px-4 text-sm font-semibold ${ink} hover:bg-[#f7f8f8] disabled:opacity-60`}
-          >
-            {saving ? "Saving…" : "Save and Create Another"}
-          </button>
-          <button
-            type="submit"
-            name="intent"
-            value="save"
-            disabled={saving}
-            className="h-10 rounded-lg px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
-            style={{ background: green }}
-          >
-            {saving ? "Saving…" : "Save client"}
-          </button>
-        </div>
-      </div>
+      <StickySaveBar
+        cancelHref="/clientes"
+        error={message ?? undefined}
+        pending={saving}
+        saveLabel="Save client"
+        maxWidthClass="max-w-[960px]"
+        menuItems={[
+          {
+            label: "Save and Create Another",
+            icon: <CopyPlus size={18} />,
+            onClick: () => void submitWith("another"),
+          },
+        ]}
+      />
     </form>
   );
 }

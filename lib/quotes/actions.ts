@@ -10,10 +10,14 @@ import {
   changeQuoteStatus,
   persistQuote,
   updateQuoteDocument,
+  archiveQuote as archiveQuoteRecord,
+  deleteQuote as deleteQuoteRecord,
   type ActionResult,
 } from "@/lib/funnel/engine";
 import type { QuoteEmailDraft } from "@/lib/email/draft";
 import { buildQuoteEmailDraft, sendComposedQuoteEmail } from "@/lib/email/send";
+import type { QuoteSmsDraft } from "@/lib/sms/draft";
+import { buildQuoteSmsDraft, sendComposedQuoteSms } from "@/lib/sms/send";
 import { isUuid, type QuoteInput } from "@/lib/funnel/validation";
 import { getServiceForQuote } from "@/lib/products/queries";
 import { getQuotePrefillForClient, getQuotePrefillFromRequest } from "@/lib/quotes/queries";
@@ -105,6 +109,80 @@ export async function sendPreparedQuoteEmail(input: {
   return sent;
 }
 
+export async function prepareQuoteSms(
+  quoteId: string | undefined,
+  input: QuoteInput,
+): Promise<ActionResult & { draft?: QuoteSmsDraft }> {
+  const saved = await writeQuote(quoteId, input);
+  if (!saved.ok || !saved.id) return saved;
+  const companyId = await getCompanyId();
+  if (!companyId) return { ok: false, id: saved.id, message: "Company not found." };
+  const draft = await buildQuoteSmsDraft(companyId, saved.id);
+  if (!draft.ok) return { ok: false, id: saved.id, message: draft.message };
+  return { ok: true, id: saved.id, draft: draft.draft };
+}
+
+export async function prepareSavedQuoteEmail(
+  quoteId: string,
+): Promise<ActionResult & { draft?: QuoteEmailDraft }> {
+  await requireAdmin();
+  if (!isUuid(quoteId)) return { ok: false, message: "Quote not found." };
+  const companyId = await getCompanyId();
+  if (!companyId) return { ok: false, message: "Company not found." };
+  const draft = await buildQuoteEmailDraft(companyId, quoteId);
+  if (!draft.ok) return { ok: false, message: draft.message };
+  return { ok: true, id: quoteId, draft: draft.draft };
+}
+
+export async function prepareSavedQuoteSms(
+  quoteId: string,
+): Promise<ActionResult & { draft?: QuoteSmsDraft }> {
+  await requireAdmin();
+  if (!isUuid(quoteId)) return { ok: false, message: "Quote not found." };
+  const companyId = await getCompanyId();
+  if (!companyId) return { ok: false, message: "Company not found." };
+  const draft = await buildQuoteSmsDraft(companyId, quoteId);
+  if (!draft.ok) return { ok: false, message: draft.message };
+  return { ok: true, id: quoteId, draft: draft.draft };
+}
+
+export async function sendPreparedQuoteSms(input: {
+  quoteId: string;
+  to: string;
+  message: string;
+}): Promise<ActionResult> {
+  await requireAdmin();
+  const sent = await sendComposedQuoteSms(input);
+  revalidatePath("/cotacoes");
+  revalidatePath(`/cotacoes/${input.quoteId}`);
+  revalidatePath("/clientes");
+  return sent;
+}
+
+export async function archiveSavedQuote(quoteId: string, archived = true): Promise<ActionResult> {
+  await requireAdmin();
+  if (!isUuid(quoteId)) return { ok: false, message: "Quote not found." };
+  const result = await archiveQuoteRecord(sql, quoteId, archived);
+  if (result.ok) {
+    revalidatePath("/cotacoes");
+    revalidatePath(`/cotacoes/${quoteId}`);
+    revalidatePath("/clientes");
+  }
+  return result;
+}
+
+export async function deleteSavedQuote(quoteId: string): Promise<ActionResult> {
+  await requireAdmin();
+  if (!isUuid(quoteId)) return { ok: false, message: "Quote not found." };
+  const result = await deleteQuoteRecord(sql, quoteId);
+  if (result.ok) {
+    revalidatePath("/cotacoes");
+    revalidatePath("/clientes");
+    redirect("/cotacoes");
+  }
+  return result;
+}
+
 export async function saveQuoteAndConvert(
   quoteId: string | undefined,
   input: QuoteInput,
@@ -116,7 +194,7 @@ export async function saveQuoteAndConvert(
 
 export async function updateQuoteStatus(
   quoteId: string,
-  status: "sent" | "approved" | "rejected" | "expired" | "draft",
+  status: "sent" | "approved" | "rejected" | "expired" | "draft" | "changes_requested",
 ): Promise<ActionResult> {
   await requireAdmin();
   const result = await changeQuoteStatus(sql, quoteId, status);

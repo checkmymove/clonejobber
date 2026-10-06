@@ -1,6 +1,8 @@
 import "server-only";
 import { sql } from "@/lib/db";
+import { penceToInput } from "@/lib/format";
 import type { ParsedLine } from "@/lib/funnel/money";
+import { getJobDetail } from "@/lib/jobs/queries";
 
 export interface InvoiceRow {
   id: string;
@@ -83,4 +85,41 @@ export async function getInvoiceDetail(id: string): Promise<InvoiceDetail | null
     from invoice_line_items where invoice_id = ${id} order by sort
   `;
   return { ...row, lines };
+}
+
+export async function getInvoiceIdForJob(jobId: string): Promise<string | null> {
+  const rows = await sql<{ id: string }[]>`
+    select id from invoices where job_id = ${jobId} limit 1
+  `;
+  return rows[0]?.id ?? null;
+}
+
+export type InvoicePrefill = {
+  jobId: string;
+  quoteId?: string;
+  clientId: string;
+  subject: string;
+  message: string;
+  notes: string;
+  lines: { name: string; qty: string; price: string; description: string }[];
+};
+
+export async function getInvoicePrefillFromJob(jobId: string): Promise<InvoicePrefill | null> {
+  const job = await getJobDetail(jobId);
+  if (!job) return null;
+  return {
+    jobId: job.id,
+    quoteId: job.quote_id ?? undefined,
+    clientId: job.client_id,
+    subject: job.title || `Invoice from ${job.number}`,
+    message:
+      "Thank you for your business. Please contact us with any questions regarding this invoice.",
+    notes: job.notes,
+    lines: job.lines.map((line) => ({
+      name: line.name,
+      description: line.description,
+      qty: String(line.quantity),
+      price: penceToInput(line.unitPrice),
+    })),
+  };
 }

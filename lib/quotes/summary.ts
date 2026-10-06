@@ -78,18 +78,24 @@ export function buildServiceSummary(input: {
           .join("\n\n")
       : "No service was selected on the request.";
 
-  const packing = input.needsPacking
-    ? "Packing service: included. The crew will pack items before they are loaded."
-    : "Packing service: not included. Items should be ready to load.";
-  const materials = input.needsMaterials
-    ? "Packing materials: included. Boxes and packing materials will be supplied."
-    : "Packing materials: not included.";
+  const packing =
+    input.needsPacking || input.needsMaterials
+      ? [
+          "Packing",
+          input.needsPacking
+            ? "Packing service: included. The crew will pack items before they are loaded."
+            : "Packing service: not included. Items should be ready to load.",
+          input.needsMaterials
+            ? "Packing materials: included. Boxes and packing materials will be supplied."
+            : "Packing materials: not included.",
+        ].join("\n")
+      : null;
 
   return [
     "Removal service based on this request. The crew will carry out the services below.",
     `Services to be provided\n${services}`,
     `Duration\n${durationSentence(input.hours)}`,
-    `Packing\n${packing}\n${materials}`,
+    ...(packing ? [packing] : []),
     locationBlock("Collection", input.pickup),
     locationBlock("Delivery", input.delivery),
   ].join("\n\n");

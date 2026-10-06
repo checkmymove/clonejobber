@@ -32,7 +32,12 @@ const check = (name, cond) => {
   console.log(`  ok: ${name}`);
 };
 
-const LOCKED = ["google_oauth_tokens", "google_oauth_states", "public_submit_limits"];
+const LOCKED = [
+  "google_oauth_tokens",
+  "google_oauth_states",
+  "public_submit_limits",
+  "sms_settings",
+];
 
 async function rolledBack(fn) {
   try {
@@ -119,6 +124,10 @@ try {
   check(
     "authenticated cannot read oauth tokens",
     await denied("authenticated", "select count(*) from google_oauth_tokens"),
+  );
+  check(
+    "authenticated cannot read sms settings",
+    await denied("authenticated", "select count(*) from sms_settings"),
   );
   check(
     "anon cannot select clients",

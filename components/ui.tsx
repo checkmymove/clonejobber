@@ -54,6 +54,7 @@ const badgeTones: Record<string, string> = {
   archived: "bg-stone-200 text-stone-600",
   draft: "bg-stone-200 text-stone-700",
   sent: "bg-sky-100 text-sky-900",
+  changes_requested: "bg-sky-100 text-sky-900",
   viewed: "bg-sky-100 text-sky-900",
   approved: "bg-emerald-100 text-emerald-900",
   rejected: "bg-rose-100 text-rose-900",

@@ -6,6 +6,10 @@ export function appUrl(): string {
   return (process.env.NEXT_PUBLIC_APP_URL || "http://127.0.0.1:3000").replace(/\/$/, "");
 }
 
+export function clientQuoteUrl(quoteId: string): string {
+  return `${appUrl()}/q/${quoteId}`;
+}
+
 export function googleRedirectUri(): string {
   return (
     process.env.GOOGLE_REDIRECT_URI ||

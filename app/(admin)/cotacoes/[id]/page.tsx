@@ -1,13 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Eye } from "lucide-react";
-import { penceToInput, toDateInput, formatDateLondon } from "@/lib/format";
-import { COMPANY_SLUG, getCompanyId } from "@/lib/company";
+import { formatDateLondon, penceToInput, toDateInput } from "@/lib/format";
 import { getQuoteDetail } from "@/lib/quotes/queries";
 import { getLatestRequestId, getRequestDetail } from "@/lib/requests/queries";
 import { requestSnapshotFromDetail } from "@/lib/requests/edit-snapshot";
 import { quoteLinesFromPence } from "@/lib/quotes/edit-snapshot";
 import { QuoteRequestSidebar } from "@/components/quotes/quote-request-sidebar";
+import { QuoteMoreMenu } from "@/components/quotes/quote-more-menu";
 import {
   QuoteCollectionCard,
   QuoteDeliveryCard,
@@ -16,11 +15,8 @@ import {
   QuoteServicesCard,
   QuoteSummaryCard,
 } from "@/components/quotes/quote-inline-cards";
-import { updateQuoteStatus } from "@/lib/quotes/actions";
-import { emailQuote } from "@/lib/email/actions";
-import { getGoogleConnection } from "@/lib/email/google";
 import { listDeliveries } from "@/lib/email/send";
-import { SendEmailButton } from "@/components/email/send-email-button";
+import { listSmsDeliveries } from "@/lib/sms/send";
 import { Badge, Card, PageHeader } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +24,7 @@ export const dynamic = "force-dynamic";
 const LABELS: Record<string, string> = {
   draft: "Draft",
   sent: "Sent",
+  changes_requested: "Changes requested",
   approved: "Approved",
   rejected: "Declined",
   expired: "Expired",
@@ -41,10 +38,8 @@ export default async function CotacaoDetailPage({
   const { id } = await params;
   const q = await getQuoteDetail(id);
   if (!q) notFound();
-  const companyId = await getCompanyId(COMPANY_SLUG);
-  const gmail = companyId ? await getGoogleConnection(companyId) : null;
   const deliveries = await listDeliveries("quote", id);
-  const canEmail = q.status === "draft" || q.status === "sent";
+  const smsDeliveries = await listSmsDeliveries(id);
   const requestId = q.request_id ?? (await getLatestRequestId(q.client_id));
   const request = requestId ? await getRequestDetail(requestId) : null;
   const linkedRequest =
@@ -78,80 +73,45 @@ export default async function CotacaoDetailPage({
         title={`${q.number} · ${q.client_name}`}
         subtitle={q.title || "Quote"}
         action={
-          <Link
-            href="/cotacoes"
-            className="inline-flex h-10 items-center rounded-xl border border-line bg-card px-4 text-sm font-bold text-ink hover:bg-cream"
-          >
-            ← Voltar
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <QuoteMoreMenu
+              quoteId={id}
+              status={q.status}
+              archived={Boolean(q.archived_at)}
+              jobId={q.job_id}
+            />
+            <Link
+              href={`/clientes/${q.client_id}`}
+              className="h-10 rounded-xl border border-line px-3 text-sm font-bold leading-10 text-accent hover:bg-accent-soft"
+            >
+              View client
+            </Link>
+            <Link
+              href="/cotacoes"
+              className="inline-flex h-10 items-center rounded-xl border border-line bg-card px-4 text-sm font-bold text-ink hover:bg-cream"
+            >
+              ← Voltar
+            </Link>
+          </div>
         }
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Badge tone={q.status}>{LABELS[q.status] ?? q.status}</Badge>
-        {q.status === "draft" ? (
-          <StatusForm id={id} status="sent" label="Mark as sent" />
-        ) : null}
-        {canEmail ? (
-          gmail ? (
-            <SendEmailButton
-              label={q.status === "sent" ? "Resend by email" : "Send by email"}
-              run={emailQuote.bind(null, id)}
-            />
-          ) : (
-            <Link
-              href="/configuracoes/email"
-              className="h-9 rounded-xl bg-ink px-3 text-sm font-bold leading-9 text-white hover:opacity-90"
-            >
-              Connect Gmail to send
-            </Link>
-          )
-        ) : null}
-        {q.status === "sent" ? (
-          <>
-            <StatusForm id={id} status="approved" label="Approve" />
-            <StatusForm id={id} status="rejected" label="Decline" />
-          </>
-        ) : null}
-        {q.job_id ? (
-          <Link
-            href={`/servicos/${q.job_id}`}
-            className="h-9 rounded-xl bg-ink px-3 text-sm font-bold leading-9 text-white hover:opacity-90"
-          >
-            View job
-          </Link>
-        ) : (
-          <Link
-            href={`/servicos/novo?quoteId=${id}`}
-            className="h-9 rounded-xl bg-ink px-3 text-sm font-bold leading-9 text-white hover:opacity-90"
-          >
-            Convert to Job
-          </Link>
-        )}
-        <Link
-          href={`/cotacoes/${id}/preview`}
-          className="inline-flex h-9 items-center gap-2 rounded-xl border border-line bg-card px-3 text-sm font-bold text-ink hover:bg-cream"
-        >
-          <Eye size={16} />
-          Preview as Client
-        </Link>
-        <Link
-          href={`/clientes/${q.client_id}`}
-          className="h-9 rounded-xl border border-line px-3 text-sm font-bold leading-9 text-accent hover:bg-accent-soft"
-        >
-          View client
-        </Link>
+        {q.archived_at ? <Badge tone="archived">Archived</Badge> : null}
       </div>
 
       <div className="flex items-start gap-4">
       <div className="grid min-w-0 flex-1 gap-4">
         <QuoteSummaryCard snapshot={snapshot} />
         <QuoteServicesCard snapshot={snapshot} />
-        {linkedRequest ? <QuotePackingCard request={linkedRequest} /> : null}
+        {linkedRequest && (linkedRequest.needsPacking || linkedRequest.needsBoxes) ? (
+          <QuotePackingCard request={linkedRequest} />
+        ) : null}
         {linkedRequest ? <QuoteCollectionCard request={linkedRequest} /> : null}
         {linkedRequest ? <QuoteDeliveryCard request={linkedRequest} /> : null}
         <QuoteInventoryCard snapshot={snapshot} request={linkedRequest} />
-        {deliveries.length ? (
+        {deliveries.length || smsDeliveries.length ? (
           <Card className="h-fit p-5">
             <h2 className="mb-2 text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">
               Sent
@@ -160,7 +120,16 @@ export default async function CotacaoDetailPage({
               {deliveries.map((d) => (
                 <li key={d.id} className="flex justify-between gap-3 border-b border-line py-2 last:border-0">
                   <span>
-                    {d.status === "sent" ? "Sent" : "Falhou"} · {d.to_email}
+                    {d.status === "sent" ? "Email sent" : "Email failed"} · {d.to_email}
+                    {d.error ? <span className="block text-rose-700">{d.error}</span> : null}
+                  </span>
+                  <span className="text-ink-soft">{formatDateLondon(d.sent_at)}</span>
+                </li>
+              ))}
+              {smsDeliveries.map((d) => (
+                <li key={d.id} className="flex justify-between gap-3 border-b border-line py-2 last:border-0">
+                  <span>
+                    {d.status === "sent" ? "Text sent" : "Text not sent"} · {d.to_phone}
                     {d.error ? <span className="block text-rose-700">{d.error}</span> : null}
                   </span>
                   <span className="text-ink-soft">{formatDateLondon(d.sent_at)}</span>
@@ -173,31 +142,5 @@ export default async function CotacaoDetailPage({
       <QuoteRequestSidebar request={request} />
       </div>
     </div>
-  );
-}
-
-function StatusForm({
-  id,
-  status,
-  label,
-}: {
-  id: string;
-  status: "sent" | "approved" | "rejected";
-  label: string;
-}) {
-  return (
-    <form
-      action={async () => {
-        "use server";
-        await updateQuoteStatus(id, status);
-      }}
-    >
-      <button
-        type="submit"
-        className="h-9 rounded-xl border border-line bg-card px-3 text-sm font-bold text-ink hover:bg-cream"
-      >
-        {label}
-      </button>
-    </form>
   );
 }
