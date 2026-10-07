@@ -38,10 +38,25 @@ type Visit = {
 
 type Line = { id: string; name: string; qty: string; price: string; description: string };
 
-const emptyVisit = (): Visit => ({
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+const emptyVisit = (date: string): Visit => ({
   id: `visit-${Date.now()}`,
   title: "",
-  date: new Date().toISOString().slice(0, 10),
+  date,
   later: false,
   start: "",
   end: "",
@@ -51,10 +66,11 @@ const emptyVisit = (): Visit => ({
 });
 
 function monthDay(iso: string) {
-  const date = new Date(`${iso}T12:00:00`);
-  if (Number.isNaN(date.getTime())) return { month: "—", day: "—" };
-  const month = date.toLocaleDateString("pt-PT", { month: "long" });
-  return { month: month.charAt(0).toUpperCase() + month.slice(1), day: String(date.getDate()) };
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!match) return { month: "—", day: "—" };
+  const month = MONTHS[Number(match[2]) - 1];
+  if (!month) return { month: "—", day: "—" };
+  return { month, day: String(Number(match[3])) };
 }
 
 function GreenCheck({ checked }: { checked: boolean }) {
@@ -110,6 +126,7 @@ export function NewJobForm({
   initialRemindInvoice,
   initialVisits,
   initialLines,
+  today,
 }: {
   clients: { id: string; first_name: string; last_name: string; email: string }[];
   quoteId?: string;
@@ -122,6 +139,7 @@ export function NewJobForm({
   initialRemindInvoice?: boolean;
   initialVisits?: Visit[];
   initialLines?: { name: string; qty: string; price: string; description?: string }[];
+  today: string;
 }) {
   const [title, setTitle] = useState(initialTitle ?? "");
   const [clientId, setClientId] = useState(initialClientId ?? "");
@@ -137,7 +155,7 @@ export function NewJobForm({
           {
             id: "visit-1",
             title: "",
-            date: new Date().toISOString().slice(0, 10),
+            date: today,
             later: false,
             start: "",
             end: "",
@@ -364,6 +382,7 @@ export function NewJobForm({
                           type="date"
                           value={visit.date}
                           disabled={visit.later}
+                          suppressHydrationWarning
                           onChange={(event) => patchVisit(visit.id, { date: event.target.value })}
                           className={`${field} ${picker} pr-10`}
                         />
@@ -388,6 +407,7 @@ export function NewJobForm({
                           type="time"
                           value={visit.start}
                           disabled={timesOff}
+                          suppressHydrationWarning
                           onChange={(event) => patchVisit(visit.id, { start: event.target.value })}
                           className={`${field} ${picker} pr-10`}
                         />
@@ -400,6 +420,7 @@ export function NewJobForm({
                           type="time"
                           value={visit.end}
                           disabled={timesOff}
+                          suppressHydrationWarning
                           onChange={(event) => patchVisit(visit.id, { end: event.target.value })}
                           className={`${field} ${picker} pr-10`}
                         />
@@ -461,7 +482,7 @@ export function NewJobForm({
         <div className="mt-4 flex items-center justify-between gap-3">
           <button
             type="button"
-            onClick={() => setVisits((rows) => [...rows, emptyVisit()])}
+            onClick={() => setVisits((rows) => [...rows, emptyVisit(today)])}
             className={`h-9 rounded-lg border ${line} bg-white px-3 text-sm font-semibold ${ink}`}
           >
             Add a visit

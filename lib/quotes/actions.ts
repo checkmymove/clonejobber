@@ -201,6 +201,8 @@ export async function updateQuoteStatus(
   if (result.ok) {
     revalidatePath("/cotacoes");
     revalidatePath(`/cotacoes/${quoteId}`);
+    revalidatePath("/agenda");
+    revalidatePath("/servicos");
   }
   return result;
 }

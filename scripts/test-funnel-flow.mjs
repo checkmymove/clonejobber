@@ -134,22 +134,34 @@ try {
 
     const sent = await changeQuoteStatus(tx, quote.id, "sent");
     check("quote marked sent", sent.ok);
+    const [reminder] = await tx`
+      select title, status from schedule_reminders where quote_id = ${quote.id}`;
+    check("sent quote created a schedule reminder", !!reminder && reminder.status === "scheduled");
     const editSent = await updateQuoteDocument(tx, company.id, quote.id, quoteInput);
     check("sent quote can be edited", editSent.ok);
 
     const approved = await changeQuoteStatus(tx, quote.id, "approved");
     check("quote approved", approved.ok);
+    const [autoJob] = await tx`
+      select id, number from jobs where quote_id = ${quote.id}`;
+    check("confirmed quote created a job for the schedule", !!autoJob && String(autoJob.number).startsWith("JOB-"));
+    const [visit] = await tx`
+      select confirmed_by_client, visit_date from job_visits where job_id = ${autoJob.id}`;
+    check("job visit is client-confirmed on the schedule", visit?.confirmed_by_client === true);
+    const [doneReminder] = await tx`
+      select status from schedule_reminders where quote_id = ${quote.id}`;
+    check("approved quote completes the quote reminder", doneReminder?.status === "done");
 
     const job = await convertApprovedQuoteToJob(tx, company.id, quote.id);
-    check("approved quote became a job", job.ok && job.number.startsWith("JOB-"));
+    check("second convert reuses the job", job.alreadyExisted && job.id === autoJob.id);
 
     const again = await convertApprovedQuoteToJob(tx, company.id, quote.id);
-    check("second convert reuses the job", again.alreadyExisted && again.id === job.id);
+    check("third convert still reuses the job", again.alreadyExisted && again.id === autoJob.id);
 
-    const invoiceTooSoon = await convertCompletedJobToInvoice(tx, company.id, job.id);
+    const invoiceTooSoon = await convertCompletedJobToInvoice(tx, company.id, autoJob.id);
     check("cannot invoice an incomplete job", !invoiceTooSoon.ok);
 
-    const jobEdit = await updateJobDocument(tx, company.id, job.id, {
+    const jobEdit = await updateJobDocument(tx, company.id, autoJob.id, {
       clientId: client.id,
       title: "Move job",
       notes: "updated",

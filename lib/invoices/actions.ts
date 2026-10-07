@@ -137,6 +137,7 @@ export async function updateInvoiceStatus(
     revalidatePath("/faturas");
     revalidatePath(`/faturas/${invoiceId}`);
     revalidatePath("/");
+    revalidatePath("/agenda");
   }
   return result;
 }

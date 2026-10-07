@@ -29,6 +29,8 @@ function refresh(quoteId: string) {
   revalidatePath(`/q/${quoteId}`);
   revalidatePath("/cotacoes");
   revalidatePath(`/cotacoes/${quoteId}`);
+  revalidatePath("/agenda");
+  revalidatePath("/servicos");
 }
 
 function canRespond(quote: PublicQuote): ActionResult | null {

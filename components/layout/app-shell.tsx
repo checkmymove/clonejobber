@@ -21,9 +21,15 @@ import {
 import { signOut } from "@/lib/auth/actions";
 import { cn } from "@/lib/cn";
 
-const NAV = [
+const NAV: {
+  href: string;
+  label: string;
+  icon: typeof House;
+  exact?: boolean;
+  disabled?: boolean;
+}[] = [
   { href: "/", label: "Dashboard", icon: House, exact: true },
-  { href: "/agenda", label: "Schedule", icon: CalendarDays, disabled: true },
+  { href: "/agenda", label: "Schedule", icon: CalendarDays },
   { href: "/clientes", label: "Clients", icon: Users },
   { href: "/solicitacoes", label: "Requests", icon: Inbox },
   { href: "/cotacoes", label: "Quotes", icon: Quote },
@@ -49,6 +55,7 @@ export function AppShell({
   email: string;
 }) {
   const pathname = usePathname();
+  const isSchedule = pathname.startsWith("/agenda");
   const [createOpen, setCreateOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -145,7 +152,7 @@ export function AppShell({
     <div className="min-h-dvh">
       {/* Topbar */}
       <header className="sticky top-0 z-20 border-b border-line bg-cream/95 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4">
+        <div className={cn("mx-auto flex h-14 items-center gap-3 px-4", isSchedule ? "max-w-none" : "max-w-7xl")}>
           <button
             type="button"
             className="rounded-lg p-2 hover:bg-card lg:hidden"
@@ -169,11 +176,14 @@ export function AppShell({
         </div>
       </header>
 
-      <div className="mx-auto flex max-w-7xl gap-4 px-4 py-4">
-        <aside className="sticky top-[72px] hidden h-[calc(100dvh-88px)] w-64 shrink-0 overflow-y-auto rounded-2xl bg-cream lg:block">
+      <div className={cn("mx-auto flex gap-4", isSchedule ? "max-w-none px-3 py-3" : "max-w-7xl px-4 py-4")}>
+        <aside className={cn(
+          "sticky top-[72px] hidden shrink-0 overflow-y-auto rounded-2xl bg-cream lg:block",
+          isSchedule ? "h-[calc(100dvh-80px)] w-56" : "h-[calc(100dvh-88px)] w-64",
+        )}>
           {sidebar}
         </aside>
-        <main className="min-w-0 flex-1 pb-16">{children}</main>
+        <main className={cn("min-w-0 flex-1", isSchedule ? "pb-0" : "pb-16")}>{children}</main>
       </div>
 
       {/* Mobile drawer */}

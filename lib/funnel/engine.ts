@@ -83,6 +83,35 @@ export async function persistQuote(
   return { ok: true, id: rows[0].id, number: rows[0].number };
 }
 
+function parseMoveClock(raw: string): string {
+  const t = raw.trim();
+  if (!t) return "";
+  const withMinutes = t.match(/^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/i);
+  if (withMinutes) {
+    let hour = Number(withMinutes[1]);
+    const minutes = withMinutes[2];
+    const period = withMinutes[3]?.toUpperCase();
+    if (period === "PM" && hour < 12) hour += 12;
+    if (period === "AM" && hour === 12) hour = 0;
+    if (hour < 0 || hour > 23) return "";
+    return `${String(hour).padStart(2, "0")}:${minutes}`;
+  }
+  const hourOnly = t.match(/^(\d{1,2})\s*(AM|PM)$/i);
+  if (!hourOnly) return "";
+  let hour = Number(hourOnly[1]);
+  const period = hourOnly[2].toUpperCase();
+  if (period === "PM" && hour < 12) hour += 12;
+  if (period === "AM" && hour === 12) hour = 0;
+  if (hour < 0 || hour > 23) return "";
+  return `${String(hour).padStart(2, "0")}:00`;
+}
+
+function asDay(value: string | Date | null | undefined): string {
+  if (!value) return "";
+  const s = value instanceof Date ? value.toISOString() : String(value);
+  return s.slice(0, 10);
+}
+
 export async function changeQuoteStatus(
   db: Db,
   quoteId: string,
@@ -90,7 +119,12 @@ export async function changeQuoteStatus(
   actor = "admin",
 ): Promise<ActionResult> {
   const rows = await db`
-    select company_id, number, status, total from quotes where id = ${quoteId} limit 1
+    select q.company_id, q.number, q.status, q.total, q.valid_until,
+           trim(c.first_name || ' ' || c.last_name) as client_name
+    from quotes q
+    join clients c on c.id = q.client_id
+    where q.id = ${quoteId}
+    limit 1
   `;
   if (!rows[0]) return { ok: false, message: "Quote not found" };
   const quoteNext: Record<string, string[]> = {
@@ -116,6 +150,37 @@ export async function changeQuoteStatus(
     values (${rows[0].company_id}, ${actor}, 'quote.status_changed', 'quote', ${quoteId},
             ${`Quote ${rows[0].number} → ${status}`})
   `;
+  if (status === "sent") {
+    const reminderDate = asDay(rows[0].valid_until) || null;
+    await db`
+      insert into schedule_reminders (company_id, kind, quote_id, title, reminder_date)
+      values (
+        ${rows[0].company_id},
+        'quote',
+        ${quoteId},
+        ${`Reminder about quote ${rows[0].number} for ${rows[0].client_name}`},
+        coalesce(${reminderDate}::date, (timezone('Europe/London', now()))::date + 2)
+      )
+      on conflict (quote_id) do nothing
+    `;
+  }
+  if (status === "approved") {
+    await db`
+      update schedule_reminders
+      set status = 'done', updated_at = now()
+      where quote_id = ${quoteId} and status = 'scheduled'
+    `;
+    const job = await quoteToJob(db, rows[0].company_id, quoteId, true);
+    if (!job.ok) return job;
+    return { ok: true, id: quoteId, number: job.number };
+  }
+  if (status === "rejected" || status === "expired") {
+    await db`
+      update schedule_reminders
+      set status = 'cancelled', updated_at = now()
+      where quote_id = ${quoteId} and status = 'scheduled'
+    `;
+  }
   return { ok: true, id: quoteId };
 }
 
@@ -250,7 +315,8 @@ async function quoteToJob(
   requireApproved: boolean,
 ): Promise<ActionResult> {
   const q = await db`
-    select id, company_id, client_id, request_id, number, title, notes, status, archived_at
+    select id, company_id, client_id, request_id, number, title, notes, status,
+           archived_at, valid_until, move_time
     from quotes where id = ${quoteId}
     limit 1
     for update
@@ -266,8 +332,15 @@ async function quoteToJob(
   if (requireApproved && q[0].status !== "approved") {
     return { ok: false, message: "Only an approved quote can become a job." };
   }
-  const existing = await db`select id from jobs where quote_id = ${quoteId} limit 1`;
-  if (existing[0]) return { ok: true, id: existing[0].id, alreadyExisted: true };
+  const existing = await db`select id, number from jobs where quote_id = ${quoteId} limit 1`;
+  if (existing[0]) {
+    if (q[0].status === "approved") {
+      await db`
+        update job_visits set confirmed_by_client = true where job_id = ${existing[0].id}
+      `;
+    }
+    return { ok: true, id: existing[0].id, number: existing[0].number, alreadyExisted: true };
+  }
 
   const lines = (await db`
     select name, description, quantity::float as quantity,
@@ -277,6 +350,8 @@ async function quoteToJob(
   const req = q[0].request_id
     ? await db`select move_date from requests where id = ${q[0].request_id} limit 1`
     : [];
+  const moveDate = asDay(q[0].valid_until) || asDay(req[0]?.move_date);
+  const start = parseMoveClock(q[0].move_time || "");
 
   const input: JobInput = {
     clientId: q[0].client_id,
@@ -288,11 +363,11 @@ async function quoteToJob(
     visits: [
       {
         title: "",
-        date: req[0]?.move_date ?? new Date().toISOString().slice(0, 10),
-        later: !req[0]?.move_date,
-        start: "",
+        date: moveDate,
+        later: !moveDate,
+        start,
         end: "",
-        anytime: false,
+        anytime: !!moveDate && !start,
         assignee: "",
         instructions: "",
       },
@@ -304,7 +379,13 @@ async function quoteToJob(
       unitPrice: (l.unitPrice / 100).toFixed(2),
     })),
   };
-  return persistJob(db, companyId, input);
+  const created = await persistJob(db, companyId, input);
+  if (created.ok && created.id && q[0].status === "approved") {
+    await db`
+      update job_visits set confirmed_by_client = true where job_id = ${created.id}
+    `;
+  }
+  return created;
 }
 
 export function convertApprovedQuoteToJob(
@@ -471,6 +552,33 @@ export async function changeInvoiceStatus(
     values (${rows[0].company_id}, 'admin', 'invoice.status_changed', 'invoice', ${invoiceId},
             ${`Invoice ${rows[0].number} → ${status}`})
   `;
+  if (status === "sent") {
+    const due = await db`
+      select due_on, trim(c.first_name || ' ' || c.last_name) as client_name
+      from invoices i
+      join clients c on c.id = i.client_id
+      where i.id = ${invoiceId}
+      limit 1
+    `;
+    await db`
+      insert into schedule_reminders (company_id, kind, invoice_id, title, reminder_date)
+      values (
+        ${rows[0].company_id},
+        'invoice',
+        ${invoiceId},
+        ${`Invoice reminder for ${rows[0].number} · ${due[0]?.client_name ?? ""}`},
+        ${due[0]?.due_on ?? null}
+      )
+      on conflict (invoice_id) do nothing
+    `;
+  }
+  if (status === "paid" || status === "cancelled") {
+    await db`
+      update schedule_reminders
+      set status = ${status === "paid" ? "done" : "cancelled"}, updated_at = now()
+      where invoice_id = ${invoiceId} and status = 'scheduled'
+    `;
+  }
   return { ok: true, id: invoiceId };
 }
 
@@ -601,6 +709,15 @@ export async function updateJobDocument(
          ${v.instructions}, ${i})
     `;
   }
+  await db`
+    update job_visits v
+    set confirmed_by_client = true
+    from jobs j
+    join quotes q on q.id = j.quote_id
+    where v.job_id = j.id
+      and j.id = ${jobId}
+      and q.status = 'approved'
+  `;
   await db`
     insert into activity_log (company_id, actor, action, entity, entity_id, summary)
     values (${companyId}, 'admin', 'job.updated', 'job', ${jobId},

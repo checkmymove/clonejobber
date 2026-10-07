@@ -41,6 +41,7 @@ async function mustOwn(clientId: string): Promise<string | null> {
 const revalidate = (clientId: string) => {
   revalidatePath(`/clientes/${clientId}`);
   revalidatePath("/clientes");
+  revalidatePath("/agenda");
 };
 
 // ---------------------------------------------------------------- profile
@@ -414,6 +415,7 @@ export async function createAssessment(
   `;
   revalidatePath(`/solicitacoes/${requestId}`);
   revalidatePath(`/clientes/${rows[0].client_id}`);
+  revalidatePath("/agenda");
   return { ok: true, clientId: rows[0].client_id };
 }
 

@@ -43,6 +43,16 @@ export function toDateInput(value: string | Date | null | undefined): string {
   return s.slice(0, 10);
 }
 
+/** YYYY-MM-DD in Europe/London. Safe to pass from a server page into client state. */
+export function todayLondonInput(now = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/London",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+}
+
 export function penceToInput(pence: number): string {
   return (pence / 100).toFixed(2);
 }

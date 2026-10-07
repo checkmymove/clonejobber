@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { listClientsForSelect } from "@/lib/clients/queries";
 import { COMPANY_SLUG } from "@/lib/company";
-import { penceToInput, toDateInput } from "@/lib/format";
+import { penceToInput, toDateInput, todayLondonInput } from "@/lib/format";
 import { getJobDetail } from "@/lib/jobs/queries";
 import { NewJobForm } from "@/components/jobs/new-job-form";
 
@@ -36,7 +36,7 @@ export default async function EditServicoPage({
               ? j.visits.map((v) => ({
                   id: v.id,
                   title: v.title,
-                  date: toDateInput(v.visit_date) || "2026-09-14",
+                  date: toDateInput(v.visit_date) || todayLondonInput(),
                   later: v.later,
                   start: v.start_time,
                   end: v.end_time,
@@ -52,6 +52,7 @@ export default async function EditServicoPage({
             qty: String(l.quantity),
             price: penceToInput(l.unitPrice),
           }))}
+          today={todayLondonInput()}
         />
       </div>
     </div>

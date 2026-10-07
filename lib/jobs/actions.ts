@@ -34,6 +34,7 @@ async function saveJobRecord(
       revalidatePath("/servicos");
       revalidatePath("/cotacoes");
       revalidatePath("/clientes");
+      revalidatePath("/agenda");
       if (created.id) revalidatePath(`/servicos/${created.id}`);
     }
     return created;
@@ -78,6 +79,7 @@ export async function convertQuoteToJob(quoteId: string): Promise<ActionResult> 
   revalidatePath("/servicos");
   revalidatePath("/cotacoes");
   revalidatePath("/clientes");
+  revalidatePath("/agenda");
   redirect(`/servicos/${jobId}`);
 }
 
@@ -91,6 +93,7 @@ async function writeJob(jobId: string, input: JobInput): Promise<ActionResult> {
     revalidatePath("/servicos");
     revalidatePath(`/servicos/${jobId}`);
     revalidatePath("/clientes");
+    revalidatePath("/agenda");
   }
   return saved;
 }
@@ -124,6 +127,7 @@ export async function updateJobStatus(
     revalidatePath("/servicos");
     revalidatePath(`/servicos/${jobId}`);
     revalidatePath("/");
+    revalidatePath("/agenda");
   }
   return result;
 }
