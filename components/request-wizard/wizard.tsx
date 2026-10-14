@@ -1,5 +1,6 @@
 "use client";
 
+import { TimeField } from "@/components/time-field";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { submitRequest } from "@/lib/requests/actions";
 import {
@@ -470,11 +471,11 @@ export function RequestWizard({
                 />
               </Field>
               <Field label="Moving time" required error={errors.moveTime}>
-                <input
-                  type="time"
+                <TimeField
+                  ariaLabel="Moving time"
                   className={inputCls(errors.moveTime)}
                   value={contact.moveTime}
-                  onChange={(e) => setC({ moveTime: e.target.value })}
+                  onChange={(value) => setC({ moveTime: value })}
                 />
               </Field>
             </div>

@@ -1,3 +1,4 @@
+import { ClickableRow } from "@/components/clickable-row";
 import Link from "next/link";
 import { formatDateLondon } from "@/lib/format";
 import { listClients } from "@/lib/clients/queries";
@@ -68,7 +69,7 @@ export default async function ClientsPage({
                 </thead>
                 <tbody>
                   {rows.map((c) => (
-                    <tr key={c.id} className="border-b border-line last:border-0">
+                    <ClickableRow key={c.id} href={`/clientes/${c.id}`}>
                       <td className="py-3 pr-3">
                         <Link
                           href={`/clientes/${c.id}`}
@@ -95,7 +96,7 @@ export default async function ClientsPage({
                       <td className="py-3 text-right text-[13px] text-ink-soft">
                         {formatDateLondon(c.created_at)}
                       </td>
-                    </tr>
+                    </ClickableRow>
                   ))}
                 </tbody>
               </table>

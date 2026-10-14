@@ -1,5 +1,6 @@
 "use client";
 
+import { TimeField } from "@/components/time-field";
 import { useMemo, useState } from "react";
 import { createJob, saveJobAndConvert, updateJob } from "@/lib/jobs/actions";
 import { ClientSelect } from "@/components/funnel/client-select";
@@ -8,7 +9,6 @@ import { formatPounds } from "@/lib/format";
 import {
   Calendar,
   ChevronDown,
-  Clock,
   FileText,
   Flag,
   MoreHorizontal,
@@ -402,29 +402,23 @@ export function NewJobForm({
                     <div className="grid gap-3 sm:grid-cols-2">
                       <label className="relative block">
                         <span className="mb-1 block text-[13px] text-[#5d6f78]">Start time</span>
-                        <input
-                          aria-label="Start time"
-                          type="time"
+                        <TimeField
+                          ariaLabel="Start time"
                           value={visit.start}
                           disabled={timesOff}
-                          suppressHydrationWarning
-                          onChange={(event) => patchVisit(visit.id, { start: event.target.value })}
-                          className={`${field} ${picker} pr-10`}
+                          onChange={(value) => patchVisit(visit.id, { start: value })}
+                          className={field}
                         />
-                        <Clock size={16} className="pointer-events-none absolute bottom-3.5 right-3 text-[#8aa0a8]" />
                       </label>
                       <label className="relative block">
                         <span className="mb-1 block text-[13px] text-[#5d6f78]">End time</span>
-                        <input
-                          aria-label="End time"
-                          type="time"
+                        <TimeField
+                          ariaLabel="End time"
                           value={visit.end}
                           disabled={timesOff}
-                          suppressHydrationWarning
-                          onChange={(event) => patchVisit(visit.id, { end: event.target.value })}
-                          className={`${field} ${picker} pr-10`}
+                          onChange={(value) => patchVisit(visit.id, { end: value })}
+                          className={field}
                         />
-                        <Clock size={16} className="pointer-events-none absolute bottom-3.5 right-3 text-[#8aa0a8]" />
                       </label>
                     </div>
                     <label className={`flex cursor-pointer items-center gap-2 text-sm ${ink}`}>

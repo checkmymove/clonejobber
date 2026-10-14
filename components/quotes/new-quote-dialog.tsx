@@ -23,9 +23,9 @@ export function NewQuoteDialog({
 
   const close = () => router.push(closeHref);
 
-  function continueWith(serviceId: string) {
+  function continueWith(serviceId?: string) {
     const params = new URLSearchParams();
-    params.set("service", serviceId);
+    params.set("service", serviceId ?? "none");
     if (clientId) params.set("clientId", clientId);
     if (requestId) params.set("requestId", requestId);
     router.push(`/cotacoes/novo?${params.toString()}`);
@@ -92,6 +92,19 @@ export function NewQuoteDialog({
             ))
           )}
         </div>
+
+        <div className="mt-5 flex items-center gap-3 text-[14px] text-[#5d6f78]">
+          <span className="h-px flex-1 bg-[#d5dde1]" />
+          or
+          <span className="h-px flex-1 bg-[#d5dde1]" />
+        </div>
+        <button
+          type="button"
+          onClick={() => continueWith()}
+          className="mt-5 h-11 w-full rounded-lg bg-[#388623] text-[15px] font-bold text-white hover:bg-[#2f7220]"
+        >
+          Create New Quote
+        </button>
       </div>
     </div>
   );

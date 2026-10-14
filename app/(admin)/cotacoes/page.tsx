@@ -1,3 +1,4 @@
+import { ClickableRow } from "@/components/clickable-row";
 import Link from "next/link";
 import { Info } from "lucide-react";
 import { formatGBP, formatPounds } from "@/lib/format";
@@ -186,7 +187,7 @@ export default async function CotacoesPage({
                 const status = quoteListStatus(quote.status, quote.converted_at, quote.archived_at);
                 const href = `/cotacoes/${quote.id}`;
                 return (
-                  <tr key={quote.id} className="border-b border-line last:border-0">
+                  <ClickableRow key={quote.id} href={href}>
                     <td className="px-4 py-3.5 font-semibold break-words text-ink">
                       <Link href={href} className="hover:underline">
                         {quote.client_name}
@@ -217,7 +218,7 @@ export default async function CotacoesPage({
                     <td className="px-4 py-3.5 text-right font-semibold text-ink">
                       <Link href={href}>{formatPounds(quote.total / 100)}</Link>
                     </td>
-                  </tr>
+                  </ClickableRow>
                 );
               })}
             </tbody>

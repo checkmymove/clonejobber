@@ -1,3 +1,4 @@
+import { ClickableRow } from "@/components/clickable-row";
 import Link from "next/link";
 import { formatDateLondon } from "@/lib/format";
 import { listRequests } from "@/lib/requests/queries";
@@ -98,7 +99,7 @@ export default async function SolicitacoesPage({
               </thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr key={r.id} className="border-b border-line last:border-0">
+                  <ClickableRow key={r.id} href={`/solicitacoes/${r.id}`}>
                     <td className="py-3 pr-3">
                       <Link
                         href={`/solicitacoes/${r.id}`}
@@ -142,7 +143,7 @@ export default async function SolicitacoesPage({
                         Open
                       </Link>
                     </td>
-                  </tr>
+                  </ClickableRow>
                 ))}
               </tbody>
             </table>

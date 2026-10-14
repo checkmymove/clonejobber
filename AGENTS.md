@@ -42,3 +42,11 @@ Se o MCP da Vercel listar só a equipa KOREN, está autenticado na conta errada.
 ## Depois de alterar UI em produção
 
 Push para `checkmymove/clonejobber` `main` e esperar o status Vercel do commit ficar `success`.
+
+## Padrões de UI (aplicar sempre que fizer sentido)
+
+- **Layout de detalhe = o do Request.** Páginas de detalhe do funil (request, quote, job, invoice, client) seguem a mesma disposição: duas caixas lado a lado no topo, depois Collection e Delivery lado a lado, depois Inventory list em largura total e só então as informações específicas da página (timeline, sent, etc.). Quando a página tem a coluna lateral "Request" (quote), ela se mantém à direita. Usar bom senso: não forçar o padrão em páginas onde ele não faz sentido (listas, formulários, configurações, schedule).
+- **Listas em tabela:** a linha inteira é clicável e muda de cor no hover, como em Products & services. Usar `components/clickable-row.tsx`.
+- **Caixas com texto longo** ficam na altura da caixa vizinha, com seta para expandir/recolher (clique em qualquer ponto da caixa).
+- **Hora e minuto:** usar `components/time-field.tsx`, nunca `<input type="time">` nativo.
+- **Menu lateral:** sempre à esquerda, igual em todas as páginas. Products & services e Email ficam abaixo do separador (configuração, fora do funil).

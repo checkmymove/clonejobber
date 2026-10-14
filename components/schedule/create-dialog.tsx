@@ -1,5 +1,6 @@
 "use client";
 
+import { TimeField } from "@/components/time-field";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
@@ -107,8 +108,8 @@ export function CreateDialog({
             </label>
             {!anytime && !later ? (
               <div className="mt-3 grid grid-cols-2 gap-2">
-                <input type="time" value={start} onChange={(event) => setStart(event.target.value)} className="h-11 rounded-xl border border-line px-3" />
-                <input type="time" value={end} onChange={(event) => setEnd(event.target.value)} className="h-11 rounded-xl border border-line px-3" />
+                <TimeField ariaLabel="Start time" value={start} onChange={setStart} className="h-11 w-full rounded-xl border border-line px-3 outline-none focus:border-accent" />
+                <TimeField ariaLabel="End time" value={end} onChange={setEnd} className="h-11 w-full rounded-xl border border-line px-3 outline-none focus:border-accent" />
               </div>
             ) : null}
             <textarea

@@ -24,15 +24,20 @@ export default async function NovaCotacaoPage({
   const companyId = await getCompanyId();
   if (!companyId) notFound();
 
+  const skipService = sp.service === "none";
   if (!sp.service) {
     const services = await listServicesForQuote(companyId);
     return (
       <NewQuoteDialog services={services} clientId={sp.clientId} requestId={sp.requestId} />
     );
   }
-  if (!isUuid(sp.service)) notFound();
-  const service = await getServiceForQuote(companyId, sp.service);
-  if (!service) notFound();
+  let service: NonNullable<Awaited<ReturnType<typeof getServiceForQuote>>> | undefined;
+  if (!skipService) {
+    if (!isUuid(sp.service)) notFound();
+    const found = await getServiceForQuote(companyId, sp.service);
+    if (!found) notFound();
+    service = found;
+  }
 
   const clients = await listClientsForSelect(COMPANY_SLUG);
   let prefill = sp.requestId
@@ -43,14 +48,16 @@ export default async function NovaCotacaoPage({
     prefill = await getQuotePrefillForClient(sp.clientId, companyId, service);
   }
 
-  const serviceLine = [
-    {
-      name: service.name,
-      description: service.description || describeService(service.name),
-      qty: "1",
-      unitPrice: service.unitPrice,
-    },
-  ];
+  const serviceLine = service
+    ? [
+        {
+          name: service.name,
+          description: service.description || describeService(service.name),
+          qty: "1",
+          unitPrice: service.unitPrice,
+        },
+      ]
+    : undefined;
 
   return (
     <div className="min-h-[calc(100dvh-6.5rem)] rounded-2xl bg-white px-6 py-8 sm:px-10">
@@ -60,7 +67,7 @@ export default async function NovaCotacaoPage({
           requestId={prefill?.requestId ?? (sp.requestId || undefined)}
           sourceRequestId={sp.requestId}
           initialClientId={prefill?.clientId ?? sp.clientId}
-          initialTitle={service.name}
+          initialTitle={prefill?.title ?? service?.name}
           initialMoveDate={prefill?.moveDate}
           initialMoveTime={prefill?.moveTime}
           initialInventory={prefill?.inventory}
@@ -70,10 +77,14 @@ export default async function NovaCotacaoPage({
           initialPacking={prefill?.packing}
           initialMessage={QUOTE_TERMS}
           initialLines={prefill?.lines ?? serviceLine}
-          service={{
-            ...service,
-            description: service.description || describeService(service.name),
-          }}
+          service={
+            service
+              ? {
+                  ...service,
+                  description: service.description || describeService(service.name),
+                }
+              : undefined
+          }
         />
       </div>
     </div>

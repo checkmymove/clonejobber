@@ -55,7 +55,7 @@ export default async function ServicosPage({
               <Link
                 key={j.id}
                 href={`/servicos/${j.id}`}
-                className="flex items-center gap-3 rounded-xl border border-line p-3 hover:bg-cream"
+                className="flex items-center gap-3 rounded-xl border border-line p-3 hover:bg-[#f7f8f8]"
               >
                 <span className="h-10 w-1.5 rounded-full bg-job" />
                 <div className="min-w-0">
@@ -84,7 +84,7 @@ export default async function ServicosPage({
               <Link
                 key={j.id}
                 href={`/servicos/${j.id}`}
-                className="flex items-center gap-3 rounded-xl border border-line p-3 hover:bg-cream"
+                className="flex items-center gap-3 rounded-xl border border-line p-3 hover:bg-[#f7f8f8]"
               >
                 <div className="min-w-0">
                   <p className="truncate text-sm font-bold text-ink">

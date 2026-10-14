@@ -35,6 +35,9 @@ const NAV: {
   { href: "/cotacoes", label: "Quotes", icon: Quote },
   { href: "/servicos", label: "Jobs", icon: Hammer },
   { href: "/faturas", label: "Invoices", icon: FileText },
+];
+
+const NAV_SETTINGS: typeof NAV = [
   { href: "/produtos-servicos", label: "Products & services", icon: Package },
   { href: "/configuracoes/email", label: "Email", icon: Mail },
 ];
@@ -104,7 +107,10 @@ export function AppShell({
       </div>
 
       <nav className="mt-2 flex flex-col gap-0.5" aria-label="Main navigation">
-        {NAV.map((item) => {
+        {[...NAV, null, ...NAV_SETTINGS].map((item, index) => {
+          if (!item) {
+            return <hr key={`sep-${index}`} className="mb-3 mt-4 border-t border-line" />;
+          }
           const active = item.exact
             ? pathname === item.href
             : pathname.startsWith(item.href);
@@ -152,7 +158,7 @@ export function AppShell({
     <div className="min-h-dvh">
       {/* Topbar */}
       <header className="sticky top-0 z-20 border-b border-line bg-cream/95 backdrop-blur">
-        <div className={cn("mx-auto flex h-14 items-center gap-3 px-4", isSchedule ? "max-w-none" : "max-w-7xl")}>
+        <div className="mx-auto flex h-14 max-w-none items-center gap-3 px-4">
           <button
             type="button"
             className="rounded-lg p-2 hover:bg-card lg:hidden"
@@ -176,14 +182,13 @@ export function AppShell({
         </div>
       </header>
 
-      <div className={cn("mx-auto flex gap-4", isSchedule ? "max-w-none px-3 py-3" : "max-w-7xl px-4 py-4")}>
-        <aside className={cn(
-          "sticky top-[72px] hidden shrink-0 overflow-y-auto rounded-2xl bg-cream lg:block",
-          isSchedule ? "h-[calc(100dvh-80px)] w-56" : "h-[calc(100dvh-88px)] w-64",
-        )}>
+      <div className="mx-auto flex max-w-none gap-4 px-3 py-3">
+        <aside className="sticky top-[72px] hidden h-[calc(100dvh-80px)] w-56 shrink-0 overflow-y-auto rounded-2xl bg-cream lg:block">
           {sidebar}
         </aside>
-        <main className={cn("min-w-0 flex-1", isSchedule ? "pb-0" : "pb-16")}>{children}</main>
+        <main className={cn("min-w-0 flex-1", isSchedule ? "pb-0" : "pb-16")}>
+          {isSchedule ? children : <div className="mx-auto max-w-[1200px]">{children}</div>}
+        </main>
       </div>
 
       {/* Mobile drawer */}

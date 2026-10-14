@@ -1,5 +1,6 @@
 "use client";
 
+import { TimeField } from "@/components/time-field";
 import { useEffect, useState } from "react";
 import { formatGBP, formatDateLondon } from "@/lib/format";
 import type { JobInput, VisitInput } from "@/lib/funnel/validation";
@@ -173,24 +174,24 @@ export function JobVisitsCard({ snapshot }: { snapshot: JobEditSnapshot }) {
             </label>
             <div className="grid gap-2 sm:grid-cols-2">
               <Field label="Start">
-                <input
-                  type="time"
+                <TimeField
+                  ariaLabel="Start time"
                   className={inlineField}
                   disabled={visit.later || visit.anytime}
                   value={visit.start}
-                  onChange={(e) =>
-                    setVisits(visits.map((item) => (item.id === visit.id ? { ...item, start: e.target.value } : item)))
+                  onChange={(value) =>
+                    setVisits(visits.map((item) => (item.id === visit.id ? { ...item, start: value } : item)))
                   }
                 />
               </Field>
               <Field label="End">
-                <input
-                  type="time"
+                <TimeField
+                  ariaLabel="End time"
                   className={inlineField}
                   disabled={visit.later || visit.anytime}
                   value={visit.end}
-                  onChange={(e) =>
-                    setVisits(visits.map((item) => (item.id === visit.id ? { ...item, end: e.target.value } : item)))
+                  onChange={(value) =>
+                    setVisits(visits.map((item) => (item.id === visit.id ? { ...item, end: value } : item)))
                   }
                 />
               </Field>

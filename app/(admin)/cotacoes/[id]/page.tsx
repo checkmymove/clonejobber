@@ -102,17 +102,21 @@ export default async function CotacaoDetailPage({
       </div>
 
       <div className="flex items-start gap-4">
-      <div className="grid min-w-0 flex-1 gap-4">
+      <div className="grid min-w-0 flex-1 items-start gap-4 xl:grid-cols-2">
         <QuoteSummaryCard snapshot={snapshot} />
         <QuoteServicesCard snapshot={snapshot} />
-        {linkedRequest && (linkedRequest.needsPacking || linkedRequest.needsBoxes) ? (
-          <QuotePackingCard request={linkedRequest} />
-        ) : null}
         {linkedRequest ? <QuoteCollectionCard request={linkedRequest} /> : null}
         {linkedRequest ? <QuoteDeliveryCard request={linkedRequest} /> : null}
-        <QuoteInventoryCard snapshot={snapshot} request={linkedRequest} />
+        <div className="xl:col-span-2">
+          <QuoteInventoryCard snapshot={snapshot} request={linkedRequest} />
+        </div>
+        {linkedRequest && (linkedRequest.needsPacking || linkedRequest.needsBoxes) ? (
+          <div className="xl:col-span-2">
+            <QuotePackingCard request={linkedRequest} />
+          </div>
+        ) : null}
         {deliveries.length || smsDeliveries.length ? (
-          <Card className="h-fit p-5">
+          <Card className="h-fit p-5 xl:col-span-2">
             <h2 className="mb-2 text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">
               Sent
             </h2>

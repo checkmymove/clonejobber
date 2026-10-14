@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { TimeField } from "@/components/time-field";
+import { useEffect, useRef, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { formatGBP, formatDateLondon } from "@/lib/format";
 import type { QuoteInput } from "@/lib/funnel/validation";
 import { saveQuoteInPlace } from "@/lib/quotes/actions";
@@ -147,7 +149,7 @@ export function QuoteSummaryCard({ snapshot }: { snapshot: QuoteEditSnapshot }) 
           <input type="date" className={inlineField} value={validUntil} onChange={(e) => setValidUntil(e.target.value)} />
         </Field>
         <Field label="Moving time">
-          <input type="time" className={inlineField} value={moveTime} onChange={(e) => setMoveTime(e.target.value)} />
+          <TimeField ariaLabel="Moving time" className={inlineField} value={moveTime} onChange={setMoveTime} />
         </Field>
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
@@ -177,24 +179,96 @@ export function QuoteServicesCard({ snapshot }: { snapshot: QuoteEditSnapshot })
       title="Services"
       onCancel={() => setLines(snapshot.lines)}
       onSave={() => saveQuoteInPlace(snapshot.id, toQuoteInput(snapshot, { lines }))}
-      view={
-        <div className="space-y-2 text-sm">
-          {snapshot.lines.map((line) => (
-            <div key={line.id} className="flex justify-between gap-3 border-b border-line py-2 last:border-0">
-              <div>
-                <p className="font-bold text-ink">{line.name}</p>
-                {line.description ? <p className="text-ink-soft">{line.description}</p> : null}
-                <p className="text-xs text-ink-mute">
-                  {line.qty} × {formatGBP(Math.round(Number(line.price || "0") * 100) || 0)}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      }
+      view={<ServicesView lines={snapshot.lines} />}
     >
       <LineFields lines={lines} onChange={setLines} />
     </InlineEditCard>
+  );
+}
+
+// Collapsed to exactly the height of the neighbouring Resumo card; the arrow reveals the full text.
+function ServicesView({ lines }: { lines: QuoteEditSnapshot["lines"] }) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [overflows, setOverflows] = useState(false);
+  const [maxH, setMaxH] = useState<number | null>(null);
+
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    const card = wrap?.closest<HTMLElement>(".rounded-2xl");
+    const sibling = card?.previousElementSibling as HTMLElement | null;
+    if (!wrap || !card || !sibling) return;
+    const measure = () => {
+      const cardTop = card.getBoundingClientRect().top;
+      const bodyTop = wrap.getBoundingClientRect().top;
+      // card bottom padding (p-5) + room for the arrow button
+      const available = sibling.offsetHeight - (bodyTop - cardTop) - 20 - 32;
+      setMaxH(Math.max(available, 72));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(sibling);
+    window.addEventListener("resize", measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, []);
+
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (!el || expanded) return;
+    setOverflows(el.scrollHeight > el.clientHeight + 1);
+  }, [lines, maxH, expanded]);
+
+  const toggleable = overflows || expanded;
+
+  return (
+    <div
+      ref={wrapRef}
+      className={toggleable ? "cursor-pointer" : undefined}
+      onClick={() => {
+        if (!toggleable) return;
+        if (window.getSelection()?.toString()) return;
+        setExpanded((v) => !v);
+      }}
+    >
+      <div
+        ref={bodyRef}
+        style={!expanded && maxH != null ? { maxHeight: maxH } : undefined}
+        className={`relative space-y-2 text-sm ${expanded ? "" : "overflow-hidden"}`}
+      >
+        {lines.map((line) => (
+          <div key={line.id} className="flex justify-between gap-3 border-b border-line py-2 last:border-0">
+            <div>
+              <p className="font-bold text-ink">{line.name}</p>
+              {line.description ? <p className="text-ink-soft">{line.description}</p> : null}
+              <p className="text-xs text-ink-mute">
+                {line.qty} × {formatGBP(Math.round(Number(line.price || "0") * 100) || 0)}
+              </p>
+            </div>
+          </div>
+        ))}
+        {!expanded && overflows ? (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-card to-transparent" />
+        ) : null}
+      </div>
+      {overflows || expanded ? (
+        <button
+          type="button"
+          aria-expanded={expanded}
+          aria-label={expanded ? "Show less" : "Show full services"}
+          onClick={(event) => {
+            event.stopPropagation();
+            setExpanded((v) => !v);
+          }}
+          className="mx-auto mt-1 grid h-7 w-full place-items-center rounded-lg text-ink-soft hover:bg-cream hover:text-ink"
+        >
+          <ChevronDown size={18} className={expanded ? "rotate-180" : ""} />
+        </button>
+      ) : null}
+    </div>
   );
 }
 

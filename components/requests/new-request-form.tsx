@@ -511,8 +511,9 @@ export function NewRequestForm({
                 const next = e.target.value;
                 setMoveTimeText(next);
                 const hour = Number((next.trim().match(/^(\d{1,2})/) ?? [])[1]);
-                if (Number.isInteger(hour) && hour >= 12 && hour <= 24) {
-                  setMovePeriod("PM");
+                if (Number.isInteger(hour)) {
+                  if (hour >= 12 && hour <= 24) setMovePeriod("PM");
+                  else if (hour >= 1 && hour < 12) setMovePeriod("AM");
                 }
               }}
               className={field}

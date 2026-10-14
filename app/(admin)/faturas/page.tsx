@@ -1,3 +1,4 @@
+import { ClickableRow } from "@/components/clickable-row";
 import Link from "next/link";
 import { formatGBP, formatDateLondon } from "@/lib/format";
 import { listInvoices } from "@/lib/invoices/queries";
@@ -85,7 +86,7 @@ export default async function InvoicesPage({
               </thead>
               <tbody>
                 {invoices.map((i) => (
-                  <tr key={i.id} className="border-b border-line last:border-0">
+                  <ClickableRow key={i.id} href={`/faturas/${i.id}`}>
                     <td className="py-3 pr-3 font-bold text-ink">
                       <Link href={`/faturas/${i.id}`} className="hover:underline">
                         {i.number}
@@ -98,7 +99,7 @@ export default async function InvoicesPage({
                       <Badge tone={i.status}>{LABELS[i.status] ?? i.status}</Badge>
                     </td>
                     <td className="py-3 text-right font-bold text-ink">{formatGBP(i.total)}</td>
-                  </tr>
+                  </ClickableRow>
                 ))}
               </tbody>
             </table>
