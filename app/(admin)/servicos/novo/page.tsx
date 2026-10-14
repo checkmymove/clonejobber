@@ -35,6 +35,8 @@ export default async function NovoServicoPage({
             initialNotes={prefill.notes}
             initialVisits={prefill.visits}
             initialLines={prefill.lines}
+            initialDiscount={prefill.discount}
+            initialTax={prefill.tax}
             today={visitDay}
           />
         </div>

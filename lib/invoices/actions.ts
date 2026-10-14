@@ -16,6 +16,13 @@ import {
   type ActionResult,
 } from "@/lib/funnel/engine";
 import type { InvoiceInput } from "@/lib/funnel/validation";
+import {
+  closeInvoiceWithoutPayment,
+  deleteInvoice,
+  markInvoiceBadDebt,
+  reopenInvoice,
+  voidInvoice,
+} from "@/lib/invoices/lifecycle";
 
 export type { ActionResult };
 
@@ -140,4 +147,67 @@ export async function updateInvoiceStatus(
     revalidatePath("/agenda");
   }
   return result;
+}
+
+function refreshInvoice(invoiceId: string) {
+  revalidatePath("/faturas");
+  revalidatePath(`/faturas/${invoiceId}`);
+  revalidatePath("/servicos");
+  revalidatePath("/pagamentos");
+  revalidatePath("/clientes");
+  revalidatePath("/agenda");
+  revalidatePath("/");
+}
+
+async function runLifecycle(
+  invoiceId: string,
+  run: (tx: typeof sql, companyId: string) => Promise<ActionResult>,
+): Promise<ActionResult> {
+  await requireAdmin();
+  const companyId = await getCompanyId();
+  if (!companyId) return { ok: false, message: "Company not found." };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await sql.begin((tx: any) => run(tx, companyId));
+  if (result.ok) refreshInvoice(invoiceId);
+  return result;
+}
+
+export async function closeInvoiceAction(invoiceId: string): Promise<ActionResult> {
+  return runLifecycle(invoiceId, (tx, companyId) =>
+    closeInvoiceWithoutPayment(tx, companyId, invoiceId),
+  );
+}
+
+export async function badDebtInvoiceAction(invoiceId: string): Promise<ActionResult> {
+  return runLifecycle(invoiceId, (tx, companyId) => markInvoiceBadDebt(tx, companyId, invoiceId));
+}
+
+export async function reopenInvoiceAction(invoiceId: string): Promise<ActionResult> {
+  return runLifecycle(invoiceId, (tx, companyId) => reopenInvoice(tx, companyId, invoiceId));
+}
+
+export async function voidInvoiceAction(invoiceId: string): Promise<ActionResult> {
+  return runLifecycle(invoiceId, (tx, companyId) => voidInvoice(tx, companyId, invoiceId));
+}
+
+export async function deleteInvoiceAction(invoiceId: string): Promise<ActionResult> {
+  const result = await runLifecycle(invoiceId, (tx, companyId) =>
+    deleteInvoice(tx, companyId, invoiceId),
+  );
+  if (!result.ok) return result;
+  redirect("/faturas");
+}
+
+export async function saveInvoiceNotes(invoiceId: string, notes: string): Promise<ActionResult> {
+  await requireAdmin();
+  const companyId = await getCompanyId();
+  if (!companyId) return { ok: false, message: "Company not found." };
+  const rows = await sql`
+    update invoices set notes = ${notes.trim()}, updated_at = now()
+    where id = ${invoiceId} and company_id = ${companyId}
+    returning id
+  `;
+  if (!rows[0]) return { ok: false, message: "Invoice not found" };
+  revalidatePath(`/faturas/${invoiceId}`);
+  return { ok: true, id: invoiceId };
 }

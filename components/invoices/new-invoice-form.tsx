@@ -14,7 +14,6 @@ import {
   Pencil,
   Plus,
   Trash2,
-  Upload,
 } from "lucide-react";
 
 const ink = "text-[#042b3c]";
@@ -49,6 +48,10 @@ export function NewInvoiceForm({
   initialNumber,
   initialNotes,
   initialLines,
+  initialIssuedOn,
+  initialDiscount,
+  initialTax,
+  balancePaid,
 }: {
   clients: { id: string; first_name: string; last_name: string; email: string }[];
   jobId?: string;
@@ -61,6 +64,11 @@ export function NewInvoiceForm({
   initialNumber?: string;
   initialNotes?: string;
   initialLines?: { name: string; qty: string; price: string; description: string }[];
+  initialIssuedOn?: string;
+  initialDiscount?: string;
+  initialTax?: string;
+  /** Pence already paid on this invoice (payments and deposits). */
+  balancePaid?: number;
 }) {
   const [subject, setSubject] = useState(initialSubject ?? "Invoice from Moving London");
   const [clientId, setClientId] = useState(initialClientId ?? "");
@@ -81,6 +89,12 @@ export function NewInvoiceForm({
       "Thank you for your business. Please contact us with any questions regarding this invoice.",
   );
   const [showContract, setShowContract] = useState(true);
+  const [notes, setNotes] = useState(initialNotes ?? "");
+  const [issuedOn, setIssuedOn] = useState(initialIssuedOn ?? "");
+  const [discount, setDiscount] = useState(Number(initialDiscount) ? initialDiscount! : "");
+  const [tax, setTax] = useState(Number(initialTax) ? initialTax! : "");
+  const [discountOpen, setDiscountOpen] = useState(Boolean(Number(initialDiscount)));
+  const [taxOpen, setTaxOpen] = useState(Boolean(Number(initialTax)));
 
   const subtotal = useMemo(
     () =>
@@ -92,6 +106,11 @@ export function NewInvoiceForm({
     [lines],
   );
 
+  const total = Math.max(
+    0,
+    subtotal - (Number(discount.replace(",", ".")) || 0) + (Number(tax.replace(",", ".")) || 0),
+  );
+
   async function submit(followUp?: "email" | "sent") {
     setError("");
     setPending(true);
@@ -100,9 +119,12 @@ export function NewInvoiceForm({
       jobId,
       quoteId,
       subject,
-      message: contract,
-      notes: initialNotes ?? "",
+      message: showContract ? contract : "",
+      notes,
       paymentTerms: terms,
+      issuedOn: issuedOn || undefined,
+      discount,
+      tax,
       lines: lines.map((l) => ({
         name: l.name,
         description: l.description,
@@ -172,10 +194,14 @@ export function NewInvoiceForm({
             />
           </div>
           <div className="grid grid-cols-[150px_1fr] items-center gap-3">
-            <span className="text-sm text-[#5d6f78]">Issue date</span>
-            <button type="button" className="justify-self-start text-sm font-semibold underline" style={{ color: green }}>
-              Date de envio
-            </button>
+            <span className="text-sm text-[#5d6f78]">Issued date</span>
+            <input
+              type="date"
+              aria-label="Issued date"
+              value={issuedOn}
+              onChange={(event) => setIssuedOn(event.target.value)}
+              className={field}
+            />
           </div>
           <label className="grid grid-cols-[150px_1fr] items-center gap-3">
             <span className="text-sm text-[#5d6f78]">Payment terms</span>
@@ -190,6 +216,7 @@ export function NewInvoiceForm({
                 <option value="net_7">Net 7</option>
                 <option value="net_15">Net 15</option>
                 <option value="net_30">Net 30</option>
+                <option value="net_45">Net 45</option>
               </select>
               <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
             </span>
@@ -332,7 +359,7 @@ export function NewInvoiceForm({
               Client view
             </button>
             <button type="button" className="font-semibold underline" style={{ color: green }}>
-              Mudar
+              Change
             </button>
           </div>
           <div className="space-y-3 text-sm">
@@ -340,25 +367,53 @@ export function NewInvoiceForm({
               <span>Subtotal</span>
               <span>{formatPounds(subtotal)}</span>
             </div>
-            <div className="flex justify-between text-[#5d6f78]">
+            <div className="flex items-center justify-between text-[#5d6f78]">
               <span>Discount</span>
-              <button type="button" className="font-semibold underline" style={{ color: green }}>
-                Add discount
-              </button>
+              {discountOpen ? (
+                <input
+                  aria-label="Discount"
+                  inputMode="decimal"
+                  placeholder="£ 0,00"
+                  value={discount}
+                  onChange={(event) => setDiscount(event.target.value)}
+                  className={`h-9 w-28 rounded-lg border ${line} px-2 text-right text-sm ${ink} outline-none`}
+                />
+              ) : (
+                <button type="button" onClick={() => setDiscountOpen(true)} className="font-semibold underline" style={{ color: green }}>
+                  Add discount
+                </button>
+              )}
             </div>
-            <div className="flex justify-between text-[#5d6f78]">
+            <div className="flex items-center justify-between text-[#5d6f78]">
               <span>VAT</span>
-              <button type="button" className="font-semibold underline" style={{ color: green }}>
-                Add tax
-              </button>
+              {taxOpen ? (
+                <input
+                  aria-label="Tax"
+                  inputMode="decimal"
+                  placeholder="£ 0,00"
+                  value={tax}
+                  onChange={(event) => setTax(event.target.value)}
+                  className={`h-9 w-28 rounded-lg border ${line} px-2 text-right text-sm ${ink} outline-none`}
+                />
+              ) : (
+                <button type="button" onClick={() => setTaxOpen(true)} className="font-semibold underline" style={{ color: green }}>
+                  Add tax
+                </button>
+              )}
             </div>
             <div className={`flex justify-between font-bold ${ink}`}>
               <span>Total</span>
-              <span>{formatPounds(subtotal)}</span>
+              <span>{formatPounds(total)}</span>
             </div>
+            {balancePaid ? (
+              <div className="flex justify-between text-[#5d6f78]">
+                <span>Payments and deposits</span>
+                <span>-{formatPounds(balancePaid / 100)}</span>
+              </div>
+            ) : null}
             <div className="flex justify-between rounded-lg bg-[#f6f7f8] px-3 py-2 text-[#5d6f78]">
               <span>Invoice balance</span>
-              <span>{formatPounds(subtotal)}</span>
+              <span>{formatPounds(Math.max(0, total - (balancePaid ?? 0) / 100))}</span>
             </div>
             <div className={`rounded-lg border ${line} px-3 py-3`}>
               <div className="flex items-center justify-between">
@@ -370,7 +425,7 @@ export function NewInvoiceForm({
               <div className="mt-2 flex items-center justify-between text-sm text-[#5d6f78]">
                 <span>Invoice payments</span>
                 <span className="rounded-full bg-[#eef1f2] px-2 py-0.5 text-[11px] font-bold tracking-wide text-[#5d6f78]">
-                  DESBLOQUEADO
+                  OFF
                 </span>
               </div>
             </div>
@@ -411,17 +466,13 @@ export function NewInvoiceForm({
 
       <section className="space-y-3">
         <h2 className={`text-[17px] font-bold ${ink}`}>Notes</h2>
-        <button
-          type="button"
-          className={`flex min-h-[150px] w-full flex-col items-center justify-center rounded-lg border border-dashed ${line} bg-white px-6 py-8 text-center`}
-        >
-          <span className="grid h-10 w-10 place-items-center rounded-full bg-[#f3f5f6] text-[#8aa0a8]">
-            <Upload size={18} />
-          </span>
-          <span className="mt-3 text-sm text-[#7b8e96]">
-            Leave an internal note for yourself or a team member.
-          </span>
-        </button>
+        <textarea
+          aria-label="Notes"
+          placeholder="Leave an internal note for yourself or a team member."
+          value={notes}
+          onChange={(event) => setNotes(event.target.value)}
+          className={`min-h-[150px] w-full resize-y rounded-lg border ${line} bg-white px-3 py-3 text-[15px] ${ink} outline-none ${ph}`}
+        />
       </section>
 
       <StickySaveBar

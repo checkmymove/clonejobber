@@ -1,43 +1,80 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { formatDateLondon } from "@/lib/format";
+import { Pencil } from "lucide-react";
+import { formatDateNumericLondon, formatGBP } from "@/lib/format";
 import { COMPANY_SLUG, getCompanyId } from "@/lib/company";
 import { getInvoiceDetail } from "@/lib/invoices/queries";
-import { invoiceSnapshotFromDetail } from "@/lib/invoices/edit-snapshot";
-import { updateInvoiceStatus } from "@/lib/invoices/actions";
-import { emailInvoice } from "@/lib/email/actions";
+import { INVOICE_STATUS_META, paymentTermsLabel } from "@/lib/invoices/status";
+import { listInvoicePayments } from "@/lib/payments/queries";
+import { paymentMethodLabel } from "@/lib/payments/constants";
+import { getClientFinancials } from "@/lib/clients/crm-queries";
 import { getGoogleConnection } from "@/lib/email/google";
 import { listDeliveries } from "@/lib/email/send";
-import { SendEmailButton } from "@/components/email/send-email-button";
+import { getRequestDetail } from "@/lib/requests/queries";
+import { requestSnapshotFromDetail } from "@/lib/requests/edit-snapshot";
 import {
-  InvoiceBillingCard,
-  InvoiceItemsCard,
-} from "@/components/invoices/invoice-inline-cards";
-import { Badge, Card, PageHeader } from "@/components/ui";
+  RequestInventoryCard,
+  RequestLocationCard,
+} from "@/components/requests/request-inline-cards";
+import { InvoiceHeaderActions } from "@/components/invoices/invoice-actions";
+import { NotesCard } from "@/components/funnel/notes-card";
+import { StatusPill } from "@/components/funnel/list-kit";
+import {
+  CardTitle,
+  ClientBox,
+  DetailRows,
+  LineItemsCard,
+  dateOrDash,
+  type TotalRow,
+} from "@/components/funnel/document-cards";
+import { Card, PageHeader } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
-const LABELS: Record<string, string> = {
-  draft: "Draft",
-  sent: "Sent",
-  paid: "Paid",
-  overdue: "Overdue",
-  cancelled: "Cancelled",
-};
-
-export default async function InvoiceDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function InvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const inv = await getInvoiceDetail(id);
   if (!inv) notFound();
-  const snapshot = invoiceSnapshotFromDetail(inv);
+
   const companyId = await getCompanyId(COMPANY_SLUG);
-  const gmail = companyId ? await getGoogleConnection(companyId) : null;
-  const deliveries = await listDeliveries("invoice", id);
-  const canEmail = inv.status === "draft" || inv.status === "sent" || inv.status === "overdue";
+  const [gmail, deliveries, payments, financials, request] = await Promise.all([
+    companyId ? getGoogleConnection(companyId) : null,
+    listDeliveries("invoice", id),
+    listInvoicePayments(id),
+    getClientFinancials(inv.client_id),
+    inv.linked_request_id ? getRequestDetail(inv.linked_request_id) : null,
+  ]);
+  const snapshot = request ? requestSnapshotFromDetail(request) : null;
+  const meta = INVOICE_STATUS_META[inv.list_status];
+
+  const totals: TotalRow[] = [
+    { label: "Subtotal", value: formatGBP(inv.subtotal), muted: true },
+    ...(inv.discount ? [{ label: "Discount", value: `-${formatGBP(inv.discount)}`, muted: true }] : []),
+    ...(inv.tax ? [{ label: "VAT", value: formatGBP(inv.tax), muted: true }] : []),
+    { label: "Total", value: formatGBP(inv.total), strong: true },
+    ...payments.map((p) => ({
+      label: (
+        <Link href={`/pagamentos/${p.payment_id}`} className="text-accent underline">
+          {p.kind === "deposit" ? "Deposit collected" : "Payment"} · {formatDateNumericLondon(p.paid_on)} ·{" "}
+          {paymentMethodLabel(p.method)}
+        </Link>
+      ),
+      value: `-${formatGBP(p.amount)}`,
+      muted: true,
+    })),
+    ...(inv.bad_debt_amount
+      ? [{ label: "Bad debt", value: `-${formatGBP(inv.bad_debt_amount)}`, muted: true }]
+      : []),
+    { label: "Invoice balance", value: formatGBP(inv.status === "cancelled" ? 0 : inv.balance), highlight: true },
+    { label: "Account balance", value: formatGBP(financials.balancePence), muted: true },
+  ];
+
+  const statusDate: [string, string][] = [];
+  if (inv.status === "paid" && inv.paid_at) {
+    statusDate.push([inv.closed_at ? "Closed" : "Paid", dateOrDash(inv.paid_at)]);
+  }
+  if (inv.status === "bad_debt" && inv.closed_at) statusDate.push(["Bad debt", dateOrDash(inv.closed_at)]);
+  if (inv.voided_at) statusDate.push(["Voided", dateOrDash(inv.voided_at)]);
 
   return (
     <div>
@@ -45,90 +82,120 @@ export default async function InvoiceDetailPage({
         title={`${inv.number} · ${inv.client_name}`}
         subtitle={inv.subject}
         action={
-          <Link
-            href="/faturas"
-            className="inline-flex h-10 items-center rounded-xl border border-line bg-card px-4 text-sm font-bold text-ink hover:bg-cream"
-          >
-            ← Voltar
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/faturas"
+              className="inline-flex h-10 items-center rounded-xl border border-line bg-card px-4 text-sm font-bold text-ink hover:bg-cream"
+            >
+              ← Back
+            </Link>
+            <InvoiceHeaderActions
+              invoiceId={inv.id}
+              clientId={inv.client_id}
+              status={inv.status}
+              balance={inv.balance}
+              paymentCount={payments.length}
+              gmailConnected={Boolean(gmail)}
+            />
+          </div>
         }
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <Badge tone={inv.status}>{LABELS[inv.status] ?? inv.status}</Badge>
-        {inv.status === "draft" ? <StatusForm id={id} status="sent" label="Mark as sent" /> : null}
-        {canEmail ? (
-          gmail ? (
-            <SendEmailButton
-              label={inv.status === "draft" ? "Send by email" : "Resend by email"}
-              run={emailInvoice.bind(null, id)}
-            />
-          ) : (
-            <Link
-              href="/configuracoes/email"
-              className="h-9 rounded-xl bg-ink px-3 text-sm font-bold leading-9 text-white hover:opacity-90"
-            >
-              Connect Gmail to send
-            </Link>
-          )
-        ) : null}
-        {inv.status === "sent" || inv.status === "overdue" ? (
-          <StatusForm id={id} status="paid" label="Mark as paid" />
-        ) : null}
-        {inv.status !== "paid" && inv.status !== "cancelled" ? (
-          <StatusForm id={id} status="cancelled" label="Cancel" />
-        ) : null}
-        <Link
-          href={`/clientes/${inv.client_id}`}
-          className="h-9 rounded-xl border border-line px-3 text-sm font-bold leading-9 text-accent hover:bg-accent-soft"
-        >
-          View client
-        </Link>
+        <StatusPill badge={meta.badge} dot={meta.dot} label={meta.label} />
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-2">
-        <InvoiceBillingCard snapshot={snapshot} />
-        <InvoiceItemsCard snapshot={snapshot} />
+      <div className="grid items-start gap-4 xl:grid-cols-2">
+        <ClientBox
+          clientId={inv.client_id}
+          name={inv.client_name}
+          address={inv.client_address}
+          addressLabel="Billing address"
+          phone={inv.client_phone}
+          email={inv.client_email}
+        />
+        <DetailRows
+          title="Invoice details"
+          rows={[
+            ["Invoice #", inv.number],
+            [
+              "Invoice for",
+              inv.job_id ? (
+                <Link href={`/servicos/${inv.job_id}`} className="text-accent underline">
+                  Job {inv.job_number}
+                </Link>
+              ) : (
+                "—"
+              ),
+            ],
+            ...(inv.quote_id
+              ? ([
+                  [
+                    "From quote",
+                    <Link key="q" href={`/cotacoes/${inv.quote_id}`} className="text-accent underline">
+                      {inv.quote_number}
+                    </Link>,
+                  ],
+                ] as [string, React.ReactNode][])
+              : []),
+            ["Issued", inv.status === "draft" ? "Not sent yet" : dateOrDash(inv.issued_on)],
+            ["Payment terms", paymentTermsLabel(inv.payment_terms)],
+            ["Due date", inv.status === "draft" ? "—" : dateOrDash(inv.due_on)],
+            ...(inv.sent_at ? ([["Sent", dateOrDash(inv.sent_at)]] as [string, string][]) : []),
+            ...statusDate,
+          ]}
+        />
+
+        {snapshot && request ? (
+          <>
+            <RequestLocationCard title="Collection Information" snapshot={snapshot} kind="pickup" />
+            <RequestLocationCard title="Delivery Information" snapshot={snapshot} kind="delivery" />
+            <RequestInventoryCard snapshot={snapshot} files={request.files} />
+          </>
+        ) : null}
+
+        <LineItemsCard
+          lines={inv.lines}
+          totals={totals}
+          action={
+            inv.status !== "cancelled" ? (
+              <Link
+                href={`/faturas/${inv.id}/editar`}
+                aria-label="Edit line items"
+                className="grid h-7 w-7 place-items-center rounded-lg text-ink-soft hover:bg-cream hover:text-ink"
+              >
+                <Pencil size={14} />
+              </Link>
+            ) : null
+          }
+        />
+
+        {inv.message ? (
+          <Card className="h-fit p-5 xl:col-span-2">
+            <CardTitle>Contract / Disclaimer</CardTitle>
+            <p className="whitespace-pre-wrap text-sm text-ink">{inv.message}</p>
+          </Card>
+        ) : null}
+
         {deliveries.length ? (
           <Card className="h-fit p-5 xl:col-span-2">
-            <h2 className="mb-2 text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">Sent</h2>
+            <CardTitle>Sent</CardTitle>
             <ul className="space-y-2 text-sm">
               {deliveries.map((d) => (
                 <li key={d.id} className="flex justify-between gap-3 border-b border-line py-2 last:border-0">
                   <span>
-                    {d.status === "sent" ? "Sent" : "Falhou"} · {d.to_email}
+                    {d.status === "sent" ? "Email sent" : "Email failed"} · {d.to_email}
                     {d.error ? <span className="block text-rose-700">{d.error}</span> : null}
                   </span>
-                  <span className="text-ink-soft">{formatDateLondon(d.sent_at)}</span>
+                  <span className="text-ink-soft">{dateOrDash(d.sent_at)}</span>
                 </li>
               ))}
             </ul>
           </Card>
         ) : null}
+
+        <NotesCard kind="invoice" id={inv.id} notes={inv.notes} />
       </div>
     </div>
-  );
-}
-
-function StatusForm({
-  id,
-  status,
-  label,
-}: {
-  id: string;
-  status: "draft" | "sent" | "paid" | "cancelled";
-  label: string;
-}) {
-  return (
-    <form
-      action={async () => {
-        "use server";
-        await updateInvoiceStatus(id, status);
-      }}
-    >
-      <button type="submit" className="h-9 rounded-xl border border-line bg-card px-3 text-sm font-bold text-ink hover:bg-cream">
-        {label}
-      </button>
-    </form>
   );
 }

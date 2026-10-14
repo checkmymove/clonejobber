@@ -15,6 +15,7 @@ import {
   type ActionResult,
 } from "@/lib/funnel/engine";
 import type { JobInput } from "@/lib/funnel/validation";
+import { closeJob, deleteJob, reopenJob, setVisitDone } from "@/lib/jobs/lifecycle";
 
 export type { ActionResult };
 
@@ -130,4 +131,64 @@ export async function updateJobStatus(
     revalidatePath("/agenda");
   }
   return result;
+}
+
+function refreshJob(jobId: string) {
+  revalidatePath("/servicos");
+  revalidatePath(`/servicos/${jobId}`);
+  revalidatePath("/clientes");
+  revalidatePath("/agenda");
+  revalidatePath("/");
+}
+
+export async function closeJobAction(jobId: string): Promise<ActionResult> {
+  await requireAdmin();
+  const companyId = await getCompanyId();
+  if (!companyId) return { ok: false, message: "Company not found." };
+  const result = await sql.begin((tx) => closeJob(tx, companyId, jobId));
+  if (result.ok) refreshJob(jobId);
+  return result;
+}
+
+export async function reopenJobAction(jobId: string): Promise<ActionResult> {
+  await requireAdmin();
+  const companyId = await getCompanyId();
+  if (!companyId) return { ok: false, message: "Company not found." };
+  const result = await sql.begin((tx) => reopenJob(tx, companyId, jobId));
+  if (result.ok) refreshJob(jobId);
+  return result;
+}
+
+export async function deleteJobAction(jobId: string): Promise<ActionResult> {
+  await requireAdmin();
+  const companyId = await getCompanyId();
+  if (!companyId) return { ok: false, message: "Company not found." };
+  const result = await sql.begin((tx) => deleteJob(tx, companyId, jobId));
+  if (!result.ok) return result;
+  refreshJob(jobId);
+  revalidatePath("/cotacoes");
+  redirect("/servicos");
+}
+
+export async function setVisitDoneAction(visitId: string, done: boolean): Promise<ActionResult> {
+  await requireAdmin();
+  const companyId = await getCompanyId();
+  if (!companyId) return { ok: false, message: "Company not found." };
+  const result = await setVisitDone(sql, companyId, visitId, done);
+  if (result.ok && result.id) refreshJob(result.id);
+  return result;
+}
+
+export async function saveJobNotes(jobId: string, notes: string): Promise<ActionResult> {
+  await requireAdmin();
+  const companyId = await getCompanyId();
+  if (!companyId) return { ok: false, message: "Company not found." };
+  const rows = await sql`
+    update jobs set notes = ${notes.trim()}, updated_at = now()
+    where id = ${jobId} and company_id = ${companyId}
+    returning id
+  `;
+  if (!rows[0]) return { ok: false, message: "Job not found" };
+  revalidatePath(`/servicos/${jobId}`);
+  return { ok: true, id: jobId };
 }

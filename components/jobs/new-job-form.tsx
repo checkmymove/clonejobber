@@ -126,6 +126,8 @@ export function NewJobForm({
   initialRemindInvoice,
   initialVisits,
   initialLines,
+  initialDiscount,
+  initialTax,
   today,
 }: {
   clients: { id: string; first_name: string; last_name: string; email: string }[];
@@ -139,6 +141,8 @@ export function NewJobForm({
   initialRemindInvoice?: boolean;
   initialVisits?: Visit[];
   initialLines?: { name: string; qty: string; price: string; description?: string }[];
+  initialDiscount?: string;
+  initialTax?: string;
   today: string;
 }) {
   const [title, setTitle] = useState(initialTitle ?? "");
@@ -169,6 +173,10 @@ export function NewJobForm({
   const [remindInvoice, setRemindInvoice] = useState(initialRemindInvoice ?? true);
   const [splitInvoices, setSplitInvoices] = useState(false);
   const [notes, setNotes] = useState(initialNotes ?? "");
+  const [discount, setDiscount] = useState(Number(initialDiscount) ? initialDiscount! : "");
+  const [tax, setTax] = useState(Number(initialTax) ? initialTax! : "");
+  const [discountOpen, setDiscountOpen] = useState(Boolean(Number(initialDiscount)));
+  const [taxOpen, setTaxOpen] = useState(Boolean(Number(initialTax)));
   const [lines, setLines] = useState<Line[]>(
     initialLines?.length
       ? initialLines.map((l, i) => ({
@@ -204,7 +212,10 @@ export function NewJobForm({
       title,
       notes,
       remindInvoice,
+      discount,
+      tax,
       visits: visits.map((v) => ({
+        id: v.id,
         title: v.title,
         date: v.date,
         later: v.later,
@@ -604,21 +615,60 @@ export function NewJobForm({
             <span className="w-40">Subtotal</span>
             <span className="w-24 text-right">{formatPounds(subtotal)}</span>
           </div>
-          <div className="flex justify-end gap-10 text-[#5d6f78]">
+          <div className="flex items-center justify-end gap-10 text-[#5d6f78]">
             <span className="w-40">Discount</span>
-            <button type="button" className="w-24 text-right font-semibold underline" style={{ color: green }}>
-              Add discount
-            </button>
+            {discountOpen ? (
+              <input
+                aria-label="Discount"
+                inputMode="decimal"
+                placeholder="£ 0,00"
+                value={discount}
+                onChange={(event) => setDiscount(event.target.value)}
+                className={`h-9 w-24 rounded-lg border ${line} px-2 text-right text-sm ${ink} outline-none`}
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setDiscountOpen(true)}
+                className="w-24 text-right font-semibold underline"
+                style={{ color: green }}
+              >
+                Add discount
+              </button>
+            )}
           </div>
-          <div className="flex justify-end gap-10 text-[#5d6f78]">
+          <div className="flex items-center justify-end gap-10 text-[#5d6f78]">
             <span className="w-40">VAT</span>
-            <button type="button" className="w-24 text-right font-semibold underline" style={{ color: green }}>
-              Add tax
-            </button>
+            {taxOpen ? (
+              <input
+                aria-label="Tax"
+                inputMode="decimal"
+                placeholder="£ 0,00"
+                value={tax}
+                onChange={(event) => setTax(event.target.value)}
+                className={`h-9 w-24 rounded-lg border ${line} px-2 text-right text-sm ${ink} outline-none`}
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setTaxOpen(true)}
+                className="w-24 text-right font-semibold underline"
+                style={{ color: green }}
+              >
+                Add tax
+              </button>
+            )}
           </div>
           <div className={`flex justify-end gap-10 font-bold ${ink}`}>
             <span className="w-40">Total price</span>
-            <span className="w-24 text-right">{formatPounds(subtotal)}</span>
+            <span className="w-24 text-right">
+              {formatPounds(
+                Math.max(
+                  0,
+                  subtotal - (Number(discount.replace(",", ".")) || 0) + (Number(tax.replace(",", ".")) || 0),
+                ),
+              )}
+            </span>
           </div>
         </div>
       </SectionCard>

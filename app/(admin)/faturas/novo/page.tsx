@@ -33,6 +33,8 @@ export default async function NovaInvoicePage({
             initialMessage={prefill.message}
             initialNotes={prefill.notes}
             initialLines={prefill.lines}
+            initialDiscount={prefill.discount}
+            initialTax={prefill.tax}
           />
         </div>
       </div>

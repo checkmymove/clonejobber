@@ -24,6 +24,8 @@ export type QuoteInput = {
 };
 
 export type VisitInput = {
+  /** Existing visit id when editing; new visits have none. */
+  id?: string;
   title: string;
   date: string;
   later: boolean;
@@ -43,6 +45,8 @@ export type JobInput = {
   pickupAddress?: string;
   deliveryAddress?: string;
   remindInvoice: boolean;
+  discount?: string;
+  tax?: string;
   visits: VisitInput[];
   lines: LineInput[];
 };
@@ -55,6 +59,10 @@ export type InvoiceInput = {
   message: string;
   notes: string;
   paymentTerms: string;
+  /** YYYY-MM-DD. Defaults to today when the invoice is created. */
+  issuedOn?: string;
+  discount?: string;
+  tax?: string;
   lines: LineInput[];
 };
 
@@ -119,10 +127,29 @@ export function validateQuoteInput(input: QuoteInput): {
   };
 }
 
+/** Discount and tax typed in pounds; the discount cannot exceed the subtotal. */
+function adjustments(
+  subtotal: number,
+  rawDiscount: string | undefined,
+  rawTax: string | undefined,
+  errors: Record<string, string>,
+): { discount: number; tax: number; total: number } {
+  const discount = parseGbpToPence(rawDiscount ?? "");
+  const tax = parseGbpToPence(rawTax ?? "");
+  if (discount == null) errors.discount = "Invalid discount";
+  if (tax == null) errors.tax = "Invalid tax";
+  if (discount != null && discount > subtotal) errors.discount = "Discount cannot exceed the subtotal";
+  const total = Math.max(0, subtotal - (discount ?? 0) + (tax ?? 0));
+  return { discount: discount ?? 0, tax: tax ?? 0, total };
+}
+
 export function validateJobInput(input: JobInput): {
   errors: Record<string, string>;
   parsed: ParsedLine[];
   subtotal: number;
+  discount: number;
+  tax: number;
+  total: number;
 } {
   const errors: Record<string, string> = {};
   if (!isUuid(input.clientId)) errors.clientId = "Select a client";
@@ -130,15 +157,24 @@ export function validateJobInput(input: JobInput): {
   if (!input.visits.length) errors.visits = "Add at least one visit";
   const { errors: lineErrors, parsed, subtotal } = parseLines(input.lines);
   Object.assign(errors, lineErrors);
-  return { errors, parsed, subtotal };
+  const { discount, tax, total } = adjustments(subtotal, input.discount, input.tax, errors);
+  return { errors, parsed, subtotal, discount, tax, total };
 }
 
-const TERMS = ["due_on_receipt", "net_7", "net_15", "net_30"] as const;
+const TERMS = ["due_on_receipt", "net_7", "net_15", "net_30", "net_45"] as const;
 
 export function dueOnFromTerms(terms: string, issued = new Date()): Date {
   const d = new Date(issued);
   const add =
-    terms === "net_7" ? 7 : terms === "net_15" ? 15 : terms === "net_30" ? 30 : 0;
+    terms === "net_7"
+      ? 7
+      : terms === "net_15"
+        ? 15
+        : terms === "net_30"
+          ? 30
+          : terms === "net_45"
+            ? 45
+            : 0;
   d.setDate(d.getDate() + add);
   return d;
 }
@@ -151,6 +187,9 @@ export function validateInvoiceInput(input: InvoiceInput): {
   errors: Record<string, string>;
   parsed: ParsedLine[];
   subtotal: number;
+  discount: number;
+  tax: number;
+  total: number;
 } {
   const errors: Record<string, string> = {};
   if (!isUuid(input.clientId)) errors.clientId = "Select a client";
@@ -158,9 +197,13 @@ export function validateInvoiceInput(input: InvoiceInput): {
     errors.paymentTerms = "Invalid payment terms";
   }
   if (!input.subject.trim()) errors.subject = "Subject is required";
+  if (input.issuedOn && !/^\d{4}-\d{2}-\d{2}$/.test(input.issuedOn)) {
+    errors.issuedOn = "Invalid issued date";
+  }
   const { errors: lineErrors, parsed, subtotal } = parseLines(input.lines);
   Object.assign(errors, lineErrors);
-  return { errors, parsed, subtotal };
+  const { discount, tax, total } = adjustments(subtotal, input.discount, input.tax, errors);
+  return { errors, parsed, subtotal, discount, tax, total };
 }
 
 function bedroomsError(value: string): string | null {

@@ -1,5 +1,6 @@
 import {
   dueOnFromTerms,
+  isUuid,
   isoDate,
   validateInvoiceInput,
   validateJobInput,
@@ -9,6 +10,7 @@ import {
   type QuoteInput,
 } from "./validation";
 import type { ParsedLine } from "./money";
+import { applyDepositsToInvoice, recalcInvoice } from "../payments/engine";
 
 export type ActionResult = {
   ok: boolean;
@@ -225,7 +227,7 @@ export async function persistJob(
   companyId: string,
   input: JobInput,
 ): Promise<ActionResult> {
-  const { errors, parsed, subtotal } = validateJobInput(input);
+  const { errors, parsed, subtotal, discount, tax, total } = validateJobInput(input);
   if (Object.keys(errors).length) return { ok: false, errors };
 
   const client = await db`
@@ -260,13 +262,13 @@ export async function persistJob(
     insert into jobs
       (number, company_id, client_id, quote_id, request_id, status, title, notes,
        scheduled_date, window_start, window_end, anytime, schedule_later,
-       remind_invoice, pickup_address, delivery_address, subtotal, total)
+       remind_invoice, pickup_address, delivery_address, subtotal, discount, tax, total)
     values
       (${numbered[0].number}, ${companyId}, ${input.clientId},
        ${input.quoteId || null}, ${input.requestId || null}, 'scheduled', ${title},
        ${input.notes.trim()}, ${scheduled}, ${windowStart}, ${windowEnd},
        ${!!first?.anytime}, ${!!first?.later}, ${input.remindInvoice},
-       ${pickup}, ${delivery}, ${subtotal}, ${subtotal})
+       ${pickup}, ${delivery}, ${subtotal}, ${discount}, ${tax}, ${total})
     returning id
   `;
   const jobId = rows[0].id;
@@ -316,7 +318,7 @@ async function quoteToJob(
 ): Promise<ActionResult> {
   const q = await db`
     select id, company_id, client_id, request_id, number, title, notes, status,
-           archived_at, valid_until, move_time
+           archived_at, valid_until, move_time, discount, tax
     from quotes where id = ${quoteId}
     limit 1
     for update
@@ -360,6 +362,8 @@ async function quoteToJob(
     title: q[0].title || `Job from ${q[0].number}`,
     notes: q[0].notes,
     remindInvoice: true,
+    discount: (q[0].discount / 100).toFixed(2),
+    tax: (q[0].tax / 100).toFixed(2),
     visits: [
       {
         title: "",
@@ -412,7 +416,13 @@ export async function changeJobStatus(
 ): Promise<ActionResult> {
   const rows = await db`select company_id, number from jobs where id = ${jobId} limit 1`;
   if (!rows[0]) return { ok: false, message: "Job not found" };
-  await db`update jobs set status = ${status}, updated_at = now() where id = ${jobId}`;
+  await db`
+    update jobs set
+      status = ${status},
+      closed_at = case when ${status} = 'done' then coalesce(closed_at, now()) else null end,
+      updated_at = now()
+    where id = ${jobId}
+  `;
   if (status === "done") {
     await db`
       update job_visits set status = 'done' where job_id = ${jobId} and status = 'scheduled'
@@ -431,7 +441,7 @@ export async function persistInvoice(
   companyId: string,
   input: InvoiceInput,
 ): Promise<ActionResult> {
-  const { errors, parsed, subtotal } = validateInvoiceInput(input);
+  const { errors, parsed, subtotal, discount, tax, total } = validateInvoiceInput(input);
   if (Object.keys(errors).length) return { ok: false, errors };
 
   const client = await db`
@@ -439,7 +449,7 @@ export async function persistInvoice(
   `;
   if (!client[0]) return { ok: false, errors: { clientId: "Client not found" } };
 
-  const issued = new Date();
+  const issued = input.issuedOn ? new Date(`${input.issuedOn}T12:00:00Z`) : new Date();
   const due = isoDate(dueOnFromTerms(input.paymentTerms, issued));
   const issuedOn = isoDate(issued);
   const subject = input.subject.trim();
@@ -447,12 +457,12 @@ export async function persistInvoice(
   const rows = await db`
     insert into invoices
       (number, company_id, client_id, job_id, quote_id, status, subject, message,
-       notes, payment_terms, issued_on, due_on, subtotal, total, balance)
+       notes, payment_terms, issued_on, due_on, subtotal, discount, tax, total, balance)
     values
       (${numbered[0].number}, ${companyId}, ${input.clientId},
        ${input.jobId || null}, ${input.quoteId || null}, 'draft', ${subject},
        ${input.message.trim()}, ${input.notes.trim()}, ${input.paymentTerms},
-       ${issuedOn}, ${due}, ${subtotal}, ${subtotal}, ${subtotal})
+       ${issuedOn}, ${due}, ${subtotal}, ${discount}, ${tax}, ${total}, ${total})
     returning id
   `;
   const invoiceId = rows[0].id;
@@ -470,6 +480,7 @@ export async function persistInvoice(
     values (${companyId}, 'admin', 'invoice.created', 'invoice', ${invoiceId},
             ${`Invoice ${numbered[0].number} created`})
   `;
+  await applyDepositsToInvoice(db, invoiceId);
   return { ok: true, id: invoiceId, number: numbered[0].number };
 }
 
@@ -479,15 +490,15 @@ export async function convertCompletedJobToInvoice(
   jobId: string,
 ): Promise<ActionResult> {
   const job = await db`
-    select id, company_id, client_id, quote_id, number, title, notes, status
+    select id, company_id, client_id, quote_id, number, title, notes, status, discount, tax
     from jobs where id = ${jobId}
     limit 1
     for update
   `;
   if (!job[0]) return { ok: false, message: "Job not found" };
   if (job[0].company_id !== companyId) return { ok: false, message: "Job not found" };
-  if (job[0].status !== "done") {
-    return { ok: false, message: "Complete the job before generating an invoice." };
+  if (job[0].status === "cancelled") {
+    return { ok: false, message: "A cancelled job cannot be invoiced." };
   }
   const existing = await db`select id from invoices where job_id = ${jobId} limit 1`;
   if (existing[0]) return { ok: true, id: existing[0].id, alreadyExisted: true };
@@ -511,6 +522,8 @@ export async function convertCompletedJobToInvoice(
       terms[0]?.payment_terms === "custom"
         ? "due_on_receipt"
         : terms[0]?.payment_terms || "due_on_receipt",
+    discount: (job[0].discount / 100).toFixed(2),
+    tax: (job[0].tax / 100).toFixed(2),
     lines: lines.map((l) => ({
       name: l.name,
       description: l.description,
@@ -538,12 +551,15 @@ export async function changeInvoiceStatus(
     return { ok: false, message: "This status change is not allowed." };
   }
   const paid = status === "paid";
+  const cancelled = status === "cancelled";
   await db`
     update invoices set
       status = ${status},
-      balance = ${paid ? 0 : rows[0].total},
+      balance = case when ${cancelled} then 0 else balance end,
       sent_at = case when ${status} = 'sent' then coalesce(sent_at, now()) else sent_at end,
       paid_at = case when ${paid} then now() else paid_at end,
+      closed_at = case when ${paid} then now() else closed_at end,
+      voided_at = case when ${cancelled} then now() else voided_at end,
       updated_at = now()
     where id = ${invoiceId}
   `;
@@ -648,7 +664,7 @@ export async function updateJobDocument(
   jobId: string,
   input: JobInput,
 ): Promise<ActionResult> {
-  const { errors, parsed, subtotal } = validateJobInput(input);
+  const { errors, parsed, subtotal, discount, tax, total } = validateJobInput(input);
   if (Object.keys(errors).length) return { ok: false, errors };
 
   const rows = await db`
@@ -682,12 +698,13 @@ export async function updateJobDocument(
       pickup_address = ${input.pickupAddress ?? rows[0].pickup_address},
       delivery_address = ${input.deliveryAddress ?? rows[0].delivery_address},
       subtotal = ${subtotal},
-      total = ${subtotal},
+      discount = ${discount},
+      tax = ${tax},
+      total = ${total},
       updated_at = now()
     where id = ${jobId}
   `;
   await db`delete from job_line_items where job_id = ${jobId}`;
-  await db`delete from job_visits where job_id = ${jobId}`;
   for (let i = 0; i < parsed.length; i++) {
     const l = parsed[i];
     await db`
@@ -697,17 +714,37 @@ export async function updateJobDocument(
               ${l.unitPrice}, ${l.total}, ${i})
     `;
   }
+  // Visits are updated in place so completion and client confirmation survive an edit.
+  const keep = input.visits.map((v) => v.id).filter((id): id is string => !!id && isUuid(id));
+  if (keep.length) {
+    await db`delete from job_visits where job_id = ${jobId} and not (id = any(${keep}::uuid[]))`;
+  } else {
+    await db`delete from job_visits where job_id = ${jobId}`;
+  }
   for (let i = 0; i < input.visits.length; i++) {
     const v = input.visits[i];
-    await db`
-      insert into job_visits
-        (job_id, title, visit_date, start_time, end_time, anytime, later,
-         assignee, instructions, sort)
-      values
-        (${jobId}, ${v.title}, ${v.later ? null : v.date || null},
-         ${v.start}, ${v.end}, ${v.anytime}, ${v.later}, ${v.assignee},
-         ${v.instructions}, ${i})
-    `;
+    const date = v.later ? null : v.date || null;
+    const updated = v.id && isUuid(v.id)
+      ? await db`
+          update job_visits set
+            title = ${v.title}, visit_date = ${date}, start_time = ${v.start},
+            end_time = ${v.end}, anytime = ${v.anytime}, later = ${v.later},
+            assignee = ${v.assignee}, instructions = ${v.instructions}, sort = ${i}
+          where id = ${v.id} and job_id = ${jobId}
+          returning id
+        `
+      : [];
+    if (!updated[0]) {
+      await db`
+        insert into job_visits
+          (job_id, title, visit_date, start_time, end_time, anytime, later,
+           assignee, instructions, sort)
+        values
+          (${jobId}, ${v.title}, ${date},
+           ${v.start}, ${v.end}, ${v.anytime}, ${v.later}, ${v.assignee},
+           ${v.instructions}, ${i})
+      `;
+    }
   }
   await db`
     update job_visits v
@@ -732,7 +769,7 @@ export async function updateInvoiceDocument(
   invoiceId: string,
   input: InvoiceInput,
 ): Promise<ActionResult> {
-  const { errors, parsed, subtotal } = validateInvoiceInput(input);
+  const { errors, parsed, subtotal, discount, tax, total } = validateInvoiceInput(input);
   if (Object.keys(errors).length) return { ok: false, errors };
 
   const rows = await db`
@@ -746,10 +783,14 @@ export async function updateInvoiceDocument(
   `;
   if (!client[0]) return { ok: false, errors: { clientId: "Client not found" } };
 
-  const issued = new Date(rows[0].issued_on);
+  if (rows[0].status === "cancelled") {
+    return { ok: false, message: "A voided invoice cannot be edited." };
+  }
+  const issued = input.issuedOn
+    ? new Date(`${input.issuedOn}T12:00:00Z`)
+    : new Date(rows[0].issued_on);
   const due = isoDate(dueOnFromTerms(input.paymentTerms, issued));
   const subject = input.subject.trim();
-  const balance = rows[0].status === "paid" ? 0 : subtotal;
   await db`
     update invoices set
       client_id = ${input.clientId},
@@ -757,10 +798,12 @@ export async function updateInvoiceDocument(
       message = ${input.message.trim()},
       notes = ${input.notes.trim()},
       payment_terms = ${input.paymentTerms},
+      issued_on = ${isoDate(issued)},
       due_on = ${due},
       subtotal = ${subtotal},
-      total = ${subtotal},
-      balance = ${balance},
+      discount = ${discount},
+      tax = ${tax},
+      total = ${total},
       updated_at = now()
     where id = ${invoiceId}
   `;
@@ -779,5 +822,6 @@ export async function updateInvoiceDocument(
     values (${companyId}, 'admin', 'invoice.updated', 'invoice', ${invoiceId},
             ${`Invoice ${rows[0].number} updated`})
   `;
+  await recalcInvoice(db, invoiceId);
   return { ok: true, id: invoiceId, number: rows[0].number };
 }

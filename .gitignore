@@ -22,3 +22,6 @@ New folder/
 plints/
 client_secret_*.json
 *.pem
+
+# Ferramenta de engenharia reversa (clone externo, não faz parte da app)
+tools/rea/

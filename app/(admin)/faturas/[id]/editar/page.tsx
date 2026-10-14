@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { listClientsForSelect } from "@/lib/clients/queries";
 import { COMPANY_SLUG } from "@/lib/company";
 import { penceToInput } from "@/lib/format";
@@ -15,6 +15,7 @@ export default async function EditInvoicePage({
   const { id } = await params;
   const inv = await getInvoiceDetail(id);
   if (!inv) notFound();
+  if (inv.status === "cancelled") redirect(`/faturas/${inv.id}`);
 
   const clients = await listClientsForSelect(COMPANY_SLUG);
 
@@ -32,6 +33,10 @@ export default async function EditInvoicePage({
           initialNotes={inv.notes}
           initialTerms={inv.payment_terms}
           initialNumber={inv.number}
+          initialIssuedOn={inv.issued_on}
+          initialDiscount={penceToInput(inv.discount)}
+          initialTax={penceToInput(inv.tax)}
+          balancePaid={inv.paid}
           initialLines={inv.lines.map((l) => ({
             name: l.name,
             description: l.description,

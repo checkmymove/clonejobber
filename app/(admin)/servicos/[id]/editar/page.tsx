@@ -52,6 +52,8 @@ export default async function EditServicoPage({
             qty: String(l.quantity),
             price: penceToInput(l.unitPrice),
           }))}
+          initialDiscount={penceToInput(j.discount)}
+          initialTax={penceToInput(j.tax)}
           today={todayLondonInput()}
         />
       </div>

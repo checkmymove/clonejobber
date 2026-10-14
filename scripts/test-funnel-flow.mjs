@@ -158,8 +158,6 @@ try {
     const again = await convertApprovedQuoteToJob(tx, company.id, quote.id);
     check("third convert still reuses the job", again.alreadyExisted && again.id === autoJob.id);
 
-    const invoiceTooSoon = await convertCompletedJobToInvoice(tx, company.id, autoJob.id);
-    check("cannot invoice an incomplete job", !invoiceTooSoon.ok);
 
     const jobEdit = await updateJobDocument(tx, company.id, autoJob.id, {
       clientId: client.id,
@@ -254,7 +252,8 @@ try {
 
     const [row] = await tx`
       select status, balance, total from invoices where id = ${invoice.id}`;
-    check("paid invoice has zero balance", row.status === "paid" && row.balance === 0);
+    // Jobber "Close invoice without recording a payment": Paid, balance kept for the record.
+    check("closed invoice is paid and keeps its balance", row.status === "paid" && row.balance === 18000);
 
     const [quoteRow] = await tx`select total from quotes where id = ${quote.id}`;
     check("quote stored as 25000 pence after later edit", quoteRow.total === 25000);

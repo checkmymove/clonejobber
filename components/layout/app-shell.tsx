@@ -16,6 +16,7 @@ import {
   Quote,
   Search,
   Users,
+  Wallet,
   X,
 } from "lucide-react";
 import { signOut } from "@/lib/auth/actions";
@@ -35,6 +36,7 @@ const NAV: {
   { href: "/cotacoes", label: "Quotes", icon: Quote },
   { href: "/servicos", label: "Jobs", icon: Hammer },
   { href: "/faturas", label: "Invoices", icon: FileText },
+  { href: "/pagamentos", label: "Payments", icon: Wallet },
 ];
 
 const NAV_SETTINGS: typeof NAV = [
