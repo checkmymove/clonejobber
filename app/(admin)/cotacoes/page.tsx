@@ -98,9 +98,9 @@ export default async function CotacoesPage({
         <h1 className="text-2xl font-extrabold tracking-tight text-ink">Quotes</h1>
         <Link
           href="/cotacoes/novo"
-          className="inline-flex h-9 items-center rounded-lg bg-accent px-3.5 text-sm font-semibold text-white hover:opacity-90"
+          className="inline-flex h-10 items-center gap-2 rounded-xl bg-ink px-4 text-sm font-bold text-white hover:opacity-90"
         >
-          New Quote
+          + New quote
         </Link>
       </div>
 
