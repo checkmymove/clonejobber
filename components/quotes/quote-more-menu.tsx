@@ -98,14 +98,13 @@ export function QuoteMoreMenu({
           role="menu"
           className="absolute left-0 z-30 mt-2 w-64 rounded-xl border border-[#d5dde1] bg-white p-2 shadow-xl sm:left-auto sm:right-0"
         >
-          {jobId || archived || !convertible ? (
-            <button
-              type="button"
-              role="menuitem"
-              disabled
-              title={jobId ? "This quote is already converted to a job" : undefined}
-              className={itemClass}
-            >
+          {jobId ? (
+            <Link href={`/servicos/${jobId}`} role="menuitem" className={itemClass} onClick={() => setOpen(false)}>
+              <Hammer size={18} />
+              View job
+            </Link>
+          ) : archived || !convertible ? (
+            <button type="button" role="menuitem" disabled className={itemClass}>
               <Hammer size={18} />
               Convert to Job
             </button>
