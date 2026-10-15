@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { Calendar, ChevronDown, Hammer, Mail, MessageSquare, Pencil, Quote, Trash2, X } from "lucide-react";
+import { Calendar, ChevronDown, Hammer, Mail, MessageSquare, Quote, Trash2 } from "lucide-react";
 import { StickySaveBar } from "@/components/forms/sticky-save-bar";
 import { EmailQuoteDialog } from "@/components/quotes/email-quote-dialog";
 import { SmsQuoteDialog } from "@/components/quotes/sms-quote-dialog";
@@ -97,8 +97,6 @@ export function NewQuoteForm({
   const [discountOpen, setDiscountOpen] = useState(Boolean(initialDiscount));
   const [taxOpen, setTaxOpen] = useState(Boolean(initialTax));
   const [depositOpen, setDepositOpen] = useState(Boolean(initialDeposit));
-  const [paymentsOn, setPaymentsOn] = useState(false);
-  const [marginOpen, setMarginOpen] = useState(true);
   const [savedQuoteId, setSavedQuoteId] = useState(quoteId);
   const [emailDraft, setEmailDraft] = useState<QuoteEmailDraft | null>(null);
   const [smsDraft, setSmsDraft] = useState<QuoteSmsDraft | null>(null);
@@ -611,54 +609,6 @@ export function NewQuoteForm({
               ) : null}
             </div>
           </div>
-
-          <div className={`mt-4 rounded-lg border ${line} px-4 py-3`}>
-            <div className="flex items-center justify-between">
-              <p className={`text-[15px] font-bold ${ink}`}>Client hub payments</p>
-              <button type="button" aria-label="Edit payments" className="text-[#5d6f78]">
-                <Pencil size={16} />
-              </button>
-            </div>
-            <div className="mt-3 flex items-center justify-between text-sm text-[#5d6f78]">
-              <span>Quote payments</span>
-              <button
-                type="button"
-                aria-pressed={paymentsOn}
-                onClick={() => setPaymentsOn((on) => !on)}
-                className="rounded-full bg-[#eef1f2] px-3 py-1 text-[12px] font-bold tracking-wide text-[#5d6f78]"
-              >
-                {paymentsOn ? "ON" : "OFF"}
-              </button>
-            </div>
-          </div>
-
-          {marginOpen ? (
-            <div className="mt-4 rounded-lg bg-[#f3f1ea] px-4 py-3">
-              <div className="flex items-start justify-between gap-3">
-                <p className={`text-[15px] font-bold ${ink}`}>
-                  View your estimated margin{" "}
-                  <Pencil size={14} className="inline text-[#5d6f78]" aria-hidden />
-                </p>
-                <button
-                  type="button"
-                  aria-label="Dismiss estimated margin"
-                  onClick={() => setMarginOpen(false)}
-                  className="text-[#5d6f78]"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-              <p className="mt-1 text-sm leading-5 text-[#5d6f78]">
-                Add your costs and markups to quickly view your estimated margin and set the right price on every quote.
-              </p>
-              <button
-                type="button"
-                className={`mt-3 h-8 rounded-lg border ${line} bg-white px-3 text-sm font-semibold ${ink}`}
-              >
-                Learn more
-              </button>
-            </div>
-          ) : null}
         </div>
       </div>
 

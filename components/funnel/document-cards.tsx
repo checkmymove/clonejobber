@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import { Card } from "@/components/ui";
 import { formatDateNumericLondon, formatGBP } from "@/lib/format";
 import type { ParsedLine } from "@/lib/funnel/money";
+import { paymentMethodLabel } from "@/lib/payments/constants";
+import type { QuoteDepositSummary } from "@/lib/payments/queries";
 
 /** Read-only cards shared by the Job and Invoice detail pages (Jobber layout). */
 
@@ -133,21 +135,59 @@ export function LineItemsCard({
           </tbody>
         </table>
       </div>
-      <div className="mt-4 ml-auto max-w-sm divide-y divide-line border-t border-line text-sm">
-        {totals.map((row, index) => (
-          <div
-            key={index}
-            className={`flex justify-between gap-4 px-2 py-2 ${row.highlight ? "rounded-lg bg-[#f6f7f8]" : ""} ${
-              row.strong ? "font-extrabold text-ink" : row.muted ? "text-ink-soft" : "text-ink"
-            }`}
-          >
-            <span>{row.label}</span>
-            <span>{row.value}</span>
-          </div>
-        ))}
-      </div>
+      <TotalsList totals={totals} className="mt-4 ml-auto max-w-sm border-t" />
     </Card>
   );
+}
+
+function TotalsList({ totals, className = "" }: { totals: TotalRow[]; className?: string }) {
+  return (
+    <div className={`divide-y divide-line border-line text-sm ${className}`}>
+      {totals.map((row, index) => (
+        <div
+          key={index}
+          className={`flex justify-between gap-4 px-2 py-2 ${row.highlight ? "rounded-lg bg-[#f6f7f8]" : ""} ${
+            row.strong ? "font-extrabold text-ink" : row.muted ? "text-ink-soft" : "text-ink"
+          }`}
+        >
+          <span>{row.label}</span>
+          <span>{row.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function TotalsCard({ title = "Totals", totals }: { title?: string; totals: TotalRow[] }) {
+  return (
+    <Card className="h-fit p-5 xl:col-span-2">
+      <CardTitle>{title}</CardTitle>
+      <TotalsList totals={totals} className="ml-auto max-w-sm" />
+    </Card>
+  );
+}
+
+/** Required deposit, each deposit collected, and what is still outstanding. */
+export function depositTotalRows(deposits: QuoteDepositSummary, alwaysShowRequired = false): TotalRow[] {
+  return [
+    ...(deposits.required || alwaysShowRequired
+      ? [{ label: "Required deposit", value: formatGBP(deposits.required), muted: true }]
+      : []),
+    ...deposits.deposits.map((d) => ({
+      label: (
+        <Link href={`/pagamentos/${d.id}`} className="text-accent underline">
+          Deposit collected · {formatDateNumericLondon(d.paid_on)} · {paymentMethodLabel(d.method)}
+        </Link>
+      ),
+      value: `-${formatGBP(d.amount)}`,
+      muted: true,
+    })),
+    {
+      label: "Outstanding deposit",
+      value: formatGBP(Math.max(0, deposits.required - deposits.collected)),
+      highlight: true,
+    },
+  ];
 }
 
 export function dateOrDash(value: string | Date | null | undefined): string {

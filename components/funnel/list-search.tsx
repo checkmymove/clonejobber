@@ -1,12 +1,18 @@
 export function ListSearch({
   defaultValue,
   placeholder,
+  keep = {},
 }: {
   defaultValue?: string;
   placeholder: string;
+  /** Other query params (filters, sort) to keep when searching. */
+  keep?: Record<string, string | undefined>;
 }) {
   return (
     <form method="get" className="mb-3 flex gap-2">
+      {Object.entries(keep).map(([name, value]) =>
+        value ? <input key={name} type="hidden" name={name} value={value} /> : null,
+      )}
       <input
         type="search"
         name="q"

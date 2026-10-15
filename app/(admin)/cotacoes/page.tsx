@@ -9,7 +9,7 @@ import {
   quoteWindowStats,
 } from "@/lib/quotes/metrics";
 import { COMPANY_SLUG } from "@/lib/company";
-import { EmptyState } from "@/components/ui";
+import { Card, EmptyState } from "@/components/ui";
 import { ListSearch } from "@/components/funnel/list-search";
 
 export const dynamic = "force-dynamic";
@@ -147,84 +147,84 @@ export default async function CotacoesPage({
         />
       </div>
 
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-base font-bold text-ink">
-          All quotes{" "}
-          <span className="font-medium text-ink-mute">({visible.length} results)</span>
-        </h2>
-        <ListSearch defaultValue={q} placeholder="Search quotes..." />
-      </div>
+      <h2 className="mt-6 mb-3 text-base font-bold text-ink">
+        All quotes{" "}
+        <span className="font-medium text-ink-mute">({visible.length} results)</span>
+      </h2>
 
-      {visible.length === 0 ? (
-        <EmptyState>
-          {q.trim()
-            ? "No quotes match that search."
-            : "No quotes yet. Create one from a request, or add one directly."}
-        </EmptyState>
-      ) : (
-        <div className="overflow-x-auto rounded-xl border border-line bg-card">
-          <table className="w-full min-w-[720px] table-fixed text-left text-sm">
-            <colgroup>
-              <col className="w-[18%]" />
-              <col className="w-[20%]" />
-              <col className="w-[24%]" />
-              <col className="w-[12%]" />
-              <col className="w-[16%]" />
-              <col className="w-[10%]" />
-            </colgroup>
-            <thead>
-              <tr className="border-b border-line text-xs font-semibold text-ink-mute">
-                <th className="px-4 py-3 font-semibold">Client</th>
-                <th className="px-4 py-3 font-semibold">Quote number</th>
-                <th className="px-4 py-3 font-semibold">Property</th>
-                <th className="px-4 py-3 font-semibold">Created</th>
-                <th className="px-4 py-3 font-semibold">Status</th>
-                <th className="px-4 py-3 text-right font-semibold">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visible.map((quote) => {
-                const status = quoteListStatus(quote.status, quote.converted_at, quote.archived_at);
-                const href = `/cotacoes/${quote.id}`;
-                return (
-                  <ClickableRow key={quote.id} href={href}>
-                    <td className="px-4 py-3.5 font-semibold break-words text-ink">
-                      <Link href={href} className="hover:underline">
-                        {quote.client_name}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <Link href={href} className="font-semibold text-accent hover:underline">
-                        {quote.number}
-                      </Link>
-                      {quote.service_name ? (
-                        <p className="text-xs text-ink-mute">{quote.service_name}</p>
-                      ) : null}
-                    </td>
-                    <td className="px-4 py-3.5 text-[13px] break-words text-ink-soft">
-                      <Link href={href} className="hover:underline">
-                        {quote.property || "—"}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3.5 text-ink-soft">
-                      <Link href={href}>{formatCreated(quote.created_at)}</Link>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <Link href={href} className="inline-flex items-center gap-2 text-ink">
-                        <span className={`size-2 shrink-0 rounded-full ${status.dot}`} />
-                        {status.label}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3.5 text-right font-semibold text-ink">
-                      <Link href={href}>{formatPounds(quote.total / 100)}</Link>
-                    </td>
-                  </ClickableRow>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <Card className="p-4">
+        <ListSearch defaultValue={q} placeholder="Search quotes..." />
+        {visible.length === 0 ? (
+          <EmptyState>
+            {q.trim()
+              ? "No quotes match that search."
+              : "No quotes yet. Create one from a request, or add one directly."}
+          </EmptyState>
+        ) : (
+          <div className="-mx-4 overflow-x-auto">
+            <table className="w-full min-w-[720px] table-fixed text-left text-sm">
+              <colgroup>
+                <col className="w-[18%]" />
+                <col className="w-[20%]" />
+                <col className="w-[24%]" />
+                <col className="w-[12%]" />
+                <col className="w-[16%]" />
+                <col className="w-[10%]" />
+              </colgroup>
+              <thead>
+                <tr className="border-b border-line text-xs font-semibold text-ink-mute">
+                  <th className="px-4 py-3 font-semibold">Client</th>
+                  <th className="px-4 py-3 font-semibold">Quote number</th>
+                  <th className="px-4 py-3 font-semibold">Property</th>
+                  <th className="px-4 py-3 font-semibold">Created</th>
+                  <th className="px-4 py-3 font-semibold">Status</th>
+                  <th className="px-4 py-3 text-right font-semibold">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((quote) => {
+                  const status = quoteListStatus(quote.status, quote.converted_at, quote.archived_at);
+                  const href = `/cotacoes/${quote.id}`;
+                  return (
+                    <ClickableRow key={quote.id} href={href}>
+                      <td className="px-4 py-3.5 font-semibold break-words text-ink">
+                        <Link href={href} className="hover:underline">
+                          {quote.client_name}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <Link href={href} className="font-semibold text-accent hover:underline">
+                          {quote.number}
+                        </Link>
+                        {quote.service_name ? (
+                          <p className="text-xs text-ink-mute">{quote.service_name}</p>
+                        ) : null}
+                      </td>
+                      <td className="px-4 py-3.5 text-[13px] break-words text-ink-soft">
+                        <Link href={href} className="hover:underline">
+                          {quote.property || "—"}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-3.5 text-ink-soft">
+                        <Link href={href}>{formatCreated(quote.created_at)}</Link>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <Link href={href} className="inline-flex items-center gap-2 text-ink">
+                          <span className={`size-2 shrink-0 rounded-full ${status.dot}`} />
+                          {status.label}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-3.5 text-right font-semibold text-ink">
+                        <Link href={href}>{formatPounds(quote.total / 100)}</Link>
+                      </td>
+                    </ClickableRow>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

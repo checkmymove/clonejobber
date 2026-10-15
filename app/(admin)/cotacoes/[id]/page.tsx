@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { formatDateLondon, penceToInput, toDateInput } from "@/lib/format";
+import { formatDateLondon, formatGBP, penceToInput, toDateInput } from "@/lib/format";
 import { getQuoteDetail } from "@/lib/quotes/queries";
 import { getLatestRequestId, getRequestDetail } from "@/lib/requests/queries";
 import { requestSnapshotFromDetail } from "@/lib/requests/edit-snapshot";
@@ -15,6 +15,8 @@ import {
   QuoteServicesCard,
   QuoteSummaryCard,
 } from "@/components/quotes/quote-inline-cards";
+import { TotalsCard, depositTotalRows, type TotalRow } from "@/components/funnel/document-cards";
+import { getQuoteDeposits } from "@/lib/payments/queries";
 import { listDeliveries } from "@/lib/email/send";
 import { listSmsDeliveries } from "@/lib/sms/send";
 import { Badge, Card, PageHeader } from "@/components/ui";
@@ -38,8 +40,11 @@ export default async function CotacaoDetailPage({
   const { id } = await params;
   const q = await getQuoteDetail(id);
   if (!q) notFound();
-  const deliveries = await listDeliveries("quote", id);
-  const smsDeliveries = await listSmsDeliveries(id);
+  const [deliveries, smsDeliveries, deposits] = await Promise.all([
+    listDeliveries("quote", id),
+    listSmsDeliveries(id),
+    getQuoteDeposits(id),
+  ]);
   const requestId = q.request_id ?? (await getLatestRequestId(q.client_id));
   const request = requestId ? await getRequestDetail(requestId) : null;
   const linkedRequest =
@@ -67,6 +72,14 @@ export default async function CotacaoDetailPage({
     lines: quoteLinesFromPence(q.lines),
   };
 
+  const totals: TotalRow[] = [
+    { label: "Subtotal", value: formatGBP(q.subtotal), muted: true },
+    ...(q.discount ? [{ label: "Discount", value: `-${formatGBP(q.discount)}`, muted: true }] : []),
+    ...(q.tax ? [{ label: "Tax", value: formatGBP(q.tax), muted: true }] : []),
+    { label: "Total", value: formatGBP(q.total), strong: true },
+    ...depositTotalRows(deposits, true),
+  ];
+
   return (
     <div>
       <PageHeader
@@ -76,16 +89,11 @@ export default async function CotacaoDetailPage({
           <div className="flex flex-wrap items-center gap-2">
             <QuoteMoreMenu
               quoteId={id}
+              clientId={q.client_id}
               status={q.status}
               archived={Boolean(q.archived_at)}
               jobId={q.job_id}
             />
-            <Link
-              href={`/clientes/${q.client_id}`}
-              className="h-10 rounded-xl border border-line px-3 text-sm font-bold leading-10 text-accent hover:bg-accent-soft"
-            >
-              View client
-            </Link>
             <Link
               href="/cotacoes"
               className="inline-flex h-10 items-center rounded-xl border border-line bg-card px-4 text-sm font-bold text-ink hover:bg-cream"
@@ -142,6 +150,7 @@ export default async function CotacaoDetailPage({
             </ul>
           </Card>
         ) : null}
+        <TotalsCard totals={totals} />
       </div>
       <QuoteRequestSidebar request={request} />
       </div>

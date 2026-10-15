@@ -7,7 +7,6 @@ import { getJobDetail, type JobVisit } from "@/lib/jobs/queries";
 import { JOB_STATUS_META } from "@/lib/jobs/status";
 import { INVOICE_STATUS_META, deriveInvoiceStatus } from "@/lib/invoices/status";
 import { getQuoteDeposits } from "@/lib/payments/queries";
-import { paymentMethodLabel } from "@/lib/payments/constants";
 import { getRequestDetail } from "@/lib/requests/queries";
 import { requestSnapshotFromDetail } from "@/lib/requests/edit-snapshot";
 import {
@@ -24,6 +23,7 @@ import {
   DetailRows,
   LineItemsCard,
   dateOrDash,
+  depositTotalRows,
   type TotalRow,
 } from "@/components/funnel/document-cards";
 import { Card, PageHeader } from "@/components/ui";
@@ -67,23 +67,7 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
     { label: "Total price", value: formatGBP(j.total), strong: true },
   ];
   if (deposits && (deposits.required || deposits.collected)) {
-    if (deposits.required) totals.push({ label: "Required deposit", value: formatGBP(deposits.required), muted: true });
-    for (const d of deposits.deposits) {
-      totals.push({
-        label: (
-          <Link href={`/pagamentos/${d.id}`} className="text-accent underline">
-            Deposit collected · {formatDateNumericLondon(d.paid_on)} · {paymentMethodLabel(d.method)}
-          </Link>
-        ),
-        value: `-${formatGBP(d.amount)}`,
-        muted: true,
-      });
-    }
-    totals.push({
-      label: "Outstanding deposit",
-      value: formatGBP(Math.max(0, deposits.required - deposits.collected)),
-      highlight: true,
-    });
+    totals.push(...depositTotalRows(deposits));
   }
 
   return (

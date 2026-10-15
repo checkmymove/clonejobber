@@ -94,7 +94,6 @@ export default async function SolicitacoesPage({
                   <th className="py-2 pr-3 font-bold">Contact</th>
                   <th className="py-2 pr-3 font-bold">Received</th>
                   <th className="py-2 pr-3 font-bold">Status</th>
-                  <th className="py-2 text-right font-bold">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -134,14 +133,6 @@ export default async function SolicitacoesPage({
                       <Badge tone={r.status}>
                         {STATUS_LABEL[r.status] ?? r.status}
                       </Badge>
-                    </td>
-                    <td className="py-3 text-right">
-                      <Link
-                        href={`/solicitacoes/${r.id}`}
-                        className="rounded-lg border border-line px-2.5 py-1.5 text-xs font-bold text-accent hover:bg-accent-soft"
-                      >
-                        Open
-                      </Link>
                     </td>
                   </ClickableRow>
                 ))}

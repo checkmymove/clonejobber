@@ -49,12 +49,6 @@ export default async function SolicitacaoDetailPage({
               Convert to Quote
             </Link>
             <Link
-              href={`/clientes/${r.client_id}`}
-              className="inline-flex h-10 items-center rounded-xl border border-line bg-card px-4 text-sm font-bold text-accent hover:bg-accent-soft"
-            >
-              View client
-            </Link>
-            <Link
               href="/solicitacoes"
               className="inline-flex h-10 items-center rounded-xl border border-line bg-card px-4 text-sm font-bold text-ink hover:bg-cream"
             >

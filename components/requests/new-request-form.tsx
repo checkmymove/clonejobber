@@ -212,8 +212,8 @@ export function NewRequestForm({
     parkingYes: parkingToYesNo(initial?.deliveryParking),
     bedrooms: initial?.deliveryBedrooms ?? "",
   });
-  const [needsPacking, setNeedsPacking] = useState<boolean | null>(initial?.needsPacking ?? true);
-  const [needsBoxes, setNeedsBoxes] = useState<boolean | null>(initial?.needsBoxes ?? true);
+  const [needsPacking, setNeedsPacking] = useState<boolean | null>(initial ? initial.needsPacking : null);
+  const [needsBoxes, setNeedsBoxes] = useState<boolean | null>(initial ? initial.needsBoxes : null);
   const [serviceId, setServiceId] = useState(initial?.serviceId ?? "");
   const [hours, setHours] = useState(initial?.hours ?? "");
   const [inventory, setInventory] = useState(initial?.inventory ?? "");

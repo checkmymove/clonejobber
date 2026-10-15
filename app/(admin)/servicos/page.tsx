@@ -4,9 +4,9 @@ import { formatDateNumericLondon, formatGBP, formatPounds } from "@/lib/format";
 import { getJobKpis, listJobs, type JobRow } from "@/lib/jobs/queries";
 import { JOB_STATUS_META, JOB_STATUS_ORDER, type JobListStatus } from "@/lib/jobs/status";
 import { COMPANY_SLUG } from "@/lib/company";
-import { EmptyState } from "@/components/ui";
+import { Card, EmptyState } from "@/components/ui";
+import { ListSearch } from "@/components/funnel/list-search";
 import {
-  FilterBar,
   KpiCard,
   OverviewCard,
   SortTh,
@@ -102,84 +102,84 @@ export default async function ServicosPage({ searchParams }: { searchParams: Pro
           {filtering ? "Filtered jobs" : "All jobs"}{" "}
           <span className="font-medium text-ink-mute">({rows.length} results)</span>
         </h2>
+        {params.status ? (
+          <Link
+            href={listHref("/servicos", params, { status: undefined })}
+            className="text-sm font-semibold text-accent hover:underline"
+          >
+            Clear filter
+          </Link>
+        ) : null}
       </div>
-      <FilterBar
-        params={params}
-        placeholder="Search jobs..."
-        selects={[
-          {
-            name: "status",
-            label: "Status",
-            options: JOB_STATUS_ORDER.map((s) => ({
-              value: s,
-              label: `${JOB_STATUS_META[s].label} (${counts[s]})`,
-            })),
-          },
-        ]}
-      />
-
-      {rows.length === 0 ? (
-        <EmptyState>
-          {filtering ? "No jobs match these filters." : "No jobs yet. Approve a quote, or create a job directly."}
-        </EmptyState>
-      ) : (
-        <div className="overflow-x-auto rounded-xl border border-line bg-card">
-          <table className="w-full min-w-[760px] table-fixed text-left text-sm">
-            <colgroup>
-              <col className="w-[18%]" />
-              <col className="w-[18%]" />
-              <col className="w-[26%]" />
-              <col className="w-[13%]" />
-              <col className="w-[15%]" />
-              <col className="w-[10%]" />
-            </colgroup>
-            <thead>
-              <tr className="border-b border-line text-xs font-semibold text-ink-mute">
-                <SortTh label="Client" sortKey="client" base="/servicos" params={params} />
-                <SortTh label="Job number" sortKey="number" base="/servicos" params={params} />
-                <th className="px-4 py-3 font-semibold">Property</th>
-                <SortTh label="Schedule" sortKey="schedule" base="/servicos" params={params} />
-                <SortTh label="Status" sortKey="status" base="/servicos" params={params} />
-                <SortTh label="Total" sortKey="total" base="/servicos" params={params} align="right" />
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((job) => {
-                const href = `/servicos/${job.id}`;
-                const meta = JOB_STATUS_META[job.list_status];
-                const showDate = job.list_status !== "archived" && job.list_status !== "action_required";
-                return (
-                  <ClickableRow key={job.id} href={href}>
-                    <td className="px-4 py-3.5 font-semibold break-words text-ink">
-                      <Link href={href} className="hover:underline">
-                        {job.client_name}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <Link href={href} className="font-semibold text-accent hover:underline">
-                        {job.number}
-                      </Link>
-                      {job.title ? <p className="truncate text-xs text-ink-mute">{job.title}</p> : null}
-                    </td>
-                    <td className="px-4 py-3.5 text-[13px] break-words text-ink-soft">
-                      {job.pickup_address || "—"}
-                    </td>
-                    <td className="px-4 py-3.5 text-ink-soft">
-                      {showDate && job.next_visit ? formatDateNumericLondon(job.next_visit) : "—"}
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <StatusDot dot={meta.dot} label={meta.label} />
-                    </td>
-                    <td className="px-4 py-3.5 text-right font-semibold text-ink">
-                      {formatPounds(job.total / 100)}
-                    </td>
-                  </ClickableRow>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <Card className="p-4">
+        <ListSearch
+          defaultValue={params.q}
+          placeholder="Search jobs..."
+          keep={{ status: params.status, sort: params.sort, dir: params.dir }}
+        />
+        {rows.length === 0 ? (
+          <EmptyState>
+            {filtering ? "No jobs match these filters." : "No jobs yet. Approve a quote, or create a job directly."}
+          </EmptyState>
+        ) : (
+          <div className="-mx-4 overflow-x-auto">
+            <table className="w-full min-w-[760px] table-fixed text-left text-sm">
+              <colgroup>
+                <col className="w-[18%]" />
+                <col className="w-[18%]" />
+                <col className="w-[26%]" />
+                <col className="w-[13%]" />
+                <col className="w-[15%]" />
+                <col className="w-[10%]" />
+              </colgroup>
+              <thead>
+                <tr className="border-b border-line text-xs font-semibold text-ink-mute">
+                  <SortTh label="Client" sortKey="client" base="/servicos" params={params} />
+                  <SortTh label="Job number" sortKey="number" base="/servicos" params={params} />
+                  <th className="px-4 py-3 font-semibold">Property</th>
+                  <SortTh label="Schedule" sortKey="schedule" base="/servicos" params={params} />
+                  <SortTh label="Status" sortKey="status" base="/servicos" params={params} />
+                  <SortTh label="Total" sortKey="total" base="/servicos" params={params} align="right" />
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((job) => {
+                  const href = `/servicos/${job.id}`;
+                  const meta = JOB_STATUS_META[job.list_status];
+                  const showDate = job.list_status !== "archived" && job.list_status !== "action_required";
+                  return (
+                    <ClickableRow key={job.id} href={href}>
+                      <td className="px-4 py-3.5 font-semibold break-words text-ink">
+                        <Link href={href} className="hover:underline">
+                          {job.client_name}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <Link href={href} className="font-semibold text-accent hover:underline">
+                          {job.number}
+                        </Link>
+                        {job.title ? <p className="truncate text-xs text-ink-mute">{job.title}</p> : null}
+                      </td>
+                      <td className="px-4 py-3.5 text-[13px] break-words text-ink-soft">
+                        {job.pickup_address || "—"}
+                      </td>
+                      <td className="px-4 py-3.5 text-ink-soft">
+                        {showDate && job.next_visit ? formatDateNumericLondon(job.next_visit) : "—"}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <StatusDot dot={meta.dot} label={meta.label} />
+                      </td>
+                      <td className="px-4 py-3.5 text-right font-semibold text-ink">
+                        {formatPounds(job.total / 100)}
+                      </td>
+                    </ClickableRow>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

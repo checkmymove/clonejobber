@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Archive,
+  Banknote,
   Check,
   Eye,
   FileDown,
@@ -11,7 +12,6 @@ import {
   Mail,
   MessageSquare,
   MoreHorizontal,
-  Send,
   Trash2,
 } from "lucide-react";
 import { EmailQuoteDialog } from "@/components/quotes/email-quote-dialog";
@@ -31,11 +31,13 @@ const itemClass =
 
 export function QuoteMoreMenu({
   quoteId,
+  clientId,
   status,
   archived,
   jobId,
 }: {
   quoteId: string;
+  clientId: string;
   status: string;
   archived: boolean;
   jobId: string | null;
@@ -46,6 +48,8 @@ export function QuoteMoreMenu({
   const [emailDraft, setEmailDraft] = useState<QuoteEmailDraft | null>(null);
   const [smsDraft, setSmsDraft] = useState<QuoteSmsDraft | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const convertible = status !== "rejected" && status !== "expired";
+  const approvable = ["draft", "sent", "changes_requested"].includes(status);
 
   useEffect(() => {
     if (!open) return;
@@ -94,18 +98,60 @@ export function QuoteMoreMenu({
           role="menu"
           className="absolute left-0 z-30 mt-2 w-64 rounded-xl border border-[#d5dde1] bg-white p-2 shadow-xl sm:left-auto sm:right-0"
         >
-          {status === "draft" && !archived ? (
+          {jobId || archived || !convertible ? (
             <button
               type="button"
               role="menuitem"
-              disabled={Boolean(pending)}
-              onClick={() => void run("sent", () => updateQuoteStatus(quoteId, "sent"))}
+              disabled
+              title={jobId ? "This quote is already converted to a job" : undefined}
               className={itemClass}
             >
-              <Send size={18} />
-              Mark as sent
+              <Hammer size={18} />
+              Convert to Job
             </button>
-          ) : null}
+          ) : (
+            <Link
+              href={`/servicos/novo?quoteId=${quoteId}`}
+              role="menuitem"
+              className={itemClass}
+              onClick={() => setOpen(false)}
+            >
+              <Hammer size={18} />
+              Convert to Job
+            </Link>
+          )}
+          <button
+            type="button"
+            role="menuitem"
+            disabled={Boolean(pending) || archived || !approvable}
+            title={status === "approved" ? "This quote is already approved" : undefined}
+            onClick={() => void run("approved", () => updateQuoteStatus(quoteId, "approved"))}
+            className={itemClass}
+          >
+            <Check size={18} />
+            Approved
+          </button>
+          {archived || !convertible ? (
+            <button type="button" role="menuitem" disabled className={itemClass}>
+              <Banknote size={18} />
+              Collect Deposit
+            </button>
+          ) : (
+            <Link
+              href={`/pagamentos/novo?${new URLSearchParams({
+                clientId,
+                quoteId,
+                kind: "deposit",
+                returnTo: `/cotacoes/${quoteId}`,
+              })}`}
+              role="menuitem"
+              className={itemClass}
+              onClick={() => setOpen(false)}
+            >
+              <Banknote size={18} />
+              Collect Deposit
+            </Link>
+          )}
           <button
             type="button"
             role="menuitem"
@@ -138,22 +184,6 @@ export function QuoteMoreMenu({
             <MessageSquare size={18} />
             Send Text Message
           </button>
-          {jobId ? (
-            <Link href={`/servicos/${jobId}`} role="menuitem" className={itemClass} onClick={() => setOpen(false)}>
-              <Hammer size={18} />
-              View job
-            </Link>
-          ) : (
-            <Link
-              href={`/servicos/novo?quoteId=${quoteId}`}
-              role="menuitem"
-              className={itemClass}
-              onClick={() => setOpen(false)}
-            >
-              <Hammer size={18} />
-              Convert to Job
-            </Link>
-          )}
           <Link
             href={`/q/${quoteId}`}
             role="menuitem"
@@ -164,27 +194,15 @@ export function QuoteMoreMenu({
             Preview as Client
           </Link>
           {status === "sent" && !archived ? (
-            <>
-              <button
-                type="button"
-                role="menuitem"
-                disabled={Boolean(pending)}
-                onClick={() => void run("approved", () => updateQuoteStatus(quoteId, "approved"))}
-                className={itemClass}
-              >
-                <Check size={18} />
-                Approve
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                disabled={Boolean(pending)}
-                onClick={() => void run("rejected", () => updateQuoteStatus(quoteId, "rejected"))}
-                className={itemClass}
-              >
-                Decline
-              </button>
-            </>
+            <button
+              type="button"
+              role="menuitem"
+              disabled={Boolean(pending)}
+              onClick={() => void run("rejected", () => updateQuoteStatus(quoteId, "rejected"))}
+              className={itemClass}
+            >
+              Decline
+            </button>
           ) : null}
           <div className="my-1 h-px bg-[#e6ebed]" />
           <button

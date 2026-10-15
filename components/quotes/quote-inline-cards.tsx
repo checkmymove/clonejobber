@@ -119,13 +119,6 @@ export function QuoteSummaryCard({ snapshot }: { snapshot: QuoteEditSnapshot }) 
               ["Recipient", snapshot.recipient],
               ["Moving date", snapshot.validUntil ? formatDateLondon(snapshot.validUntil) : "—"],
               ["Moving time", snapshot.moveTime.trim() || "—"],
-              ["Subtotal", formatGBP(snapshot.subtotal)],
-              ...(snapshot.discountPence ? [["Discount", formatGBP(snapshot.discountPence)] as [string, string]] : []),
-              ...(snapshot.taxPence ? [["Tax", formatGBP(snapshot.taxPence)] as [string, string]] : []),
-              ["Total", formatGBP(snapshot.total)],
-              ...(snapshot.depositPence
-                ? [["Required deposit", formatGBP(snapshot.depositPence)] as [string, string]]
-                : []),
             ]}
           />
           {snapshot.message ? (
