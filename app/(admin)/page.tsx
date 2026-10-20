@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { formatGBP } from "@/lib/format";
-import { getDashboard } from "@/lib/funnel/dashboard";
+import { getDashboard, type StatusTally } from "@/lib/funnel/dashboard";
+import { JOB_STATUS_META } from "@/lib/jobs/status";
+import { INVOICE_STATUS_META } from "@/lib/invoices/status";
 import { COMPANY_SLUG } from "@/lib/company";
 import { Card } from "@/components/ui";
 
@@ -13,33 +15,30 @@ const weekday = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Europe/London",
 }).format(new Date());
 
-function count(rows: { status: string; n: number }[], status: string) {
-  return rows.find((r) => r.status === status)?.n ?? 0;
+function count(rows: StatusTally, ...statuses: string[]) {
+  return statuses.reduce((s, k) => s + (rows[k]?.n ?? 0), 0);
 }
 
-function sum(rows: { status: string; total?: number; balance?: number; n: number }[], statuses: string[], field: "total" | "balance" = "total") {
-  return rows
-    .filter((r) => statuses.includes(r.status))
-    .reduce((s, r) => s + (r[field] ?? 0), 0);
+function sum(rows: StatusTally, ...statuses: string[]) {
+  return statuses.reduce((s, k) => s + (rows[k]?.total ?? 0), 0);
+}
+
+function row(rows: StatusTally, label: string, status: string) {
+  return { label: `${label} (${count(rows, status)})`, value: formatGBP(sum(rows, status)) };
 }
 
 export default async function DashboardPage() {
   const d = await getDashboard(COMPANY_SLUG);
-  const reqNew = count(d.requests, "new") + count(d.requests, "review");
-  const quotesApproved = count(d.quotes, "approved");
-  const jobsAction = count(d.jobs, "scheduled") + count(d.jobs, "in_progress");
-  const invOpen = count(d.invoices, "sent") + count(d.invoices, "overdue");
-  const overdueJobs = d.todayJobs.filter((j) => j.status === "scheduled");
-  const doneJobs = d.todayJobs.filter((j) => j.status === "done");
+  const scheduledToday = d.todayJobs.filter((j) => !j.done);
+  const doneToday = d.todayJobs.filter((j) => j.done);
   const totalToday = d.todayJobs.reduce((s, j) => s + j.total, 0);
-  const receive = d.debtors.reduce((s, r) => s + r.balance, 0);
 
   const funnel = [
     {
       key: "requests",
       href: "/solicitacoes",
       label: "Requests",
-      count: reqNew,
+      count: count(d.requests, "new", "review"),
       amount: 0,
       headline: "New and in review",
       rows: [
@@ -52,12 +51,13 @@ export default async function DashboardPage() {
       key: "quotes",
       href: "/cotacoes",
       label: "Quotes",
-      count: quotesApproved,
-      amount: sum(d.quotes, ["approved"]),
+      count: count(d.quotes, "approved"),
+      amount: sum(d.quotes, "approved"),
       headline: "Approved",
       rows: [
-        { label: `Draft (${count(d.quotes, "draft")})`, value: formatGBP(sum(d.quotes, ["draft"])) },
-        { label: `Sent (${count(d.quotes, "sent")})`, value: formatGBP(sum(d.quotes, ["sent"])) },
+        row(d.quotes, "Draft", "draft"),
+        row(d.quotes, "Awaiting response", "awaiting"),
+        row(d.quotes, "Changes requested", "changes"),
       ],
       accent: "#a4445c",
     },
@@ -65,25 +65,25 @@ export default async function DashboardPage() {
       key: "jobs",
       href: "/servicos",
       label: "Jobs",
-      count: jobsAction,
-      amount: sum(d.jobs, ["scheduled", "in_progress"]),
-      headline: "Need action",
-      rows: [
-        { label: `Scheduled (${count(d.jobs, "scheduled")})`, value: formatGBP(sum(d.jobs, ["scheduled"])) },
-        { label: `In progress (${count(d.jobs, "in_progress")})`, value: formatGBP(sum(d.jobs, ["in_progress"])) },
-      ],
+      count: count(d.jobs, "requires_invoicing"),
+      amount: sum(d.jobs, "requires_invoicing"),
+      headline: JOB_STATUS_META.requires_invoicing.label,
+      rows: (["late", "action_required", "unscheduled", "today", "upcoming"] as const).map((s) =>
+        row(d.jobs, JOB_STATUS_META[s].label, s),
+      ),
       accent: "#2f7d3b",
     },
     {
       key: "invoices",
       href: "/faturas",
       label: "Invoices",
-      count: invOpen,
-      amount: sum(d.invoices, ["sent", "overdue"], "balance"),
+      count: count(d.invoices, "past_due", "awaiting_payment"),
+      amount: sum(d.invoices, "past_due", "awaiting_payment"),
       headline: "Awaiting payment",
       rows: [
-        { label: `Draft (${count(d.invoices, "draft")})` },
-        { label: `Overdue (${count(d.invoices, "overdue")})`, value: formatGBP(sum(d.invoices, ["overdue"], "balance")) },
+        row(d.invoices, INVOICE_STATUS_META.past_due.label, "past_due"),
+        row(d.invoices, "Sent but not due", "awaiting_payment"),
+        row(d.invoices, INVOICE_STATUS_META.draft.label, "draft"),
       ],
       accent: "#245d8a",
     },
@@ -99,8 +99,8 @@ export default async function DashboardPage() {
       <h2 className="mb-3 mt-7 text-lg font-extrabold text-ink">Workflow</h2>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {funnel.map((f) => (
-          <Link key={f.key} href={f.href}>
-            <Card accent={f.accent} className="p-4 hover:bg-cream/60">
+          <Link key={f.key} href={f.href} className="block h-full">
+            <Card accent={f.accent} className="h-full p-4 hover:bg-cream/60">
               <p className="text-xs font-bold uppercase tracking-wide text-ink-soft">{f.label}</p>
               <p className="mt-2 text-3xl font-extrabold text-ink">
                 {f.count}
@@ -133,11 +133,11 @@ export default async function DashboardPage() {
               </div>
               <div>
                 <p className="text-xs text-ink-mute">Scheduled</p>
-                <p className="text-2xl font-extrabold text-ink">{overdueJobs.length}</p>
+                <p className="text-2xl font-extrabold text-ink">{scheduledToday.length}</p>
               </div>
               <div>
                 <p className="text-xs text-ink-mute">Completed</p>
-                <p className="text-2xl font-extrabold text-ink">{doneJobs.length}</p>
+                <p className="text-2xl font-extrabold text-ink">{doneToday.length}</p>
               </div>
               <Link
                 href="/servicos"
@@ -184,8 +184,8 @@ export default async function DashboardPage() {
                   ›
                 </Link>
               </div>
-              <p className="mt-1 text-xs text-ink-soft">{d.debtors.length} clients have a balance</p>
-              <p className="mt-1 text-2xl font-extrabold text-ink">{formatGBP(receive)}</p>
+              <p className="mt-1 text-xs text-ink-soft">{d.debtorCount} clients have a balance</p>
+              <p className="mt-1 text-2xl font-extrabold text-ink">{formatGBP(d.receivable)}</p>
               <div className="mt-3 space-y-1.5">
                 {d.debtors.map((r) => (
                   <div key={r.name} className="flex items-center justify-between text-[13px]">

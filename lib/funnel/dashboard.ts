@@ -1,102 +1,102 @@
 import "server-only";
 import { sql } from "@/lib/db";
+import { todayLondonInput } from "@/lib/format";
+import { listRequests } from "@/lib/requests/queries";
+import { listQuotes } from "@/lib/quotes/queries";
+import { quoteListStatus } from "@/lib/quotes/metrics";
+import { listJobs } from "@/lib/jobs/queries";
+import { listInvoices } from "@/lib/invoices/queries";
 
+export type StatusTally = Record<string, { n: number; total: number }>;
+
+function tally<T>(rows: T[], key: (row: T) => string, amount: (row: T) => number = () => 0): StatusTally {
+  const out: StatusTally = {};
+  for (const row of rows) {
+    const k = key(row);
+    out[k] ??= { n: 0, total: 0 };
+    out[k].n += 1;
+    out[k].total += amount(row);
+  }
+  return out;
+}
+
+function addDays(day: string, days: number): string {
+  const d = new Date(`${day}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Dashboard figures. Counts come from the same list queries and derived statuses
+ * as the Requests, Quotes, Jobs and Invoices pages, so the numbers always match.
+ */
 export async function getDashboard(companySlug: string) {
-  const [requests, quotes, jobs, invoices, todayJobs, debtors] = await Promise.all([
-    sql<{ status: string; n: number }[]>`
-      select r.status, count(*)::int as n
-      from requests r
-      join companies co on co.id = r.company_id
-      where co.slug = ${companySlug}
-      group by r.status
-    `,
-    sql<{ status: string; n: number; total: number }[]>`
-      select q.status, count(*)::int as n, coalesce(sum(q.total), 0)::int as total
-      from quotes q
-      join companies co on co.id = q.company_id
-      where co.slug = ${companySlug}
-      group by q.status
-    `,
-    sql<{ status: string; n: number; total: number }[]>`
-      select j.status, count(*)::int as n, coalesce(sum(j.total), 0)::int as total
-      from jobs j
-      join companies co on co.id = j.company_id
-      where co.slug = ${companySlug}
-      group by j.status
-    `,
-    sql<{ status: string; n: number; total: number; balance: number }[]>`
-      select
-        case
-          when i.status = 'sent' and i.due_on < (timezone('Europe/London', now()))::date
-            then 'overdue' else i.status
-        end as status,
-        count(*)::int as n,
-        coalesce(sum(i.total), 0)::int as total,
-        coalesce(sum(i.balance), 0)::int as balance
+  const [requestRows, quoteRows, jobRows, invoiceRows, month] = await Promise.all([
+    listRequests(companySlug),
+    listQuotes(companySlug),
+    listJobs(companySlug),
+    listInvoices(companySlug),
+    sql<{ revenue: number }[]>`
+      select coalesce(sum(i.total), 0)::int as revenue
       from invoices i
       join companies co on co.id = i.company_id
       where co.slug = ${companySlug}
-      group by 1
-    `,
-    sql<{
-      id: string;
-      number: string;
-      title: string;
-      window: string;
-      total: number;
-      status: string;
-      client_name: string;
-    }[]>`
-      select j.id, j.number, j.title,
-             case
-               when j.anytime then 'Anytime'
-               when j.window_start <> '' and j.window_end <> ''
-                 then j.window_start || ' – ' || j.window_end
-               else '—'
-             end as window,
-             j.total, j.status,
-             trim(c.first_name || ' ' || c.last_name) as client_name
-      from jobs j
-      join companies co on co.id = j.company_id
-      join clients c on c.id = j.client_id
-      where co.slug = ${companySlug}
-        and j.scheduled_date = (timezone('Europe/London', now()))::date
-        and j.status <> 'cancelled'
-      order by j.window_start, j.created_at
-    `,
-    sql<{ name: string; balance: number }[]>`
-      select trim(c.first_name || ' ' || c.last_name) as name,
-             sum(i.balance)::int as balance
-      from invoices i
-      join companies co on co.id = i.company_id
-      join clients c on c.id = i.client_id
-      where co.slug = ${companySlug}
-        and i.status in ('sent', 'overdue')
-        and i.balance > 0
-      group by c.id, c.first_name, c.last_name
-      order by 2 desc
-      limit 5
+        and i.status = 'paid'
+        and date_trunc('month', i.paid_at) = date_trunc('month', timezone('Europe/London', now()))
     `,
   ]);
 
-  const month = await sql<{ revenue: number; upcoming: number }[]>`
-    select
-      coalesce((
-        select sum(total) from invoices i
-        join companies co on co.id = i.company_id
-        where co.slug = ${companySlug}
-          and i.status = 'paid'
-          and date_trunc('month', i.paid_at) = date_trunc('month', timezone('Europe/London', now()))
-      ), 0)::int as revenue,
-      coalesce((
-        select sum(total) from jobs j
-        join companies co on co.id = j.company_id
-        where co.slug = ${companySlug}
-          and j.status in ('scheduled', 'in_progress')
-          and j.scheduled_date between (timezone('Europe/London', now()))::date
-            and (timezone('Europe/London', now()))::date + 7
-      ), 0)::int as upcoming
-  `;
+  const today = todayLondonInput();
+  const weekEnd = addDays(today, 7);
+
+  const requests = tally(requestRows, (r) => r.status);
+  const quotes = tally(
+    quoteRows,
+    (q) => quoteListStatus(q.status, q.converted_at, q.archived_at).key,
+    (q) => q.total,
+  );
+  const jobs = tally(jobRows, (j) => j.list_status, (j) => j.total);
+  const invoices = tally(invoiceRows, (i) => i.list_status, (i) => i.balance);
+
+  const liveJobs = jobRows.filter((j) => j.status !== "cancelled");
+  const todayJobs = liveJobs
+    .filter((j) => j.visits.some((v) => !v.later && v.date === today && v.status !== "cancelled"))
+    .map((j) => {
+      const visits = j.visits.filter((v) => !v.later && v.date === today && v.status !== "cancelled");
+      return {
+        id: j.id,
+        number: j.number,
+        title: j.title,
+        window: j.anytime
+          ? "Anytime"
+          : j.window_start && j.window_end
+            ? `${j.window_start} – ${j.window_end}`
+            : "—",
+        total: j.total,
+        done: visits.every((v) => v.status === "done"),
+        client_name: j.client_name,
+      };
+    })
+    .sort((a, b) => a.window.localeCompare(b.window));
+
+  const upcomingJobs = liveJobs
+    .filter((j) =>
+      j.visits.some(
+        (v) => v.status === "scheduled" && !v.later && v.date && v.date >= today && v.date <= weekEnd,
+      ),
+    )
+    .reduce((s, j) => s + j.total, 0);
+
+  const owing = invoiceRows.filter(
+    (i) => (i.list_status === "past_due" || i.list_status === "awaiting_payment") && i.balance > 0,
+  );
+  const byClient = new Map<string, { name: string; balance: number }>();
+  for (const i of owing) {
+    const entry = byClient.get(i.client_id) ?? { name: i.client_name, balance: 0 };
+    entry.balance += i.balance;
+    byClient.set(i.client_id, entry);
+  }
+  const allDebtors = [...byClient.values()].sort((a, b) => b.balance - a.balance);
 
   return {
     requests,
@@ -104,8 +104,10 @@ export async function getDashboard(companySlug: string) {
     jobs,
     invoices,
     todayJobs,
-    debtors,
+    debtors: allDebtors.slice(0, 5),
+    debtorCount: allDebtors.length,
+    receivable: allDebtors.reduce((s, d) => s + d.balance, 0),
     monthRevenue: month[0]?.revenue ?? 0,
-    upcomingJobs: month[0]?.upcoming ?? 0,
+    upcomingJobs,
   };
 }
