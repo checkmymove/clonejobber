@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatDateLondon } from "@/lib/format";
 import { COMPANY_SLUG, getCompanyId } from "@/lib/company";
+import { sql } from "@/lib/db";
 import { updateRequestStatus } from "@/lib/requests/actions";
 import { getRequestDetail } from "@/lib/requests/queries";
 import { requestSnapshotFromDetail } from "@/lib/requests/edit-snapshot";
@@ -12,6 +13,7 @@ import {
   RequestContactCard,
   RequestInventoryCard,
   RequestLocationCard,
+  RequestMovingCard,
 } from "@/components/requests/request-inline-cards";
 import { hasRemovalService } from "@/lib/requests/edit-snapshot";
 import { FunnelHistoryCard } from "@/components/funnel/funnel-history-card";
@@ -38,6 +40,9 @@ export default async function SolicitacaoDetailPage({
   if (!r) notFound();
   const companyId = await getCompanyId(COMPANY_SLUG);
   const services = companyId ? await getActiveServices(companyId) : [];
+  const requestQuote = await sql<{ id: string }[]>`
+    select id from quotes where request_id = ${r.id} order by created_at desc limit 1
+  `;
   const snapshot = requestSnapshotFromDetail(r);
 
   return (
@@ -47,7 +52,7 @@ export default async function SolicitacaoDetailPage({
         subtitle={`Received on ${formatDateLondon(r.submitted_at)}${r.move_date ? ` · move on ${formatDateLondon(r.move_date)}${r.move_time ? ` at ${r.move_time}` : ""}` : " · no date set"}`}
         action={
           <div className="flex gap-2">
-            <RequestMoreMenu requestId={r.id} />
+            <RequestMoreMenu requestId={r.id} clientId={r.client_id} quoteId={requestQuote[0]?.id ?? null} />
             <Link
               href={`/cotacoes/novo?requestId=${r.id}`}
               className="inline-flex h-10 items-center rounded-xl bg-ink px-4 text-sm font-bold text-white hover:opacity-90"
@@ -85,6 +90,7 @@ export default async function SolicitacaoDetailPage({
         <FunnelHistoryCard clientId={r.client_id} requestId={r.id} currentId={r.id} />
         <RequestLocationCard title="Collection Information" snapshot={snapshot} kind="pickup" />
         <RequestLocationCard title="Delivery Information" snapshot={snapshot} kind="delivery" />
+        <RequestMovingCard snapshot={snapshot} />
         <PackingServiceCard snapshot={snapshot} />
         {hasRemovalService(snapshot) ? <RemovalServiceCard snapshot={snapshot} services={services} /> : null}
         <RequestInventoryCard snapshot={snapshot} files={r.files} />

@@ -1,11 +1,20 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Mail, Pencil } from "lucide-react";
+import { Banknote, Mail, Pencil } from "lucide-react";
 import { MoreMenu } from "@/components/funnel/more-menu";
 import { SendDialog, useSendDialog } from "@/components/funnel/send-dialog";
 
-export function RequestMoreMenu({ requestId }: { requestId: string }) {
+export function RequestMoreMenu({
+  requestId,
+  clientId,
+  quoteId,
+}: {
+  requestId: string;
+  clientId: string;
+  /** The request's quote, when there is one: a deposit is recorded against a quote. */
+  quoteId?: string | null;
+}) {
   const router = useRouter();
   const sender = useSendDialog();
   return (
@@ -19,6 +28,17 @@ export function RequestMoreMenu({ requestId }: { requestId: string }) {
             run: () => sender.open("request", requestId),
           },
           { kind: "link", label: "Edit Request", icon: <Pencil size={18} />, href: `/solicitacoes/${requestId}/editar` },
+          {
+            kind: "link",
+            label: "Collect Deposit",
+            icon: <Banknote size={18} />,
+            href: `/pagamentos/novo?${new URLSearchParams({
+              clientId,
+              ...(quoteId ? { quoteId } : {}),
+              kind: "deposit",
+              returnTo: `/solicitacoes/${requestId}`,
+            })}`,
+          },
         ]}
       />
       {sender.draft ? (

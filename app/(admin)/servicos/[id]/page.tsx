@@ -155,6 +155,7 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
         />
 
         {snapshot && request ? <RequestInventoryCard snapshot={snapshot} files={request.files} /> : null}
+        <NotesCard kind="job" id={j.id} notes={j.notes} />
 
         <Card className="h-fit p-5 xl:col-span-2">
           <CardTitle
@@ -313,7 +314,6 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
 
         <SentCard kind="job" id={j.id} />
 
-        <NotesCard kind="job" id={j.id} notes={j.notes} />
       </div>
     </div>
   );

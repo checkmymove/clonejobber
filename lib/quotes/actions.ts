@@ -135,3 +135,18 @@ export async function updateQuoteStatus(
   }
   return result;
 }
+
+/** Internal notes on a quote (never shown to the client). */
+export async function saveQuoteNotes(quoteId: string, notes: string): Promise<ActionResult> {
+  await requireAdmin();
+  const companyId = await getCompanyId();
+  if (!companyId) return { ok: false, message: "Company not found." };
+  const rows = await sql`
+    update quotes set notes = ${notes.trim()}, updated_at = now()
+    where id = ${quoteId} and company_id = ${companyId}
+    returning id
+  `;
+  if (!rows[0]) return { ok: false, message: "Quote not found" };
+  revalidatePath(`/cotacoes/${quoteId}`);
+  return { ok: true, id: quoteId };
+}

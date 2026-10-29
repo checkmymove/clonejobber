@@ -37,6 +37,7 @@ export function InlineEditCard({
   className,
   collapsible = false,
   summary,
+  fitContent = false,
 }: {
   title: string;
   view: ReactNode;
@@ -49,6 +50,8 @@ export function InlineEditCard({
   collapsible?: boolean;
   /** Short hint shown next to the title while collapsed. */
   summary?: ReactNode;
+  /** Always show the whole body: no collapsing to the neighbour's height, no arrow. */
+  fitContent?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [pending, setPending] = useState(false);
@@ -142,7 +145,11 @@ export function InlineEditCard({
           </div>
         </div>
       ) : (
-        <EqualHeightBody label={title.toLowerCase()}>{view}</EqualHeightBody>
+        fitContent ? (
+          <div>{view}</div>
+        ) : (
+          <EqualHeightBody label={title.toLowerCase()}>{view}</EqualHeightBody>
+        )
       )}
     </Card>
   );

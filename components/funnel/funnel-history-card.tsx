@@ -33,7 +33,7 @@ export async function FunnelHistoryCard({
 }) {
   const steps = await getFunnelHistory({ clientId, requestId, quoteId, jobId, invoiceId });
   return (
-    <Card className="h-fit p-5">
+    <Card className="self-stretch p-5">
       <h2 className="mb-3 text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">Summary</h2>
       <ol className="relative space-y-0">
         {steps.map((s, i) => {

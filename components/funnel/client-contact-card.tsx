@@ -50,6 +50,9 @@ export function ClientContactCard({
 
   return (
     <InlineEditCard
+      // Always open, and the Summary next to it stretches to the same height.
+      fitContent
+      className="self-stretch p-5"
       title="Client"
       onCancel={() => {
         setDraft(initial);

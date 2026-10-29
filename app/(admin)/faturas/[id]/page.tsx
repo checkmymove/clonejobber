@@ -178,6 +178,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
         />
 
         {snapshot && request ? <RequestInventoryCard snapshot={snapshot} files={request.files} /> : null}
+        <NotesCard kind="invoice" id={inv.id} notes={inv.notes} />
 
         {inv.message ? (
           <Card className="h-fit p-5 xl:col-span-2">
@@ -188,7 +189,6 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
 
         <SentCard kind="invoice" id={inv.id} />
 
-        <NotesCard kind="invoice" id={inv.id} notes={inv.notes} />
       </div>
     </div>
   );

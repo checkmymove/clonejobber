@@ -97,8 +97,9 @@ export async function submitRequest(formData: FormData): Promise<SubmitResult> {
     companyName: "",
     email: "",
     phone: "",
-    marketingEmail: false,
-    marketingSms: false,
+    // Marketing email and SMS are Yes unless the client says otherwise.
+    marketingEmail: true,
+    marketingSms: true,
     leadSourceId: "",
     moveDate: "",
     moveTime: "",

@@ -148,8 +148,8 @@ export function NewClientForm({
   });
   const [leadSourceId, setLeadSourceId] = useState("");
   const [commsOpen, setCommsOpen] = useState(false);
-  const [marketingEmail, setMarketingEmail] = useState(false);
-  const [marketingSms, setMarketingSms] = useState(false);
+  const [marketingEmail, setMarketingEmail] = useState(true);
+  const [marketingSms, setMarketingSms] = useState(true);
   const [contacts, setContacts] = useState<ContactInput[]>([]);
   const [properties, setProperties] = useState<FullPropertyInput[]>([{ ...emptyProperty }]);
   const [errors, setErrors] = useState<Record<string, string>>({});

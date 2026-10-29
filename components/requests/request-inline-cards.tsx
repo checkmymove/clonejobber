@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { openPicker } from "@/components/date-field";
+import { TimeField, toTime24 } from "@/components/time-field";
+import { formatDateLondon } from "@/lib/format";
 import { HOURS_OPTIONS } from "@/lib/requests/constants";
 import {
   saveRequestContact,
@@ -115,6 +118,9 @@ export function RequestContactCard({
 
   return (
     <InlineEditCard
+      // Always open, and the Summary next to it stretches to the same height.
+      fitContent
+      className="self-stretch p-5"
       title="Contact Information"
       view={<Dl rows={rows} />}
       onCancel={() => setDraft(initial)}
@@ -171,6 +177,7 @@ export function PackingServiceCard({ snapshot, onSaved }: { snapshot: RequestEdi
   useEffect(() => setDraft(snapshot), [snapshot]);
   return (
     <InlineEditCard
+      className="h-fit p-5 xl:col-span-2"
       title="Packing Service"
       onCancel={() => setDraft(snapshot)}
       onSave={() => saveThen(saveRequestInPlace(snapshot.id, toAdminRequestInput(draft)), onSaved)}
@@ -209,6 +216,7 @@ export function RemovalServiceCard({
 
   return (
     <InlineEditCard
+      className="h-fit p-5 xl:col-span-2"
       title="Removal Service"
       accent="#2f7d3b"
       onCancel={() => setDraft(snapshot)}
@@ -361,6 +369,45 @@ export function RequestInventoryCard({
       }
     >
       <textarea className={inlineArea} value={inventory} onChange={(e) => setInventory(e.target.value)} />
+    </InlineEditCard>
+  );
+}
+
+/** Moving date and time the client gave, in a full-width box under Collection and Delivery. */
+export function RequestMovingCard({ snapshot }: { snapshot: RequestEditSnapshot }) {
+  const [moveDate, setMoveDate] = useState(snapshot.moveDate);
+  const [moveTime, setMoveTime] = useState(toTime24(snapshot.moveTime));
+  useEffect(() => {
+    setMoveDate(snapshot.moveDate);
+    setMoveTime(toTime24(snapshot.moveTime));
+  }, [snapshot]);
+
+  return (
+    <InlineEditCard
+      className="h-fit p-5 xl:col-span-2"
+      title="Moving date & time"
+      onCancel={() => {
+        setMoveDate(snapshot.moveDate);
+        setMoveTime(toTime24(snapshot.moveTime));
+      }}
+      onSave={() => saveRequestInPlace(snapshot.id, toAdminRequestInput({ ...snapshot, moveDate, moveTime }))}
+      view={
+        <Dl
+          rows={[
+            ["Moving date", snapshot.moveDate ? formatDateLondon(snapshot.moveDate) : "Not set"],
+            ["Moving time", snapshot.moveTime.trim() || "—"],
+          ]}
+        />
+      }
+    >
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Field label="Moving date">
+          <input type="date" onClick={openPicker} className={inlineField} value={moveDate} onChange={(e) => setMoveDate(e.target.value)} />
+        </Field>
+        <Field label="Moving time">
+          <TimeField ariaLabel="Moving time" className={inlineField} value={moveTime} onChange={setMoveTime} />
+        </Field>
+      </div>
     </InlineEditCard>
   );
 }

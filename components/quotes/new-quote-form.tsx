@@ -473,15 +473,6 @@ export function NewQuoteForm({
         ) : null}
       </section>
 
-      <label className="block">
-        <span className={label}>Internal notes</span>
-        <textarea
-          aria-label="Internal notes"
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          className={`min-h-[72px] w-full resize-y rounded-lg border ${line} px-3 py-2 text-[15px] ${ink} outline-none focus:border-[#388623] focus:ring-2 focus:ring-[#388623]/20`}
-        />
-      </label>
 
       <section className={`overflow-hidden rounded-lg border ${line} bg-white`}>
         <button
@@ -539,6 +530,16 @@ export function NewQuoteForm({
           </div>
         ) : null}
       </section>
+
+      <label className="block">
+        <span className={label}>Internal notes</span>
+        <textarea
+          aria-label="Internal notes"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          className={`min-h-[72px] w-full resize-y rounded-lg border ${line} px-3 py-2 text-[15px] ${ink} outline-none focus:border-[#388623] focus:ring-2 focus:ring-[#388623]/20`}
+        />
+      </label>
 
       <div className="flex justify-end">
         <div className="w-full max-w-[440px]">

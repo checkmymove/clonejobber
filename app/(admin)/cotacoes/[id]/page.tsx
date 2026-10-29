@@ -8,8 +8,8 @@ import { quoteLinesFromPence } from "@/lib/quotes/edit-snapshot";
 import { QuoteRequestSidebar } from "@/components/quotes/quote-request-sidebar";
 import { ConvertToJobButton, QuoteMoreMenu } from "@/components/quotes/quote-more-menu";
 import {
-  QuoteClientCard,
   QuoteInventoryCard,
+  QuoteMovingCard,
   QuoteServicesCard,
   QuoteTermsCard,
   QuoteTotalsCard,
@@ -22,6 +22,8 @@ import {
 import { hasRemovalService } from "@/lib/requests/edit-snapshot";
 import { depositTotalRows, type TotalRow } from "@/components/funnel/document-cards";
 import { FunnelHistoryCard } from "@/components/funnel/funnel-history-card";
+import { ClientContactCard } from "@/components/funnel/client-contact-card";
+import { NotesCard } from "@/components/funnel/notes-card";
 import { getClientContact } from "@/lib/clients/queries";
 import { getCompanyId } from "@/lib/company";
 import { getActiveServices } from "@/lib/requests/company";
@@ -127,8 +129,7 @@ export default async function CotacaoDetailPage({
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
       <div className="grid grid-cols-1 min-w-0 flex-1 items-start gap-4 xl:grid-cols-2">
-        <QuoteClientCard
-          snapshot={snapshot}
+        <ClientContactCard
           client={client}
           address={linkedRequest ? [linkedRequest.pickupAddress, linkedRequest.pickupPostcode].filter(Boolean).join(", ") : ""}
         />
@@ -137,6 +138,11 @@ export default async function CotacaoDetailPage({
           <>
             <RequestLocationCard title="Collection Information" snapshot={linkedRequest} kind="pickup" />
             <RequestLocationCard title="Delivery Information" snapshot={linkedRequest} kind="delivery" />
+          </>
+        ) : null}
+        <QuoteMovingCard snapshot={snapshot} />
+        {linkedRequest ? (
+          <>
             <PackingServiceCard snapshot={linkedRequest} />
             {hasRemovalService(linkedRequest) ? (
               <RemovalServiceCard snapshot={linkedRequest} services={services} />
@@ -145,6 +151,7 @@ export default async function CotacaoDetailPage({
         ) : null}
         <QuoteServicesCard snapshot={snapshot} />
         <QuoteInventoryCard snapshot={snapshot} request={linkedRequest} />
+        <NotesCard kind="quote" id={id} notes={q.notes} />
         <QuoteTermsCard snapshot={snapshot} />
         <SentCard kind="quote" id={id} />
         <QuoteTotalsCard snapshot={snapshot} totals={totals} />

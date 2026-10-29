@@ -11,9 +11,7 @@ import {
   toAdminRequestInput,
   type RequestEditSnapshot,
 } from "@/lib/requests/edit-snapshot";
-import { ClientContactCard } from "@/components/funnel/client-contact-card";
 import { TotalsList, type TotalRow } from "@/components/funnel/document-cards";
-import type { ClientContact } from "@/lib/clients/queries";
 import {
   Dl,
   Field,
@@ -76,16 +74,8 @@ function toQuoteInput(
   };
 }
 
-/** Client box of a quote: the client record plus the quote's moving date and time. */
-export function QuoteClientCard({
-  snapshot,
-  client,
-  address,
-}: {
-  snapshot: QuoteEditSnapshot;
-  client: ClientContact;
-  address: string;
-}) {
+/** Moving date and time of the quote, in its own full-width box under Collection and Delivery. */
+export function QuoteMovingCard({ snapshot }: { snapshot: QuoteEditSnapshot }) {
   const [validUntil, setValidUntil] = useState(snapshot.validUntil);
   const [moveTime, setMoveTime] = useState(toTime24(snapshot.moveTime));
   useEffect(() => {
@@ -94,29 +84,32 @@ export function QuoteClientCard({
   }, [snapshot]);
 
   return (
-    <ClientContactCard
-      client={client}
-      address={address}
-      extraRows={[
-        ["Moving date", snapshot.validUntil ? formatDateLondon(snapshot.validUntil) : "—"],
-        ["Moving time", snapshot.moveTime.trim() || "—"],
-      ]}
-      onCancelExtra={() => {
+    <InlineEditCard
+      className="h-fit p-5 xl:col-span-2"
+      title="Moving date & time"
+      onCancel={() => {
         setValidUntil(snapshot.validUntil);
         setMoveTime(toTime24(snapshot.moveTime));
       }}
-      onSaveExtra={() => saveQuoteInPlace(snapshot.id, toQuoteInput(snapshot, { validUntil, moveTime }))}
-      extraFields={
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Field label="Moving date">
-            <input type="date" onClick={openPicker} className={inlineField} value={validUntil} onChange={(e) => setValidUntil(e.target.value)} />
-          </Field>
-          <Field label="Moving time">
-            <TimeField ariaLabel="Moving time" className={inlineField} value={moveTime} onChange={setMoveTime} />
-          </Field>
-        </div>
+      onSave={() => saveQuoteInPlace(snapshot.id, toQuoteInput(snapshot, { validUntil, moveTime }))}
+      view={
+        <Dl
+          rows={[
+            ["Moving date", snapshot.validUntil ? formatDateLondon(snapshot.validUntil) : "—"],
+            ["Moving time", snapshot.moveTime.trim() || "—"],
+          ]}
+        />
       }
-    />
+    >
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Field label="Moving date">
+          <input type="date" onClick={openPicker} className={inlineField} value={validUntil} onChange={(e) => setValidUntil(e.target.value)} />
+        </Field>
+        <Field label="Moving time">
+          <TimeField ariaLabel="Moving time" className={inlineField} value={moveTime} onChange={setMoveTime} />
+        </Field>
+      </div>
+    </InlineEditCard>
   );
 }
 

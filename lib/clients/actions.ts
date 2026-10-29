@@ -49,11 +49,12 @@ export async function createClient(
   try {
     const rows = await sql<{ id: string }[]>`
       insert into clients
-        (company_id, first_name, last_name, company_name, email, phone)
+        (company_id, first_name, last_name, company_name, email, phone,
+         marketing_email_consent, marketing_sms_consent)
       values
         (${cid}, ${input.firstName.trim()}, ${input.lastName.trim()},
          ${input.companyName.trim() || null}, ${input.email.trim()},
-         ${input.phone.trim()})
+         ${input.phone.trim()}, true, true)
       returning id
     `;
     await sql`

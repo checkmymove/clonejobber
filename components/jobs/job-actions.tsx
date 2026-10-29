@@ -108,8 +108,12 @@ export function JobHeaderActions({
             kind: "link",
             label: "Collect Deposit",
             icon: <Banknote size={18} />,
-            hidden: !quoteId,
-            href: `/pagamentos/novo?clientId=${clientId}&quoteId=${quoteId ?? ""}&kind=deposit&returnTo=${encodeURIComponent(`/servicos/${jobId}`)}`,
+            href: `/pagamentos/novo?${new URLSearchParams({
+              clientId,
+              ...(quoteId ? { quoteId } : {}),
+              kind: "deposit",
+              returnTo: `/servicos/${jobId}`,
+            })}`,
           },
           { kind: "separator" },
           {

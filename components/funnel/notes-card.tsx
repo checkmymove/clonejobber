@@ -4,14 +4,15 @@ import { useEffect, useState } from "react";
 import { InlineEditCard, inlineArea } from "@/components/inline-edit-card";
 import { saveInvoiceNotes } from "@/lib/invoices/actions";
 import { saveJobNotes } from "@/lib/jobs/actions";
+import { saveQuoteNotes } from "@/lib/quotes/actions";
 
-/** Internal notes (never shown to the client) on a job or an invoice. */
+/** Internal notes (never shown to the client) on a quote, job or invoice. Always right after the Inventory list. */
 export function NotesCard({
   kind,
   id,
   notes,
 }: {
-  kind: "job" | "invoice";
+  kind: "quote" | "job" | "invoice";
   id: string;
   notes: string;
 }) {
@@ -19,10 +20,12 @@ export function NotesCard({
   useEffect(() => setDraft(notes), [notes]);
   return (
     <InlineEditCard
-      title="Notes"
+      title="Internal notes"
       className="h-fit p-5 xl:col-span-2"
       onCancel={() => setDraft(notes)}
-      onSave={() => (kind === "job" ? saveJobNotes(id, draft) : saveInvoiceNotes(id, draft))}
+      onSave={() =>
+        kind === "quote" ? saveQuoteNotes(id, draft) : kind === "job" ? saveJobNotes(id, draft) : saveInvoiceNotes(id, draft)
+      }
       view={
         notes ? (
           <p className="whitespace-pre-wrap text-sm text-ink">{notes}</p>

@@ -104,8 +104,9 @@ export function RequestWizard({
     companyName: "",
     email: "",
     phone: "",
-    marketingEmail: false,
-    marketingSms: false,
+    // Marketing email and SMS are Yes unless the client says otherwise.
+    marketingEmail: true,
+    marketingSms: true,
     leadSourceId: "",
     moveDate: "",
     moveTime: "",
@@ -514,6 +515,26 @@ export function RequestWizard({
                 />
               </div>
             </StepBlock>
+            <StepBlock title="Packing Service">
+              <Field label="Do you need packing services?" required group>
+                <YesNo
+                  value={packing.needsService}
+                  onChange={(v) =>
+                    setPacking((p) => ({ ...p, needsService: v }))
+                  }
+                  error={errors.needsService}
+                />
+              </Field>
+              <Field label="Do you need packing materials?" required group>
+                <YesNo
+                  value={packing.needsMaterials}
+                  onChange={(v) =>
+                    setPacking((p) => ({ ...p, needsMaterials: v }))
+                  }
+                  error={errors.needsMaterials}
+                />
+              </Field>
+            </StepBlock>
             <StepBlock title="Inventory">
               <Field
                 label="Inventory List"
@@ -582,26 +603,6 @@ export function RequestWizard({
                 ) : null}
               </div>
             </StepBlock>
-            <StepBlock title="Packing Service">
-              <Field label="Do you need packing services?" required group>
-                <YesNo
-                  value={packing.needsService}
-                  onChange={(v) =>
-                    setPacking((p) => ({ ...p, needsService: v }))
-                  }
-                  error={errors.needsService}
-                />
-              </Field>
-              <Field label="Do you need packing materials?" required group>
-                <YesNo
-                  value={packing.needsMaterials}
-                  onChange={(v) =>
-                    setPacking((p) => ({ ...p, needsMaterials: v }))
-                  }
-                  error={errors.needsMaterials}
-                />
-              </Field>
-            </StepBlock>
           </>
         ) : null}
 
@@ -652,6 +653,16 @@ export function RequestWizard({
               </div>
               <ReviewRow label="Hours" value={hours.join(", ")} />
             </ReviewSection>
+            <ReviewSection title="Packing Service">
+              <ReviewRow
+                label="Packing services"
+                value={packing.needsService ? "Yes" : "No"}
+              />
+              <ReviewRow
+                label="Packing materials"
+                value={packing.needsMaterials ? "Yes" : "No"}
+              />
+            </ReviewSection>
             <ReviewSection title="Inventory List">
               <p className="whitespace-pre-wrap text-ink">{inventory}</p>
               {images.length > 0 ? (
@@ -669,16 +680,6 @@ export function RequestWizard({
               ) : (
                 <p className="mt-1 text-ink-mute">No images attached.</p>
               )}
-            </ReviewSection>
-            <ReviewSection title="Packing Service">
-              <ReviewRow
-                label="Packing services"
-                value={packing.needsService ? "Yes" : "No"}
-              />
-              <ReviewRow
-                label="Packing materials"
-                value={packing.needsMaterials ? "Yes" : "No"}
-              />
             </ReviewSection>
             {errors.services || errors.inventory ? (
               <p className="text-xs font-semibold text-rose-700">

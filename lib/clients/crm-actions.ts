@@ -694,11 +694,11 @@ export async function createClientQuick(
       const [client] = await tx<{ id: string }[]>`
         insert into clients
           (company_id, title, first_name, last_name, company_name, client_type,
-           status, email, phone, lead_source_id)
+           status, email, phone, lead_source_id, marketing_email_consent, marketing_sms_consent)
         values
           (${companyId}, ${input.title || "No title"}, ${input.firstName.trim()},
            ${input.lastName.trim()}, ${input.companyName.trim() || null}, 'individual',
-           'lead', ${email}, ${input.phone.trim()}, ${input.leadSourceId || null})
+           'lead', ${email}, ${input.phone.trim()}, ${input.leadSourceId || null}, true, true)
         returning id
       `;
       if (hasAddress) {
