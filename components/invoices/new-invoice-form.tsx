@@ -14,7 +14,6 @@ import {
   Eye,
   FileText,
   Mail,
-  Pencil,
   Plus,
   Trash2,
 } from "lucide-react";
@@ -436,20 +435,6 @@ export function NewInvoiceForm({
             <div className="flex justify-between rounded-lg bg-[#f6f7f8] px-3 py-2 text-[#5d6f78]">
               <span>Invoice balance</span>
               <span>{formatPounds(Math.max(0, total - (balancePaid ?? 0) / 100))}</span>
-            </div>
-            <div className={`rounded-lg border ${line} px-3 py-3`}>
-              <div className="flex items-center justify-between">
-                <p className={`text-sm font-bold ${ink}`}>Client hub payments</p>
-                <button type="button" aria-label="Edit payments" className="text-[#5d6f78]">
-                  <Pencil size={15} />
-                </button>
-              </div>
-              <div className="mt-2 flex items-center justify-between text-sm text-[#5d6f78]">
-                <span>Invoice payments</span>
-                <span className="rounded-full bg-[#eef1f2] px-2 py-0.5 text-[11px] font-bold tracking-wide text-[#5d6f78]">
-                  OFF
-                </span>
-              </div>
             </div>
           </div>
         </div>

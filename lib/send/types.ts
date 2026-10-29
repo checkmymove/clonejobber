@@ -51,3 +51,22 @@ export function smsSegments(text: string): { length: number; segments: number } 
   const length = [...text].length;
   return { length, segments: length <= single ? 1 : Math.ceil(length / multi) };
 }
+
+/** Jobber's send dialog: "You've attached 0.00 MB of the 10.00 MB limit." */
+export const ATTACHMENT_LIMIT_BYTES = 10 * 1024 * 1024;
+/** One upload per request stays under the 4.5 MB function body limit. */
+export const ATTACHMENT_FILE_MAX_BYTES = 4 * 1024 * 1024;
+export const ATTACHMENT_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "text/plain",
+];
+
+export type SendAttachment = { id: string; name: string; size: number; type: string };

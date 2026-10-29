@@ -9,7 +9,7 @@ import { buildInvoicePdf, buildJobPdf, buildQuotePdf } from "@/lib/pdf/builders"
 import { LOGO_PNG_BASE64 } from "@/lib/pdf/logo";
 import { isValidMobile, normalizePhone } from "@/lib/sms/phone";
 import { sendCompany } from "./drafts";
-import type { ChannelResult, SendDraft, SendKind } from "./types";
+import { ATTACHMENT_LIMIT_BYTES, type ChannelResult, type SendDraft, type SendKind } from "./types";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -65,7 +65,15 @@ async function pdfFor(kind: SendKind, id: string) {
 
 export async function deliverEmail(
   draft: SendDraft,
-  input: { to: string; subject: string; message: string; copyToSender: boolean; attachPdf: boolean },
+  input: {
+    to: string;
+    subject: string;
+    message: string;
+    copyToSender: boolean;
+    attachPdf: boolean;
+    /** Photos and documents uploaded in the send dialog for this document. */
+    attachmentIds?: string[];
+  },
 ): Promise<ChannelResult> {
   const doc = await owner(draft.kind, draft.id);
   if (!doc) return { ok: false, message: "Document not found." };
@@ -89,6 +97,17 @@ export async function deliverEmail(
     message,
   });
   const pdf = input.attachPdf ? await pdfFor(draft.kind, draft.id) : null;
+  const ids = (input.attachmentIds ?? []).filter((x) => /^[0-9a-f-]{36}$/i.test(x));
+  const extra = ids.length
+    ? await sql<{ file_name: string; mime_type: string; data: Buffer; file_size: number }[]>`
+        select file_name, mime_type, data, file_size from send_attachments
+        where id = any(${ids}::uuid[]) and company_id = ${doc.companyId}
+          and kind = ${draft.kind} and document_id = ${draft.id}
+      `
+    : [];
+  if (extra.reduce((s, f) => s + f.file_size, 0) > ATTACHMENT_LIMIT_BYTES) {
+    return { ok: false, message: "Attachments are over the 10 MB limit." };
+  }
 
   let gmailId: string;
   try {
@@ -100,7 +119,10 @@ export async function deliverEmail(
         bcc: input.copyToSender ? token.email : undefined,
         subject,
         html,
-        attachments: pdf ? [{ fileName: pdf.fileName, mimeType: "application/pdf", data: pdf.bytes }] : [],
+        attachments: [
+          ...(pdf ? [{ fileName: pdf.fileName, mimeType: "application/pdf", data: pdf.bytes }] : []),
+          ...extra.map((f) => ({ fileName: f.file_name, mimeType: f.mime_type, data: f.data })),
+        ],
         inlineImages: builtInLogo
           ? [
               {

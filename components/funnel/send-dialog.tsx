@@ -1,10 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Check, FileText, Mail, MessageSquare, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Check, FileText, Mail, MessageSquare, Paperclip, X } from "lucide-react";
 import { documentEmailHtml } from "@/lib/email/templates";
-import { prepareSend, sendDocument } from "@/lib/send/actions";
-import { SEND_KIND_LABEL, smsSegments, type SendDraft, type SendKind, type SendOutcome } from "@/lib/send/types";
+import { prepareSend, removeSendAttachment, sendDocument, uploadSendAttachment } from "@/lib/send/actions";
+import {
+  ATTACHMENT_FILE_MAX_BYTES,
+  ATTACHMENT_LIMIT_BYTES,
+  SEND_KIND_LABEL,
+  smsSegments,
+  type SendAttachment,
+  type SendDraft,
+  type SendKind,
+  type SendOutcome,
+} from "@/lib/send/types";
+
+const mb = (bytes: number) => (bytes / (1024 * 1024)).toFixed(2);
 
 const green = "#388623";
 const field =
@@ -55,6 +66,42 @@ export function SendDialog({
   const [text, setText] = useState(draft.sms.message);
   const [pending, setPending] = useState(false);
   const [outcome, setOutcome] = useState<SendOutcome | null>(null);
+  const [files, setFiles] = useState<SendAttachment[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const attachedBytes = files.reduce((sum, f) => sum + f.size, 0);
+
+  async function addFiles(list: FileList | File[]) {
+    setFileError(null);
+    setUploading(true);
+    let total = attachedBytes;
+    for (const file of Array.from(list)) {
+      if (file.size > ATTACHMENT_FILE_MAX_BYTES) {
+        setFileError(`${file.name} is larger than 4 MB.`);
+        continue;
+      }
+      if (total + file.size > ATTACHMENT_LIMIT_BYTES) {
+        setFileError("Attachments can't be over the 10 MB limit.");
+        break;
+      }
+      const fd = new FormData();
+      fd.set("kind", draft.kind);
+      fd.set("id", draft.id);
+      fd.set("file", file);
+      const result = await uploadSendAttachment(fd);
+      if (result.ok && result.attachment) {
+        total += result.attachment.size;
+        const added = result.attachment;
+        setFiles((rows) => [...rows, added]);
+      } else {
+        setFileError(result.message ?? `Could not attach ${file.name}.`);
+      }
+    }
+    setUploading(false);
+    if (fileInput.current) fileInput.current.value = "";
+  }
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -86,7 +133,9 @@ export function SendDialog({
     const result = await sendDocument({
       kind: draft.kind,
       id: draft.id,
-      email: useEmail ? { to, subject, message, copyToSender: copy, attachPdf } : null,
+      email: useEmail
+        ? { to, subject, message, copyToSender: copy, attachPdf, attachmentIds: files.map((f) => f.id) }
+        : null,
       sms: useSms ? { to: phone, message: text } : null,
     });
     setPending(false);
@@ -191,6 +240,69 @@ export function SendDialog({
                   </span>
                 </label>
               ) : null}
+              <div>
+                <p className="mb-2 text-[17px] font-bold text-[#042b3c]">Attachments</p>
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragging(true);
+                  }}
+                  onDragLeave={() => setDragging(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragging(false);
+                    if (e.dataTransfer.files.length) void addFiles(e.dataTransfer.files);
+                  }}
+                  className={`rounded-lg border-2 border-dashed px-4 py-5 text-center ${
+                    dragging ? "border-[#388623] bg-[#f2f8f0]" : "border-[#d5dde1]"
+                  }`}
+                >
+                  <button
+                    type="button"
+                    disabled={uploading}
+                    onClick={() => fileInput.current?.click()}
+                    className="h-9 rounded-lg border border-[#d5dde1] bg-white px-4 text-sm font-semibold disabled:opacity-60"
+                    style={{ color: green }}
+                  >
+                    {uploading ? "Uploading…" : "Select"}
+                  </button>
+                  <p className="mt-2 text-[13px] text-[#5d6f78]">Select or drag files here to upload</p>
+                  <input
+                    ref={fileInput}
+                    type="file"
+                    multiple
+                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                    className="hidden"
+                    onChange={(e) => e.target.files && void addFiles(e.target.files)}
+                  />
+                </div>
+                {files.length > 0 ? (
+                  <ul className="mt-2 space-y-1.5">
+                    {files.map((f) => (
+                      <li key={f.id} className="flex items-center gap-2 rounded-lg border border-[#d5dde1] px-3 py-2 text-sm">
+                        <Paperclip size={14} className="shrink-0 text-[#5d6f78]" />
+                        <span className="min-w-0 flex-1 truncate text-[#042b3c]">{f.name}</span>
+                        <span className="shrink-0 text-[12px] text-[#8aa0a8]">{mb(f.size)} MB</span>
+                        <button
+                          type="button"
+                          aria-label={`Remove ${f.name}`}
+                          onClick={() => {
+                            setFiles((rows) => rows.filter((r) => r.id !== f.id));
+                            void removeSendAttachment(f.id);
+                          }}
+                          className="grid h-6 w-6 place-items-center rounded text-[#5d6f78] hover:bg-[#f4f6f7]"
+                        >
+                          <X size={14} />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+                <p className="mt-2 text-[13px] text-[#5d6f78]">
+                  You&apos;ve attached {mb(attachedBytes)} MB of the {mb(ATTACHMENT_LIMIT_BYTES)} MB limit.
+                </p>
+                {fileError ? <p className="mt-1 text-[13px] font-semibold text-rose-700">{fileError}</p> : null}
+              </div>
               <label className="flex items-center gap-2 text-sm text-[#042b3c]">
                 <input type="checkbox" checked={copy} onChange={(e) => setCopy(e.target.checked)} className="size-4 accent-[#388623]" />
                 Send me a copy
@@ -204,12 +316,20 @@ export function SendDialog({
                 sandbox=""
                 className="h-[460px] w-full rounded-lg border border-[#d5dde1] bg-white"
               />
-              {draft.attachment && attachPdf ? (
-                <p className="mt-2 inline-flex items-center gap-2 rounded-md bg-white px-2.5 py-1.5 text-[13px] font-semibold text-[#042b3c]">
-                  <FileText size={14} className="text-rose-700" />
-                  {draft.attachment}
-                </p>
-              ) : null}
+              <div className="mt-2 flex flex-wrap gap-2">
+                {draft.attachment && attachPdf ? (
+                  <p className="inline-flex items-center gap-2 rounded-md bg-white px-2.5 py-1.5 text-[13px] font-semibold text-[#042b3c]">
+                    <FileText size={14} className="text-rose-700" />
+                    {draft.attachment}
+                  </p>
+                ) : null}
+                {files.map((f) => (
+                  <p key={f.id} className="inline-flex max-w-full items-center gap-2 rounded-md bg-white px-2.5 py-1.5 text-[13px] font-semibold text-[#042b3c]">
+                    <Paperclip size={14} className="shrink-0 text-[#5d6f78]" />
+                    <span className="truncate">{f.name}</span>
+                  </p>
+                ))}
+              </div>
             </div>
           </div>
         ) : (
@@ -296,7 +416,7 @@ export function SendDialog({
               </button>
               <button
                 type="button"
-                disabled={pending || (!useEmail && !useSms)}
+                disabled={pending || uploading || (!useEmail && !useSms)}
                 onClick={() => void send()}
                 className="h-10 rounded-lg px-4 text-sm font-semibold text-white disabled:opacity-60"
                 style={{ background: green }}

@@ -11,15 +11,22 @@ import { SentCard } from "@/components/funnel/sent-card";
 import { getRequestDetail } from "@/lib/requests/queries";
 import { requestSnapshotFromDetail } from "@/lib/requests/edit-snapshot";
 import {
+  PackingServiceCard,
+  RemovalServiceCard,
   RequestInventoryCard,
   RequestLocationCard,
 } from "@/components/requests/request-inline-cards";
+import { hasRemovalService } from "@/lib/requests/edit-snapshot";
+import { ClientContactCard } from "@/components/funnel/client-contact-card";
+import { FunnelHistoryCard } from "@/components/funnel/funnel-history-card";
+import { getClientContact } from "@/lib/clients/queries";
+import { getCompanyId } from "@/lib/company";
+import { getActiveServices } from "@/lib/requests/company";
 import { InvoiceHeaderActions } from "@/components/invoices/invoice-actions";
 import { NotesCard } from "@/components/funnel/notes-card";
 import { StatusPill } from "@/components/funnel/list-kit";
 import {
   CardTitle,
-  ClientBox,
   DetailRows,
   LineItemsCard,
   dateOrDash,
@@ -34,11 +41,15 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
   const inv = await getInvoiceDetail(id);
   if (!inv) notFound();
 
-  const [payments, financials, request] = await Promise.all([
+  const [payments, financials, request, client, companyId] = await Promise.all([
     listInvoicePayments(id),
     getClientFinancials(inv.client_id),
     inv.linked_request_id ? getRequestDetail(inv.linked_request_id) : null,
+    getClientContact(inv.client_id),
+    getCompanyId(),
   ]);
+  if (!client) notFound();
+  const services = companyId ? await getActiveServices(companyId) : [];
   const snapshot = request ? requestSnapshotFromDetail(request) : null;
   const meta = INVOICE_STATUS_META[inv.list_status];
 
@@ -100,14 +111,24 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
       </div>
 
       <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
-        <ClientBox
+        <ClientContactCard client={client} address={inv.client_address} addressLabel="Billing address" />
+        <FunnelHistoryCard
           clientId={inv.client_id}
-          name={inv.client_name}
-          address={inv.client_address}
-          addressLabel="Billing address"
-          phone={inv.client_phone}
-          email={inv.client_email}
+          jobId={inv.job_id}
+          quoteId={inv.quote_id}
+          invoiceId={inv.id}
+          currentId={inv.id}
         />
+
+        {snapshot && request ? (
+          <>
+            <RequestLocationCard title="Collection Information" snapshot={snapshot} kind="pickup" />
+            <RequestLocationCard title="Delivery Information" snapshot={snapshot} kind="delivery" />
+            <PackingServiceCard snapshot={snapshot} />
+            {hasRemovalService(snapshot) ? <RemovalServiceCard snapshot={snapshot} services={services} /> : null}
+          </>
+        ) : null}
+
         <DetailRows
           title="Invoice details"
           rows={[
@@ -140,14 +161,6 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
           ]}
         />
 
-        {snapshot && request ? (
-          <>
-            <RequestLocationCard title="Collection Information" snapshot={snapshot} kind="pickup" />
-            <RequestLocationCard title="Delivery Information" snapshot={snapshot} kind="delivery" />
-            <RequestInventoryCard snapshot={snapshot} files={request.files} />
-          </>
-        ) : null}
-
         <LineItemsCard
           lines={inv.lines}
           totals={totals}
@@ -163,6 +176,8 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
             ) : null
           }
         />
+
+        {snapshot && request ? <RequestInventoryCard snapshot={snapshot} files={request.files} /> : null}
 
         {inv.message ? (
           <Card className="h-fit p-5 xl:col-span-2">
