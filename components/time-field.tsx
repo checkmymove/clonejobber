@@ -32,12 +32,14 @@ export function TimeField({
   disabled,
   className,
   ariaLabel,
+  placeholder = "HH:MM",
 }: {
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
   className: string;
   ariaLabel: string;
+  placeholder?: string;
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -84,7 +86,7 @@ export function TimeField({
       <input
         aria-label={ariaLabel}
         inputMode="numeric"
-        placeholder="HH:MM"
+        placeholder={placeholder}
         maxLength={5}
         value={value}
         disabled={disabled}

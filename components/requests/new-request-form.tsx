@@ -494,7 +494,13 @@ export function NewRequestForm({
               </p>
             ) : null}
           </div>
-          <TimeField ariaLabel="Moving time" value={moveTime} onChange={setMoveTime} className={field} />
+          <TimeField
+            ariaLabel="Moving time"
+            placeholder="Moving time (HH:MM)"
+            value={moveTime}
+            onChange={setMoveTime}
+            className={field}
+          />
         </div>
       </section>
 

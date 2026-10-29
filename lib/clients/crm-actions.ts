@@ -688,35 +688,44 @@ export async function createClientQuick(
     };
   }
 
-  const created = await sql.begin(async (tx) => {
-    const [client] = await tx<{ id: string }[]>`
-      insert into clients
-        (company_id, title, first_name, last_name, company_name, client_type,
-         status, email, phone, lead_source_id)
-      values
-        (${companyId}, ${input.title || "No title"}, ${input.firstName.trim()},
-         ${input.lastName.trim()}, ${input.companyName.trim() || null}, 'individual',
-         'lead', ${email}, ${input.phone.trim()}, ${input.leadSourceId || null})
-      returning id
-    `;
-    if (hasAddress) {
-      await tx`
-        insert into client_addresses
-          (client_id, label, address_line, street_2, city, county, postcode,
-           country, is_primary, is_billing)
-        values (${client.id}, 'Other', ${input.street1.trim() || "—"},
-                ${input.street2.trim()}, ${input.city.trim()}, ${input.county.trim()},
-                ${input.postcode.trim() || "—"}, ${input.country.trim() || "United Kingdom"},
-                true, true)
+  let created: string;
+  try {
+    created = await sql.begin(async (tx) => {
+      const [client] = await tx<{ id: string }[]>`
+        insert into clients
+          (company_id, title, first_name, last_name, company_name, client_type,
+           status, email, phone, lead_source_id)
+        values
+          (${companyId}, ${input.title || "No title"}, ${input.firstName.trim()},
+           ${input.lastName.trim()}, ${input.companyName.trim() || null}, 'individual',
+           'lead', ${email}, ${input.phone.trim()}, ${input.leadSourceId || null})
+        returning id
       `;
+      if (hasAddress) {
+        await tx`
+          insert into client_addresses
+            (client_id, label, address_line, street_2, city, county, postcode,
+             country, is_primary, is_billing)
+          values (${client.id}, 'Other', ${input.street1.trim() || "—"},
+                  ${input.street2.trim()}, ${input.city.trim()}, ${input.county.trim()},
+                  ${input.postcode.trim() || "—"}, ${input.country.trim() || "United Kingdom"},
+                  true, true)
+        `;
+      }
+      await tx`
+        insert into activity_log (company_id, actor, action, entity, entity_id, summary)
+        values (${companyId}, 'admin', 'client.created', 'client', ${client.id},
+                ${`Client ${input.firstName.trim()} ${input.lastName.trim()} created from request`})
+      `;
+      return client.id;
+    });
+  } catch (e: unknown) {
+    // Databases without migration 0020 still keep one client per email.
+    if (typeof e === "object" && e !== null && "code" in e && e.code === "23505") {
+      return { ok: false, errors: { email: "A client with this email already exists. Update that client instead." } };
     }
-    await tx`
-      insert into activity_log (company_id, actor, action, entity, entity_id, summary)
-      values (${companyId}, 'admin', 'client.created', 'client', ${client.id},
-              ${`Client ${input.firstName.trim()} ${input.lastName.trim()} created from request`})
-    `;
-    return client.id;
-  });
+    throw e;
+  }
 
   revalidatePath("/clientes");
   revalidatePath("/solicitacoes/novo");

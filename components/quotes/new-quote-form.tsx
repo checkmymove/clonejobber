@@ -296,7 +296,13 @@ export function NewQuoteForm({
         </label>
         <label className="block">
           <span className={label}>Moving time</span>
-          <TimeField ariaLabel="Moving time" value={moveTime} onChange={setMoveTime} className={field} />
+          <TimeField
+            ariaLabel="Moving time"
+            placeholder="Moving time"
+            value={moveTime}
+            onChange={setMoveTime}
+            className={field}
+          />
         </label>
       </div>
 
