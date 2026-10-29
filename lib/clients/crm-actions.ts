@@ -555,24 +555,33 @@ export interface QuickClientInput {
   country: string;
 }
 
+export interface QuickClient {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  status: string;
+  address_line: string | null;
+  city: string | null;
+  postcode: string | null;
+  country: string | null;
+}
+
+/**
+ * `onExisting` decides what an email that already belongs to a client does:
+ * "ask" returns that client so the admin can choose, "update" refreshes it with
+ * these details, "create" adds a separate client with the same email.
+ */
 export async function createClientQuick(
   input: QuickClientInput,
+  onExisting: "ask" | "update" | "create" = "ask",
 ): Promise<{
   ok: boolean;
   errors?: Record<string, string>;
   message?: string;
-  client?: {
-    id: string;
-    first_name: string;
-    last_name: string;
-    email: string;
-    phone: string;
-    status: string;
-    address_line: string | null;
-    city: string | null;
-    postcode: string | null;
-    country: string | null;
-  };
+  client?: QuickClient;
+  existing?: QuickClient;
 }> {
   await requireAdmin();
   const { getCompanyId } = await import("@/lib/company");
@@ -597,11 +606,86 @@ export async function createClientQuick(
     return { ok: false, errors, message: "Please review the highlighted fields." };
 
   const email = input.email.trim();
-  const dup = await sql<{ id: string }[]>`
-    select id from clients where company_id = ${companyId} and email = ${email} limit 1
+  const dup = await sql<QuickClient[]>`
+    select c.id, c.first_name, c.last_name, c.email::text as email, c.phone, c.status,
+           a.address_line, a.city, a.postcode, a.country
+    from clients c
+    left join lateral (
+      select address_line, city, postcode, country from client_addresses
+      where client_id = c.id order by is_primary desc, created_at asc limit 1
+    ) a on true
+    where c.company_id = ${companyId} and c.email = ${email}
+    order by c.updated_at desc
+    limit 1
   `;
-  if (dup[0]) {
-    return { ok: false, errors: { email: "A client with this email already exists" } };
+  const hasAddress = Boolean(input.street1.trim() || input.postcode.trim() || input.city.trim());
+  if (dup[0] && onExisting === "ask") {
+    return { ok: false, existing: dup[0] };
+  }
+  if (dup[0] && onExisting === "update") {
+    const existing = dup[0];
+    await sql.begin(async (tx) => {
+      await tx`
+        update clients set
+          title = ${input.title || "No title"},
+          first_name = ${input.firstName.trim()},
+          last_name = ${input.lastName.trim()},
+          company_name = coalesce(${input.companyName.trim() || null}, company_name),
+          phone = ${input.phone.trim()},
+          lead_source_id = coalesce(lead_source_id, ${input.leadSourceId || null}),
+          updated_at = now()
+        where id = ${existing.id}
+      `;
+      if (hasAddress) {
+        // The new address becomes the primary property unless it is already on file.
+        const same = await tx<{ id: string }[]>`
+          select id from client_addresses
+          where client_id = ${existing.id}
+            and lower(btrim(address_line)) = lower(${input.street1.trim() || "—"})
+            and lower(replace(postcode, ' ', '')) = lower(replace(${input.postcode.trim() || "—"}, ' ', ''))
+          limit 1
+        `;
+        await tx`update client_addresses set is_primary = false where client_id = ${existing.id}`;
+        if (same[0]) {
+          await tx`update client_addresses set is_primary = true where id = ${same[0].id}`;
+        } else {
+          await tx`
+            insert into client_addresses
+              (client_id, label, address_line, street_2, city, county, postcode,
+               country, is_primary, is_billing)
+            values (${existing.id}, 'Other', ${input.street1.trim() || "—"},
+                    ${input.street2.trim()}, ${input.city.trim()}, ${input.county.trim()},
+                    ${input.postcode.trim() || "—"}, ${input.country.trim() || "United Kingdom"},
+                    true, false)
+          `;
+        }
+      }
+      await tx`
+        insert into activity_log (company_id, actor, action, entity, entity_id, summary)
+        values (${companyId}, 'admin', 'client.updated', 'client', ${existing.id},
+                'Existing client updated with the details of a new request')
+      `;
+    });
+    revalidatePath("/clientes");
+    revalidatePath(`/clientes/${existing.id}`);
+    revalidatePath("/solicitacoes");
+    return {
+      ok: true,
+      client: {
+        ...existing,
+        first_name: input.firstName.trim(),
+        last_name: input.lastName.trim(),
+        phone: input.phone.trim(),
+        ...(hasAddress
+          ? {
+              address_line: input.street1.trim() || null,
+              city: input.city.trim() || null,
+              postcode: input.postcode.trim() || null,
+              country: input.country.trim() || null,
+            }
+          : {}),
+      },
+    };
   }
 
   const created = await sql.begin(async (tx) => {
@@ -615,7 +699,7 @@ export async function createClientQuick(
          'lead', ${email}, ${input.phone.trim()}, ${input.leadSourceId || null})
       returning id
     `;
-    if (input.street1.trim() || input.postcode.trim() || input.city.trim()) {
+    if (hasAddress) {
       await tx`
         insert into client_addresses
           (client_id, label, address_line, street_2, city, county, postcode,

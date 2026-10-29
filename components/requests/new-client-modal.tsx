@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ChevronDown, X } from "lucide-react";
-import { createClientQuick } from "@/lib/clients/crm-actions";
+import { createClientQuick, type QuickClient } from "@/lib/clients/crm-actions";
 
 const TITLES = ["No title", "Mr", "Mrs", "Ms", "Miss", "Dr"];
 
@@ -71,13 +71,15 @@ export function NewClientModal({
   const [country, setCountry] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [existing, setExisting] = useState<QuickClient | null>(null);
 
   if (!open) return null;
 
-  const save = async () => {
+  const save = async (onExisting: "ask" | "update" | "create" = "ask") => {
     setSaving(true);
     setErrors({});
-    const res = await createClientQuick({
+    const res = await createClientQuick(
+      {
       title,
       firstName,
       lastName,
@@ -91,8 +93,15 @@ export function NewClientModal({
       county,
       postcode,
       country,
-    });
+      },
+      onExisting,
+    );
     setSaving(false);
+    if (res.existing) {
+      setExisting(res.existing);
+      return;
+    }
+    setExisting(null);
     if (!res.ok) {
       setErrors(res.errors ?? {});
       return;
@@ -299,7 +308,7 @@ export function NewClientModal({
           </button>
           <button
             type="button"
-            onClick={save}
+            onClick={() => save()}
             disabled={saving}
             className="h-10 rounded-lg px-5 text-sm font-semibold text-white disabled:opacity-60"
             style={{ background: green }}
@@ -308,6 +317,60 @@ export function NewClientModal({
           </button>
         </div>
       </div>
+
+      {existing ? (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4"
+          role="alertdialog"
+          aria-modal="true"
+          aria-label="Client already exists"
+        >
+          <div className="w-full max-w-[480px] rounded-2xl bg-white p-6 shadow-2xl">
+            <h3 className={`text-[20px] font-extrabold ${ink}`}>This client already exists</h3>
+            <p className="mt-2 text-[14px] leading-5 text-[#5d6f78]">
+              A client with the email <strong className={ink}>{existing.email}</strong> is already on file.
+              Update that client with the details you entered, or create a separate client?
+            </p>
+            <div className={`mt-4 rounded-xl border ${line} px-4 py-3 text-[14px] leading-5`}>
+              <p className={`font-bold ${ink}`}>
+                {`${existing.first_name} ${existing.last_name}`.trim()}
+              </p>
+              <p className="text-[#1f2a30]">
+                {[existing.address_line, existing.city, existing.postcode].filter(Boolean).join(", ") ||
+                  "No address on file"}
+              </p>
+              <p className="font-semibold text-[#2e7d1b]">{existing.phone || "No phone"}</p>
+            </div>
+            <div className="mt-5 flex flex-wrap items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setExisting(null)}
+                disabled={saving}
+                className={`h-10 rounded-lg px-4 text-sm font-semibold ${ink} hover:bg-[#f4f6f7]`}
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={() => save("create")}
+                disabled={saving}
+                className={`h-10 rounded-lg border ${line} px-4 text-sm font-semibold ${ink} hover:bg-[#f4f6f7] disabled:opacity-60`}
+              >
+                Create new client
+              </button>
+              <button
+                type="button"
+                onClick={() => save("update")}
+                disabled={saving}
+                className="h-10 rounded-lg px-5 text-sm font-semibold text-white disabled:opacity-60"
+                style={{ background: green }}
+              >
+                {saving ? "Saving…" : "Update client"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

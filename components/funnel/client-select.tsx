@@ -80,7 +80,7 @@ export function ClientSelect({
   };
 
   const handleCreated = (c: CreatedClient) => {
-    setList((prev) => [...prev, c]);
+    setList((prev) => [...prev.filter((p) => p.id !== c.id), c]);
     onChange(c.id);
     setOpen(false);
     setQuery("");

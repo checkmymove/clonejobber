@@ -210,6 +210,7 @@ export async function submitRequest(formData: FormData): Promise<SubmitResult> {
       select id from clients
       where company_id = ${company.id}
         and email = ${email}
+      order by updated_at desc
       limit 1
     `;
 
@@ -217,9 +218,16 @@ export async function submitRequest(formData: FormData): Promise<SubmitResult> {
     let clientCreated = false;
     if (found[0]) {
       clientId = found[0].id;
-      // Fill a missing lead source only. Marketing consent stays as stored.
+      // A returning client's latest answers replace what was stored. The lead
+      // source keeps the first one; each request records its own.
       await tx`
         update clients set
+          first_name = ${contact.firstName.trim()},
+          last_name = ${contact.lastName.trim()},
+          company_name = coalesce(${contact.companyName.trim() || null}, company_name),
+          phone = ${phone},
+          marketing_email_consent = ${contact.marketingEmail},
+          marketing_sms_consent = ${contact.marketingSms},
           lead_source_id = coalesce(lead_source_id, ${contact.leadSourceId}),
           updated_at = now()
         where id = ${clientId}
@@ -306,7 +314,7 @@ export async function submitRequest(formData: FormData): Promise<SubmitResult> {
       values
         (${company.id}, 'public-form', ${clientCreated ? "client.created" : "client.linked"},
          'client', ${clientId},
-         ${clientCreated ? `Client created from public request form` : `Existing client linked to new request`},
+         ${clientCreated ? `Client created from public request form` : `Existing client updated from new request form`},
          ${tx.json({ email })}),
         (${company.id}, 'public-form', 'request.submitted',
          'request', ${requestId},
