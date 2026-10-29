@@ -4,6 +4,8 @@ import { googleRedirectUri } from "@/lib/email/config";
 import { disconnectGmail } from "@/lib/email/actions";
 import { getGoogleConnection } from "@/lib/email/google";
 import { Card, PageHeader } from "@/components/ui";
+import { TemplatesManager } from "@/components/settings/templates-manager";
+import { listTemplates } from "@/lib/templates/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -23,15 +25,18 @@ export default async function EmailSettingsPage({
 }) {
   const sp = await searchParams;
   const companyId = await getCompanyId(COMPANY_SLUG);
-  const connection = companyId ? await getGoogleConnection(companyId) : null;
+  const [connection, templates] = await Promise.all([
+    companyId ? getGoogleConnection(companyId) : null,
+    companyId ? listTemplates(companyId) : [],
+  ]);
   const flash = messageFromQuery(sp);
   const redirectUri = googleRedirectUri();
 
   return (
     <div>
       <PageHeader
-        title="Email (Gmail)"
-        subtitle="Connect the company Gmail account. Messages go out from that mailbox and stay in Sent."
+        title="Emails & Text Messages"
+        subtitle="The Gmail account that sends, and the email and text templates for every stage, from request to payment."
       />
 
       {flash ? (
@@ -40,6 +45,7 @@ export default async function EmailSettingsPage({
         </p>
       ) : null}
 
+      <h2 className="mb-2 text-lg font-extrabold text-ink">Email account</h2>
       <Card className="max-w-xl p-5">
         {connection ? (
           <p className="text-sm text-ink">
@@ -82,6 +88,13 @@ export default async function EmailSettingsPage({
           Scopes: gmail.send and userinfo.email (to show which account is connected).
         </p>
       </Card>
+
+      <h2 className="mb-1 mt-8 text-lg font-extrabold text-ink">Templates</h2>
+      <p className="mb-3 max-w-3xl text-sm text-ink-soft">
+        Customise the emails and text messages sent to your clients. Variables such as {"{{CLIENT_NAME}}"} are
+        filled in when the message is sent; Reset goes back to the default text.
+      </p>
+      <TemplatesManager templates={templates} />
 
       <p className="mt-4">
         <Link href="/" className="text-sm font-bold text-accent hover:underline">

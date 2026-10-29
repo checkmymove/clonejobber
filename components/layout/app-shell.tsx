@@ -43,7 +43,7 @@ const NAV: {
 const NAV_SETTINGS: typeof NAV = [
   { href: "/produtos-servicos", label: "Products & services", icon: Package },
   { href: "/equipa", label: "Team", icon: UserCog },
-  { href: "/configuracoes/email", label: "Email", icon: Mail },
+  { href: "/configuracoes/email", label: "Emails & Texts", icon: Mail },
 ];
 
 const CREATE_ITEMS = [
