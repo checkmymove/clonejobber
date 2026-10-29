@@ -66,3 +66,20 @@ export function formatDateTimeLondon(iso: string): string {
     timeZone: "Europe/London",
   }).format(new Date(iso));
 }
+
+/**
+ * Completes a typed pound amount to two decimals when the field is left:
+ * "50" → "50.00", "50.5" → "50.50", "50.75" stays. Anything unparseable is left as typed.
+ */
+export function padMoney(raw: string): string {
+  // "1,250" and "1,250.5" group thousands; a lone "12,5" is a decimal comma.
+  let text = raw.trim().replace(/[£\s]/g, "");
+  if (!text) return "";
+  text = text.includes(".") || /^\d{1,3}(,\d{3})+$/.test(text) ? text.replace(/,/g, "") : text.replace(",", ".");
+  const match = text.match(/^(\d*)(?:\.(\d*))?$/);
+  if (!match || (!match[1] && !match[2])) return raw;
+  const whole = match[1] || "0";
+  const decimals = match[2] ?? "";
+  if (decimals.length > 2) return text;
+  return `${whole}.${decimals.padEnd(2, "0")}`;
+}

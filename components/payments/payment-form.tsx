@@ -8,7 +8,7 @@ import { ClientSelect, type RichClient } from "@/components/funnel/client-select
 import { StickySaveBar } from "@/components/forms/sticky-save-bar";
 import { createPayment } from "@/lib/payments/actions";
 import { PAYMENT_METHODS, paymentDetailsText } from "@/lib/payments/constants";
-import { formatDateNumericLondon, formatPounds } from "@/lib/format";
+import { formatDateNumericLondon, formatPounds, padMoney } from "@/lib/format";
 
 const ink = "text-[#042b3c]";
 const line = "border-[#d5dde1]";
@@ -260,6 +260,10 @@ export function PaymentForm({
                                 disabled={!on}
                                 value={amounts[inv.id] ?? ""}
                                 onChange={(e) => setAmounts((prev) => ({ ...prev, [inv.id]: e.target.value }))}
+                                onBlur={(e) => {
+                                  const amount = padMoney(e.target.value);
+                                  setAmounts((prev) => ({ ...prev, [inv.id]: amount }));
+                                }}
                                 className={`h-10 w-32 rounded-lg border ${line} px-2 text-right text-sm ${ink} outline-none disabled:bg-[#f6f7f8]`}
                               />
                             </td>
@@ -308,6 +312,7 @@ export function PaymentForm({
                       inputMode="decimal"
                       value={depositAmount}
                       onChange={(e) => setDepositAmount(e.target.value)}
+                  onBlur={(e) => setDepositAmount(padMoney(e.target.value))}
                       className={field}
                     />
                   </label>

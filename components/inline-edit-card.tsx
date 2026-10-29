@@ -2,8 +2,10 @@
 
 import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil } from "lucide-react";
+import { ChevronDown, Pencil } from "lucide-react";
 import { Card } from "@/components/ui";
+import { EqualHeightBody } from "@/components/equal-height";
+import { padMoney } from "@/lib/format";
 
 export const inlineField =
   "h-10 w-full rounded-lg border border-line bg-white px-3 text-sm text-ink outline-none focus:border-accent";
@@ -33,6 +35,8 @@ export function InlineEditCard({
   onCancel,
   accent,
   className,
+  collapsible = false,
+  summary,
 }: {
   title: string;
   view: ReactNode;
@@ -41,16 +45,39 @@ export function InlineEditCard({
   onCancel?: () => void;
   accent?: string;
   className?: string;
+  /** Starts collapsed to its title; the arrow (or a click on the title) reveals it. */
+  collapsible?: boolean;
+  /** Short hint shown next to the title while collapsed. */
+  summary?: ReactNode;
 }) {
   const [editing, setEditing] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const [open, setOpen] = useState(!collapsible);
   const router = useRouter();
+  const shown = open || editing;
 
   return (
     <Card className={className ?? "h-fit p-5"} accent={accent}>
-      <div className="mb-2 flex items-start justify-between gap-2">
-        <h2 className="text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">{title}</h2>
+      <div className={`flex items-start justify-between gap-2 ${shown ? "mb-2" : ""}`}>
+        {collapsible ? (
+          <button
+            type="button"
+            aria-expanded={shown}
+            onClick={() => !editing && setOpen((v) => !v)}
+            className="flex min-w-0 flex-1 items-center gap-2 text-left"
+          >
+            <h2 className="text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">{title}</h2>
+            {!shown && summary ? <span className="truncate text-[13px] text-ink-mute">{summary}</span> : null}
+            <ChevronDown
+              size={18}
+              aria-hidden
+              className={`ml-auto shrink-0 text-ink-soft transition-transform ${shown ? "rotate-180" : ""}`}
+            />
+          </button>
+        ) : (
+          <h2 className="text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">{title}</h2>
+        )}
         {!editing ? (
           <button
             type="button"
@@ -65,7 +92,7 @@ export function InlineEditCard({
           </button>
         ) : null}
       </div>
-      {editing ? (
+      {!shown ? null : editing ? (
         <form
           className="space-y-3"
           onSubmit={async (event) => {
@@ -110,7 +137,7 @@ export function InlineEditCard({
           </div>
         </form>
       ) : (
-        view
+        <EqualHeightBody label={title.toLowerCase()}>{view}</EqualHeightBody>
       )}
     </Card>
   );
@@ -245,6 +272,10 @@ export function LineFields({
               onChange={(e) =>
                 onChange(lines.map((item) => (item.id === line.id ? { ...item, price: e.target.value } : item)))
               }
+              onBlur={(e) => {
+                const price = padMoney(e.target.value);
+                onChange(lines.map((item) => (item.id === line.id ? { ...item, price } : item)));
+              }}
             />
             <button
               type="button"
@@ -274,4 +305,12 @@ export function LineFields({
       </button>
     </div>
   );
+}
+
+/** "12 items · 3 photos" style hint for a collapsed inventory list. */
+export function inventorySummary(inventory: string, photos = 0): string {
+  const items = inventory.split("\n").filter((line) => line.trim()).length;
+  const parts = [items ? `${items} line${items === 1 ? "" : "s"}` : "Empty"];
+  if (photos) parts.push(`${photos} photo${photos === 1 ? "" : "s"}`);
+  return parts.join(" · ");
 }

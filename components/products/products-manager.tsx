@@ -1,5 +1,6 @@
 "use client";
 
+import { padMoney } from "@/lib/format";
 import Link from "next/link";
 import { useActionState, useEffect, useState } from "react";
 import { ChevronsUpDown, Plus, Search, X } from "lucide-react";
@@ -277,6 +278,9 @@ function ItemDialog({ item, onClose }: { item: ProductItem | null; onClose: () =
               name="unitPrice"
               inputMode="decimal"
               defaultValue={item?.unitPrice ?? "0.00"}
+              onBlur={(e) => {
+                e.currentTarget.value = padMoney(e.currentTarget.value);
+              }}
               className={inputCls}
             />
           </FloatingField>

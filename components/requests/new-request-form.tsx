@@ -209,6 +209,9 @@ export function NewRequestForm({
   const [serviceId, setServiceId] = useState(initial?.serviceId ?? "");
   const [hours, setHours] = useState(initial?.hours ?? "");
   const [inventory, setInventory] = useState(initial?.inventory ?? "");
+  // Open while there is nothing typed yet (it is required); an error always opens it.
+  const [inventoryOpen, setInventoryOpen] = useState(!initial?.inventory);
+  const inventoryShown = inventoryOpen || Boolean(fieldErrors.inventory);
   const [notes, setNotes] = useState("");
   const [images, setImages] = useState<{ file: File; preview: string }[]>([]);
   const [imagesError, setImagesError] = useState("");
@@ -674,7 +677,22 @@ export function NewRequestForm({
       </section>
 
       <section className="space-y-4 border-t border-[#e6ebed] pt-8">
-        <SectionTitle>Inventory list</SectionTitle>
+        <button
+          type="button"
+          aria-expanded={inventoryShown}
+          aria-controls="request-inventory"
+          onClick={() => setInventoryOpen(!inventoryShown)}
+          className="flex w-full items-center justify-between gap-3 text-left"
+        >
+          <SectionTitle>Inventory list</SectionTitle>
+          <ChevronDown
+            size={18}
+            aria-hidden
+            className={`shrink-0 text-[#042b3c] transition-transform ${inventoryShown ? "rotate-180" : ""}`}
+          />
+        </button>
+        {inventoryShown ? (
+        <div id="request-inventory" className="space-y-4">
         <div
           className={`overflow-hidden rounded-lg border ${fieldErrors.inventory ? "border-rose-500" : line} bg-white`}
         >
@@ -738,6 +756,8 @@ export function NewRequestForm({
               </div>
             ))}
           </div>
+        ) : null}
+        </div>
         ) : null}
         <p className="hidden">{money}</p>
       </section>

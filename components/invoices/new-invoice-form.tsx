@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { createInvoice, saveInvoiceAndEmail, saveInvoiceAndMarkSent, updateInvoice } from "@/lib/invoices/actions";
 import { ClientSelect } from "@/components/funnel/client-select";
 import { StickySaveBar } from "@/components/forms/sticky-save-bar";
-import { formatPounds } from "@/lib/format";
+import { formatPounds, padMoney } from "@/lib/format";
 import {
   CheckCircle,
   ChevronDown,
@@ -302,17 +302,21 @@ export function NewInvoiceForm({
                     <span className="mb-1 block text-[11px] text-[#8aa0a8]">Unit price</span>
                     <input
                       aria-label="Unit price"
-                      placeholder="£ 0,00"
+                      placeholder="£ 0.00"
                       value={line.price}
                       onChange={(event) =>
                         setLines((rows) => rows.map((row) => (row.id === line.id ? { ...row, price: event.target.value } : row)))
                       }
+                      onBlur={(event) => {
+                        const price = padMoney(event.target.value);
+                        setLines((rows) => rows.map((row) => (row.id === line.id ? { ...row, price } : row)));
+                      }}
                       className={field}
                     />
                   </label>
                   <label className="block">
                     <span className="mb-1 block text-[11px] text-[#8aa0a8]">Total</span>
-                    <div className={`flex h-11 items-center justify-end rounded-lg border ${line} px-3 text-sm ${ink}`}>
+                    <div className={`flex h-11 items-center justify-end rounded-lg border ${line} px-3 text-[15px] ${ink}`}>
                       {formatPounds(qty * price)}
                     </div>
                   </label>
@@ -375,9 +379,10 @@ export function NewInvoiceForm({
                 <input
                   aria-label="Discount"
                   inputMode="decimal"
-                  placeholder="£ 0,00"
+                  placeholder="£ 0.00"
                   value={discount}
                   onChange={(event) => setDiscount(event.target.value)}
+                  onBlur={(event) => setDiscount(padMoney(event.target.value))}
                   className={`h-9 w-28 rounded-lg border ${line} px-2 text-right text-sm ${ink} outline-none`}
                 />
               ) : (
@@ -392,9 +397,10 @@ export function NewInvoiceForm({
                 <input
                   aria-label="Tax"
                   inputMode="decimal"
-                  placeholder="£ 0,00"
+                  placeholder="£ 0.00"
                   value={tax}
                   onChange={(event) => setTax(event.target.value)}
+                  onBlur={(event) => setTax(padMoney(event.target.value))}
                   className={`h-9 w-28 rounded-lg border ${line} px-2 text-right text-sm ${ink} outline-none`}
                 />
               ) : (

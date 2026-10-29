@@ -19,7 +19,7 @@ import {
 import { QUOTE_TERMS } from "@/lib/quotes/terms";
 import type { QuoteInventoryFile, QuotePacking, QuoteServiceChoice, QuoteStop } from "@/lib/quotes/types";
 import { ClientSelect } from "@/components/funnel/client-select";
-import { formatPounds } from "@/lib/format";
+import { formatPounds, padMoney } from "@/lib/format";
 
 const ink = "text-[#042b3c]";
 const line = "border-[#d5dde1]";
@@ -379,12 +379,16 @@ export function NewQuoteForm({
                       onChange={(e) =>
                         setLines((rows) => rows.map((row) => (row.id === line.id ? { ...row, price: e.target.value } : row)))
                       }
+                      onBlur={(e) => {
+                        const price = padMoney(e.target.value);
+                        setLines((rows) => rows.map((row) => (row.id === line.id ? { ...row, price } : row)));
+                      }}
                       className={field}
                     />
                   </label>
                   <label className="block">
                     <span className={label}>Total</span>
-                    <div className={`flex h-11 items-center justify-end rounded-lg border ${line} px-3 text-sm ${ink}`}>
+                    <div className={`flex h-11 items-center justify-end rounded-lg border ${line} px-3 text-[15px] ${ink}`}>
                       {formatPounds(qty * price)}
                     </div>
                   </label>
@@ -527,6 +531,7 @@ export function NewQuoteForm({
                   aria-label="Discount"
                   value={discount}
                   onChange={(event) => setDiscount(event.target.value)}
+                  onBlur={(event) => setDiscount(padMoney(event.target.value))}
                   placeholder="£0.00"
                   className="h-9 w-28 rounded-lg border border-[#d5dde1] px-2 text-right text-[#042b3c] outline-none focus:border-[#388623]"
                 />
@@ -548,6 +553,7 @@ export function NewQuoteForm({
                   aria-label="Tax"
                   value={tax}
                   onChange={(event) => setTax(event.target.value)}
+                  onBlur={(event) => setTax(padMoney(event.target.value))}
                   placeholder="£0.00"
                   className="h-9 w-28 rounded-lg border border-[#d5dde1] px-2 text-right text-[#042b3c] outline-none focus:border-[#388623]"
                 />
@@ -587,6 +593,7 @@ export function NewQuoteForm({
                     aria-label="Required deposit"
                     value={deposit}
                     onChange={(event) => setDeposit(event.target.value)}
+                  onBlur={(event) => setDeposit(padMoney(event.target.value))}
                     placeholder="£0.00"
                     className="h-9 w-28 rounded-lg border border-[#d5dde1] px-2 text-right text-[#042b3c] outline-none focus:border-[#388623]"
                   />

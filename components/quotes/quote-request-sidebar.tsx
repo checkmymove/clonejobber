@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { formatDateLondon } from "@/lib/format";
 import type { AdminRequestDetail } from "@/lib/requests/queries";
 
@@ -85,11 +85,7 @@ export function QuoteRequestSidebar({ request }: { request: AdminRequestDetail |
             />
           </Section>
 
-          <Section title="Inventory list">
-            <p className="whitespace-pre-wrap text-[15px] text-[#1f2a30]">
-              {request.inventory_description?.trim() || "—"}
-            </p>
-          </Section>
+          <InventorySection inventory={request.inventory_description?.trim() || "—"} />
         </div>
       )}
     </aside>
@@ -101,6 +97,24 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
     <section className="space-y-3 border-t border-[#e6ebed] pt-4">
       <h3 className="font-bold text-[#042b3c]">{title}</h3>
       {children}
+    </section>
+  );
+}
+
+function InventorySection({ inventory }: { inventory: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <section className="border-t border-[#e6ebed] pt-4">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+        className="flex w-full items-center justify-between gap-2 text-left"
+      >
+        <h3 className="font-bold text-[#042b3c]">Inventory list</h3>
+        <ChevronDown size={18} aria-hidden className={`text-[#042b3c] transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open ? <p className="mt-3 whitespace-pre-wrap text-[15px] text-[#1f2a30]">{inventory}</p> : null}
     </section>
   );
 }

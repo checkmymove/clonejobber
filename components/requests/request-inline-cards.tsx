@@ -14,6 +14,7 @@ import {
   Dl,
   Field,
   InlineEditCard,
+  inventorySummary,
   LocationFields,
   YesNoSelect,
   inlineArea,
@@ -312,6 +313,8 @@ export function RequestInventoryCard({
     <InlineEditCard
       className="h-fit p-5 xl:col-span-2"
       title="Inventory List"
+      collapsible
+      summary={inventorySummary(snapshot.inventory, files.length)}
       onCancel={() => setInventory(snapshot.inventory)}
       onSave={() => saveRequestInPlace(snapshot.id, toAdminRequestInput({ ...snapshot, inventory }))}
       view={

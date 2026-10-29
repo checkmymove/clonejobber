@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Card } from "@/components/ui";
+import { EqualHeightBody } from "@/components/equal-height";
 import { formatDateNumericLondon, formatGBP } from "@/lib/format";
 import type { ParsedLine } from "@/lib/funnel/money";
 import { paymentMethodLabel } from "@/lib/payments/constants";
@@ -35,6 +36,7 @@ export function ClientBox({
   return (
     <Card className="h-fit p-5">
       <CardTitle>Client</CardTitle>
+      <EqualHeightBody label="client">
       <Link href={`/clientes/${clientId}`} className="text-lg font-extrabold text-ink hover:underline">
         {name}
       </Link>
@@ -56,6 +58,7 @@ export function ClientBox({
           ) : null}
         </div>
       </div>
+      </EqualHeightBody>
     </Card>
   );
 }
@@ -64,14 +67,16 @@ export function DetailRows({ title, rows }: { title: string; rows: [string, Reac
   return (
     <Card className="h-fit p-5">
       <CardTitle>{title}</CardTitle>
-      <dl className="divide-y divide-line text-sm">
-        {rows.map(([label, value]) => (
-          <div key={label} className="grid grid-cols-[9.5rem_1fr] gap-3 py-2">
-            <dt className="text-ink-soft">{label}</dt>
-            <dd className="font-semibold text-ink">{value}</dd>
-          </div>
-        ))}
-      </dl>
+      <EqualHeightBody label={title.toLowerCase()}>
+        <dl className="divide-y divide-line text-sm">
+          {rows.map(([label, value]) => (
+            <div key={label} className="grid grid-cols-[9.5rem_1fr] gap-3 py-2">
+              <dt className="text-ink-soft">{label}</dt>
+              <dd className="font-semibold text-ink">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      </EqualHeightBody>
     </Card>
   );
 }
@@ -81,7 +86,9 @@ export function AddressCard({ title, address }: { title: string; address: string
   return (
     <Card className="h-fit p-5">
       <CardTitle>{title}</CardTitle>
-      <p className="text-sm text-ink">{address || "—"}</p>
+      <EqualHeightBody label={title.toLowerCase()}>
+        <p className="text-sm text-ink">{address || "—"}</p>
+      </EqualHeightBody>
     </Card>
   );
 }

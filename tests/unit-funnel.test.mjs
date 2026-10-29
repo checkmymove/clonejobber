@@ -70,3 +70,21 @@ describe("invoice due dates", () => {
     assert.ok(r.errors.clientId);
   });
 });
+
+describe("padMoney", async () => {
+  const { padMoney } = await import("../.testbuild/format.js");
+  it("completes pounds to two decimals", () => {
+    assert.equal(padMoney("50"), "50.00");
+    assert.equal(padMoney("50.5"), "50.50");
+    assert.equal(padMoney("50."), "50.00");
+    assert.equal(padMoney(".5"), "0.50");
+    assert.equal(padMoney("£1,250"), "1250.00");
+    assert.equal(padMoney("12,5"), "12.50");
+  });
+  it("keeps typed decimals and leaves odd input alone", () => {
+    assert.equal(padMoney("50.75"), "50.75");
+    assert.equal(padMoney(""), "");
+    assert.equal(padMoney("abc"), "abc");
+    assert.equal(padMoney("1.234"), "1.234");
+  });
+});
