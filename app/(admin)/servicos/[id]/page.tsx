@@ -99,7 +99,7 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
         <StatusPill badge={meta.badge} dot={meta.dot} label={meta.label} />
       </div>
 
-      <div className="grid items-start gap-4 xl:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
         <ClientBox
           clientId={j.client_id}
           name={j.client_name}
@@ -186,7 +186,7 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
             <p className="text-sm text-ink-mute">No visits. Add one to put this job on the schedule.</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-left text-sm">
+              <table className="w-full fit-table text-left text-sm">
                 <thead>
                   <tr className="border-b border-line text-xs font-semibold text-ink-mute">
                     <th className="w-10 py-2" />
@@ -221,7 +221,7 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
                         <td className="py-3 pr-4">
                           <StatusDot dot={state.dot} label={state.label} />
                         </td>
-                        <td className="py-3 text-ink-soft">{v.assignee || "Unassigned"}</td>
+                        <td data-label="Assigned" className="py-3 text-ink-soft">{v.assignee || "Unassigned"}</td>
                       </tr>
                     );
                   })}
@@ -248,7 +248,7 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
             Reminders: {j.remind_invoice ? "when the job is marked closed" : "off"}
           </p>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-left text-sm">
+            <table className="w-full fit-table text-left text-sm">
               <thead>
                 <tr className="border-b border-line text-xs font-semibold text-ink-mute">
                   <th className="py-2 pr-4 font-semibold">Invoice</th>
@@ -270,12 +270,12 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
                           {inv.number}
                         </Link>
                       </td>
-                      <td className="py-3 pr-4 text-ink-soft">{dateOrDash(inv.due_on)}</td>
+                      <td data-label="Due" className="py-3 pr-4 text-ink-soft">{dateOrDash(inv.due_on)}</td>
                       <td className="py-3 pr-4">
                         <StatusDot dot={s.dot} label={s.label} />
                       </td>
                       <td className="py-3 pr-4 text-ink">{inv.subject}</td>
-                      <td className="py-3 pr-4 text-right text-ink">{formatGBP(inv.total)}</td>
+                      <td data-label="Total" className="py-3 pr-4 text-right text-ink">{formatGBP(inv.total)}</td>
                       <td className="py-3 text-right font-semibold text-ink">{formatGBP(inv.balance)}</td>
                     </ClickableRow>
                   );
@@ -290,7 +290,7 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
                         Create
                       </Link>
                     </td>
-                    <td className="py-3 pr-4 text-ink-soft">—</td>
+                    <td data-label="Due" className="py-3 pr-4 text-ink-soft">—</td>
                     <td className="py-3 pr-4">
                       <StatusDot
                         dot={closed ? "bg-amber-400" : "bg-stone-300"}
@@ -298,7 +298,7 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
                       />
                     </td>
                     <td className="py-3 pr-4 text-ink">For Services Rendered</td>
-                    <td className="py-3 pr-4 text-right text-ink">{formatGBP(j.total)}</td>
+                    <td data-label="Total" className="py-3 pr-4 text-right text-ink">{formatGBP(j.total)}</td>
                     <td className="py-3 text-right font-semibold text-ink">{formatGBP(j.total)}</td>
                   </tr>
                 ) : null}

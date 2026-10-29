@@ -99,7 +99,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
         <StatusPill badge={meta.badge} dot={meta.dot} label={meta.label} />
       </div>
 
-      <div className="grid items-start gap-4 xl:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
         <ClientBox
           clientId={inv.client_id}
           name={inv.client_name}

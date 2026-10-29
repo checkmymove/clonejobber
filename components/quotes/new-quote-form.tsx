@@ -317,7 +317,7 @@ export function NewQuoteForm({
       ) : null}
 
       {collection || delivery ? (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {collection ? <StopCard title="Collection Information" stop={collection} /> : null}
           {delivery ? <StopCard title="Delivery Information" stop={delivery} /> : null}
         </div>

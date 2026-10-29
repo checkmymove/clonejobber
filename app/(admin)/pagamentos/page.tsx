@@ -56,7 +56,7 @@ export default async function PagamentosPage({ searchParams }: { searchParams: P
       </div>
 
       {metrics ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
           <KpiCard
             title="Collected"
             period="Past 30 days"
@@ -126,8 +126,8 @@ export default async function PagamentosPage({ searchParams }: { searchParams: P
             : "No payments yet. Collect one from an invoice, or record a deposit on a quote."}
         </EmptyState>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-line bg-card">
-          <table className="w-full min-w-[760px] table-fixed text-left text-sm">
+        <div className="overflow-x-auto rounded-xl border border-line bg-card max-md:px-4">
+          <table className="w-full fit-table table-fixed text-left text-sm">
             <colgroup>
               <col className="w-[28%]" />
               <col className="w-[14%]" />
@@ -172,11 +172,11 @@ export default async function PagamentosPage({ searchParams }: { searchParams: P
                         ))}
                       </p>
                     </td>
-                    <td className="px-4 py-3.5 text-ink-soft">{formatDateNumericLondon(p.paid_on)}</td>
+                    <td data-label="Date" className="px-4 py-3.5 text-ink-soft">{formatDateNumericLondon(p.paid_on)}</td>
                     <td className="px-4 py-3.5">
                       <StatusDot dot="bg-emerald-500" label={PAYMENT_STATUS_LABEL[p.status] ?? p.status} />
                     </td>
-                    <td className="px-4 py-3.5 text-ink-soft">{paymentMethodLabel(p.method)}</td>
+                    <td data-label="Method" className="px-4 py-3.5 text-ink-soft">{paymentMethodLabel(p.method)}</td>
                     <td className="px-4 py-3.5 text-ink-soft">{PAYMENT_KIND_LABEL[p.kind] ?? p.kind}</td>
                     <td className="px-4 py-3.5 text-right font-semibold text-ink">
                       {formatPounds(p.amount / 100)}

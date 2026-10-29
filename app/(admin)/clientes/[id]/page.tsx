@@ -206,7 +206,7 @@ export default async function ClientDetailPage({
       </div>
 
       {/* Quick info */}
-      <Card className="mb-4 grid gap-x-8 gap-y-1.5 p-4 text-sm sm:grid-cols-2">
+      <Card className="mb-4 grid grid-cols-1 gap-x-8 gap-y-1.5 p-4 text-sm sm:grid-cols-2">
         <p>
           <span className="text-ink-mute">Main phone: </span>
           <a href={`tel:${c.phone.replace(/\s/g, "")}`} className="font-bold text-accent hover:underline">
@@ -223,7 +223,7 @@ export default async function ClientDetailPage({
         ) : null}
         <p>
           <span className="text-ink-mute">Main email: </span>
-          <a href={`mailto:${c.email}`} className="font-bold text-accent hover:underline">
+          <a href={`mailto:${c.email}`} className="font-bold text-accent [overflow-wrap:anywhere] hover:underline">
             {c.email}
           </a>
         </p>
@@ -268,7 +268,7 @@ export default async function ClientDetailPage({
         ))}
       </div>
 
-      <div className="grid items-start gap-4 xl:grid-cols-[1fr_300px]">
+      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[1fr_300px]">
         <div className="min-w-0">
           {tab === "info" ? (
             <div className="space-y-4">
@@ -428,7 +428,7 @@ export default async function ClientDetailPage({
                   <EmptyState>Nothing here for this filter.</EmptyState>
                 ) : null}
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[520px] text-left text-sm">
+                  <table className="w-full fit-table text-left text-sm">
                     <thead>
                       <tr className="border-b border-line text-xs uppercase tracking-wide text-ink-mute">
                         <th className="py-2 pr-3 font-bold">Item</th>

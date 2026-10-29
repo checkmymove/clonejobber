@@ -206,7 +206,7 @@ export function NewClientForm({
         </p>
       ) : null}
 
-      <div className="grid items-start gap-6 lg:grid-cols-[240px_minmax(0,640px)] lg:gap-x-16">
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[240px_minmax(0,640px)] lg:gap-x-16">
         <div>
           <h2 className={`text-base font-bold ${ink}`}>Primary contact details</h2>
           <p className="mt-1.5 text-[13px] leading-5 text-[#5d6f78]">
@@ -334,7 +334,7 @@ export function NewClientForm({
           <Err msg={err("leadSourceId")} />
 
           <Accordion title="Additional client details">
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <select
                 aria-label="Type"
                 value={profile.clientType}
@@ -432,7 +432,7 @@ export function NewClientForm({
                   }
                   className={soloField}
                 />
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
                     <input
                       aria-label={`Contact ${i + 1} phone`}
@@ -478,7 +478,7 @@ export function NewClientForm({
 
       <hr className="my-8 border-[#e6ebed]" />
 
-      <div className="grid items-start gap-6 lg:grid-cols-[240px_minmax(0,640px)] lg:gap-x-16">
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[240px_minmax(0,640px)] lg:gap-x-16">
         <div>
           <h2 className={`text-base font-bold ${ink}`}>Property address</h2>
           <p className="mt-1.5 text-[13px] leading-5 text-[#5d6f78]">

@@ -59,7 +59,7 @@ export default async function SolicitacoesPage({
       />
 
       {/* Overview */}
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         {(
           [
             { key: "new", title: "New" },
@@ -103,7 +103,7 @@ export default async function SolicitacoesPage({
           </div>
         ) : (
           <div className="mt-3 overflow-x-auto">
-            <table className="w-full min-w-[760px] text-left text-sm">
+            <table className="w-full fit-table text-left text-sm">
               <thead>
                 <tr className="border-b border-line text-xs uppercase tracking-wide text-ink-mute">
                   <th className="py-2 pr-3 font-bold">Client</th>
@@ -144,7 +144,7 @@ export default async function SolicitacoesPage({
                       <p className="truncate">{r.client_email}</p>
                       <p>{r.client_phone}</p>
                     </td>
-                    <td className="py-3 pr-3 text-[13px] text-ink-soft">
+                    <td data-label="Received" className="py-3 pr-3 text-[13px] text-ink-soft">
                       {formatDateLondon(r.submitted_at)}
                     </td>
                     <td className="py-3 pr-3">

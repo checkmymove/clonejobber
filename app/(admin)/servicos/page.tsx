@@ -74,7 +74,7 @@ export default async function ServicosPage({ searchParams }: { searchParams: Pro
         </Link>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         <OverviewCard
           items={OVERVIEW.map((s) => ({
             key: s,
@@ -127,8 +127,8 @@ export default async function ServicosPage({ searchParams }: { searchParams: Pro
             {filtering ? "No jobs match these filters." : "No jobs yet. Approve a quote, or create a job directly."}
           </EmptyState>
         ) : (
-          <div className="-mx-4 overflow-x-auto">
-            <table className="w-full min-w-[760px] table-fixed text-left text-sm">
+          <div className="-mx-4 overflow-x-auto max-md:px-4">
+            <table className="w-full fit-table table-fixed text-left text-sm">
               <colgroup>
                 <col className="w-[18%]" />
                 <col className="w-[18%]" />
@@ -168,7 +168,7 @@ export default async function ServicosPage({ searchParams }: { searchParams: Pro
                       <td className="px-4 py-3.5 text-[13px] break-words text-ink-soft">
                         {job.pickup_address || "—"}
                       </td>
-                      <td className="px-4 py-3.5 text-ink-soft">
+                      <td data-label="Schedule" className="px-4 py-3.5 text-ink-soft">
                         {showDate && job.next_visit ? formatDateNumericLondon(job.next_visit) : "—"}
                       </td>
                       <td className="px-4 py-3.5">

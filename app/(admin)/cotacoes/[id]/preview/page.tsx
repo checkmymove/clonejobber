@@ -42,7 +42,7 @@ export default async function QuotePreviewPage({
           <h1 className="text-[22px] font-bold text-[#042b3c]">{q.company_name}</h1>
         </header>
 
-        <section className="mt-6 grid gap-6 border-b border-[#e6ebed] pb-6 sm:grid-cols-[minmax(0,1fr)_220px]">
+        <section className="mt-6 grid grid-cols-1 gap-6 border-b border-[#e6ebed] pb-6 sm:grid-cols-[minmax(0,1fr)_220px]">
           <div>
             <p className="text-sm text-[#5d6f78]">Quote {q.number}</p>
             <p className="mt-2 text-[18px] font-bold text-[#042b3c]">{clientName}</p>
@@ -62,7 +62,7 @@ export default async function QuotePreviewPage({
         </section>
 
         {q.collection || q.delivery ? (
-          <section className="mt-8 grid gap-8 border-b border-[#e6ebed] pb-8 sm:grid-cols-2">
+          <section className="mt-8 grid grid-cols-1 gap-8 border-b border-[#e6ebed] pb-8 sm:grid-cols-2">
             {q.collection ? <StopBlock title="Collection" stop={q.collection} /> : null}
             {q.delivery ? <StopBlock title="Delivery" stop={q.delivery} /> : null}
           </section>

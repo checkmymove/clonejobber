@@ -174,7 +174,7 @@ export function PaymentForm({
             ))}
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label className="block">
               <span className="mb-1 block text-[13px] text-[#5d6f78]">Payment method</span>
               <select aria-label="Payment method" value={method} onChange={(e) => setMethod(e.target.value)} className={field}>
@@ -219,7 +219,7 @@ export function PaymentForm({
                 </p>
               ) : (
                 <div className="mt-4 overflow-x-auto">
-                  <table className="w-full min-w-[620px] text-left text-sm">
+                  <table className="w-full fit-table text-left text-sm">
                     <thead>
                       <tr className="border-b border-[#d5dde1] text-xs font-semibold text-[#8aa0a8]">
                         <th className="w-10 py-2" />
@@ -246,13 +246,13 @@ export function PaymentForm({
                               />
                             </td>
                             <td className={`py-2 pr-3 font-semibold ${ink}`}>{inv.number}</td>
-                            <td className="py-2 pr-3 text-[#5d6f78]">
+                            <td data-label="Due" className="py-2 pr-3 text-[#5d6f78]">
                               {inv.status === "draft" ? "Draft" : formatDateNumericLondon(inv.due_on)}
                               {inv.pastDue ? <span className="ml-2 text-xs font-semibold text-rose-700">Past due</span> : null}
                             </td>
                             <td className="py-2 pr-3 text-[#5d6f78]">{inv.subject}</td>
-                            <td className="py-2 pr-3 text-right text-[#5d6f78]">{formatPounds(inv.total / 100)}</td>
-                            <td className={`py-2 pr-3 text-right font-semibold ${ink}`}>{formatPounds(inv.balance / 100)}</td>
+                            <td data-label="Total" className="py-2 pr-3 text-right text-[#5d6f78]">{formatPounds(inv.total / 100)}</td>
+                            <td data-label="Balance" className={`py-2 pr-3 text-right font-semibold ${ink}`}>{formatPounds(inv.balance / 100)}</td>
                             <td className="py-2 text-right">
                               <input
                                 aria-label={`Amount for invoice ${inv.number}`}
@@ -284,7 +284,7 @@ export function PaymentForm({
               {quotes.length === 0 ? (
                 <p className="mt-4 text-sm text-[#5d6f78]">This client has no open quotes.</p>
               ) : (
-                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <label className="block">
                     <span className="mb-1 block text-[13px] text-[#5d6f78]">Quote</span>
                     <select

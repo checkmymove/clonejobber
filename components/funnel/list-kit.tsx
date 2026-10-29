@@ -75,7 +75,7 @@ export function OverviewCard({
   items: { key: string; label: string; dot: string; count: number; amount?: string; href: string }[];
 }) {
   return (
-    <section className="rounded-xl border border-line bg-card px-4 py-3.5">
+    <section className="col-span-2 rounded-xl border border-line bg-card px-4 py-3.5 sm:col-span-1">
       <h2 className="text-sm font-bold text-ink">{title}</h2>
       {period ? <p className="text-xs text-ink-mute">{period}</p> : null}
       <ul className="mt-3 space-y-1.5">

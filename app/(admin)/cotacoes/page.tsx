@@ -109,8 +109,8 @@ export default async function CotacoesPage({
         </Link>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <section className="rounded-xl border border-line bg-card px-4 py-3.5">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <section className="col-span-2 rounded-xl border border-line bg-card px-4 py-3.5 sm:col-span-1">
           <h2 className="text-sm font-bold text-ink">Overview</h2>
           <p className="text-xs text-ink-mute">Past 30 days</p>
           <ul className="mt-3 space-y-1.5">
@@ -171,8 +171,8 @@ export default async function CotacoesPage({
                 : "No quotes yet. Create one from a request, or add one directly."}
           </EmptyState>
         ) : (
-          <div className="-mx-4 overflow-x-auto">
-            <table className="w-full min-w-[720px] table-fixed text-left text-sm">
+          <div className="-mx-4 overflow-x-auto max-md:px-4">
+            <table className="w-full fit-table table-fixed text-left text-sm">
               <colgroup>
                 <col className="w-[18%]" />
                 <col className="w-[20%]" />
@@ -215,7 +215,7 @@ export default async function CotacoesPage({
                           {quote.property || "—"}
                         </Link>
                       </td>
-                      <td className="px-4 py-3.5 text-ink-soft">
+                      <td data-label="Created" className="px-4 py-3.5 text-ink-soft">
                         <Link href={href}>{formatCreated(quote.created_at)}</Link>
                       </td>
                       <td className="px-4 py-3.5">

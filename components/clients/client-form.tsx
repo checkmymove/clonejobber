@@ -29,7 +29,7 @@ export function ClientForm({
 
   return (
     <form action={formAction} className="space-y-3">
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="block text-sm font-semibold text-ink">
           First name *
           <input name="firstName" defaultValue={defaults.firstName} className={inputCls} />
@@ -46,7 +46,7 @@ export function ClientForm({
         <input name="companyName" defaultValue={defaults.companyName} className={inputCls} />
         {err("companyName") ? <FieldError msg={err("companyName")!} /> : null}
       </label>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="block text-sm font-semibold text-ink">
           Email *
           <input name="email" type="email" defaultValue={defaults.email} className={inputCls} />

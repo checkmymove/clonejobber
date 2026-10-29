@@ -97,7 +97,7 @@ export default async function DashboardPage() {
       <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-ink">Good evening, Fabiano</h1>
 
       <h2 className="mb-3 mt-7 text-lg font-extrabold text-ink">Workflow</h2>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         {funnel.map((f) => (
           <Link key={f.key} href={f.href} className="block h-full">
             <Card accent={f.accent} className="h-full p-4 hover:bg-cream/60">
@@ -122,7 +122,7 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      <div className="mt-6 grid gap-4 xl:grid-cols-[1fr_320px]">
+      <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-[1fr_320px]">
         <section>
           <h2 className="mb-3 text-lg font-extrabold text-ink">Today’s jobs</h2>
           <Card className="p-4 sm:p-5">

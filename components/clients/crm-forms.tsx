@@ -63,7 +63,7 @@ export function ProfileForm({
   const e = state.errors ?? {};
   return (
     <form action={formAction} className="space-y-3">
-      <div className="grid gap-3 sm:grid-cols-[100px_1fr_1fr]">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[100px_1fr_1fr]">
         <label className="block text-sm font-semibold text-ink">
           Title
           <input name="title" defaultValue={defaults.title} className={inputCls} placeholder="Mr" />
@@ -80,7 +80,7 @@ export function ProfileForm({
           <Err msg={e.lastName} />
         </label>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="block text-sm font-semibold text-ink">
           Type
           <select name="clientType" defaultValue={defaults.clientType} className={inputCls}>
@@ -107,7 +107,7 @@ export function ProfileForm({
         <input name="companyName" defaultValue={defaults.companyName} className={inputCls} />
         <Err msg={e.companyName} />
       </label>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="block text-sm font-semibold text-ink">
           Main email *
           <input name="email" type="email" defaultValue={defaults.email} className={inputCls} />
@@ -124,7 +124,7 @@ export function ProfileForm({
         <input name="phoneMobile" type="tel" defaultValue={defaults.phoneMobile} className={inputCls} />
         <Err msg={e.phoneMobile} />
       </label>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="block text-sm font-semibold text-ink">
           Payment terms
           <select name="paymentTerms" defaultValue={defaults.paymentTerms} className={inputCls}>
@@ -166,7 +166,7 @@ export function PropertyForm({ action }: { action: Action }) {
   const e = state.errors ?? {};
   return (
     <form action={formAction} className="space-y-3 rounded-xl bg-cream p-3">
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="block text-sm font-semibold text-ink">
           Label *
           <select name="label" defaultValue="Other" className={inputCls}>
@@ -188,7 +188,7 @@ export function PropertyForm({ action }: { action: Action }) {
         <input name="addressLine" className={inputCls} />
         <Err msg={e.addressLine} />
       </label>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="block text-sm font-semibold text-ink">
           Street 2
           <input name="street2" className={inputCls} />
@@ -198,7 +198,7 @@ export function PropertyForm({ action }: { action: Action }) {
           <input name="city" className={inputCls} />
         </label>
       </div>
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <label className="block text-sm font-semibold text-ink">
           County
           <input name="county" className={inputCls} />
@@ -237,7 +237,7 @@ export function ContactForm({ action }: { action: Action }) {
   const e = state.errors ?? {};
   return (
     <form action={formAction} className="space-y-3 rounded-xl bg-cream p-3">
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="block text-sm font-semibold text-ink">
           Name *
           <input name="name" className={inputCls} />
@@ -248,7 +248,7 @@ export function ContactForm({ action }: { action: Action }) {
           <input name="role" className={inputCls} placeholder="Owner, manager…" />
         </label>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="block text-sm font-semibold text-ink">
           Phone
           <input name="phone" className={inputCls} />
@@ -311,7 +311,7 @@ export function AppointmentForm({ action }: { action: Action }) {
   const e = state.errors ?? {};
   return (
     <form action={formAction} className="space-y-3 rounded-xl bg-cream p-3">
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="block text-sm font-semibold text-ink">
           Title *
           <input name="title" className={inputCls} placeholder="On-site assessment" />
@@ -328,7 +328,7 @@ export function AppointmentForm({ action }: { action: Action }) {
           </select>
         </label>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="block text-sm font-semibold text-ink">
           Starts at *
           <input name="startsAt" type="datetime-local" onClick={openPicker} className={inputCls} />
@@ -351,7 +351,7 @@ export function MessageForm({ action }: { action: Action }) {
   const e = state.errors ?? {};
   return (
     <form action={formAction} className="space-y-3 rounded-xl border border-line p-3">
-      <div className="grid gap-3 sm:grid-cols-[160px_1fr]">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[160px_1fr]">
         <label className="block text-sm font-semibold text-ink">
           Channel
           <select name="channel" defaultValue="email" className={inputCls}>

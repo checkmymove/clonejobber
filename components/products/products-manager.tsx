@@ -101,8 +101,8 @@ export function ProductsManager({
         </button>
       </div>
 
-      <div className="mt-6 overflow-x-auto rounded-xl border border-[#d5dde1]">
-        <table className="w-full min-w-[720px] table-fixed text-left text-[15px]">
+      <div className="mt-6 overflow-x-auto rounded-xl border border-[#d5dde1] max-md:px-4">
+        <table className="w-full fit-table table-fixed text-left text-[15px]">
           <colgroup>
             <col className="w-[40%]" />
             <col className="w-[42%]" />

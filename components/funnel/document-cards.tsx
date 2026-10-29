@@ -40,7 +40,7 @@ export function ClientBox({
       <Link href={`/clientes/${clientId}`} className="text-lg font-extrabold text-ink hover:underline">
         {name}
       </Link>
-      <div className="mt-3 space-y-3 text-sm">
+      <div className="mt-3 space-y-3 text-sm [overflow-wrap:anywhere]">
         <div>
           <p className="text-ink-soft">{addressLabel}</p>
           <p className="text-ink">{address || "—"}</p>
@@ -114,7 +114,7 @@ export function LineItemsCard({
     <Card className="h-fit p-5 xl:col-span-2">
       <CardTitle action={action}>Product / Service</CardTitle>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[560px] text-left text-sm">
+        <table className="w-full fit-table text-left text-sm">
           <thead>
             <tr className="border-b border-line text-xs font-semibold text-ink-mute">
               <th className="py-2 pr-4 font-semibold">Line item</th>
@@ -134,8 +134,8 @@ export function LineItemsCard({
                     </p>
                   ) : null}
                 </td>
-                <td className="py-3 pr-4 text-right text-ink">{line.quantity}</td>
-                <td className="py-3 pr-4 text-right text-ink">{formatGBP(line.unitPrice)}</td>
+                <td data-label="Quantity" className="py-3 pr-4 text-right text-ink">{line.quantity}</td>
+                <td data-label="Unit price" className="py-3 pr-4 text-right text-ink">{formatGBP(line.unitPrice)}</td>
                 <td className="py-3 text-right font-semibold text-ink">{formatGBP(line.total)}</td>
               </tr>
             ))}

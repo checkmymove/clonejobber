@@ -288,7 +288,7 @@ export function NewJobForm({
         className={field}
       />
 
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
         <ClientSelect clients={clients} value={clientId} onChange={setClientId} />
         <div className="space-y-3">
           <div className="grid grid-cols-[88px_1fr] items-center gap-3">
@@ -432,7 +432,7 @@ export function NewJobForm({
                       <GreenCheck checked={visit.later} />
                       Schedule mais tarde
                     </label>
-                    <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <label className="relative block">
                         <span className="mb-1 block text-[13px] text-[#5d6f78]">Start time</span>
                         <TimeField

@@ -74,7 +74,7 @@ export default async function FaturasPage({ searchParams }: { searchParams: Prom
         </Link>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <OverviewCard
           items={(["past_due", "awaiting_payment", "draft"] as const).map((s) => ({
             key: s,
@@ -144,8 +144,8 @@ export default async function FaturasPage({ searchParams }: { searchParams: Prom
           {filtering ? "No invoices match these filters." : "No invoices yet. Create one from a job, or add one directly."}
         </EmptyState>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-line bg-card">
-          <table className="w-full min-w-[800px] table-fixed text-left text-sm">
+        <div className="overflow-x-auto rounded-xl border border-line bg-card max-md:px-4">
+          <table className="w-full fit-table table-fixed text-left text-sm">
             <colgroup>
               <col className="w-[19%]" />
               <col className="w-[12%]" />
@@ -183,14 +183,14 @@ export default async function FaturasPage({ searchParams }: { searchParams: Prom
                       </Link>
                       {inv.job_number ? <p className="text-xs text-ink-mute">{inv.job_number}</p> : null}
                     </td>
-                    <td className="px-4 py-3.5 text-ink-soft">
+                    <td data-label="Due" className="px-4 py-3.5 text-ink-soft">
                       {inv.status === "draft" ? "—" : formatDateNumericLondon(inv.due_on)}
                     </td>
                     <td className="px-4 py-3.5 text-[13px] break-words text-ink-soft">{inv.subject}</td>
                     <td className="px-4 py-3.5">
                       <StatusDot dot={meta.dot} label={meta.label} />
                     </td>
-                    <td className="px-4 py-3.5 text-right font-semibold text-ink">
+                    <td data-label="Total" className="px-4 py-3.5 text-right font-semibold text-ink">
                       {formatPounds(inv.total / 100)}
                     </td>
                     <td className="px-4 py-3.5 text-right text-ink">{formatPounds(inv.balance / 100)}</td>

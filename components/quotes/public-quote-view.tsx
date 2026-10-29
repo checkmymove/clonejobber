@@ -101,7 +101,7 @@ export function PublicQuoteView({ quote }: { quote: QuoteDetail }) {
           </a>
         </header>
 
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
           <Card className="p-5">
             <div className="flex items-center gap-2">
               <p className="text-[18px] font-extrabold text-ink">{name}</p>
@@ -120,7 +120,7 @@ export function PublicQuoteView({ quote }: { quote: QuoteDetail }) {
               </a>
             ) : null}
             {quote.client_email ? (
-              <a href={`mailto:${quote.client_email}`} className="block text-sm font-semibold text-accent">
+              <a href={`mailto:${quote.client_email}`} className="block text-sm font-semibold text-accent [overflow-wrap:anywhere]">
                 {quote.client_email}
               </a>
             ) : null}
@@ -166,7 +166,7 @@ export function PublicQuoteView({ quote }: { quote: QuoteDetail }) {
           </div>
         </div>
 
-        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
           <StopCard title="Collection Information" stop={quote.collection} />
           <StopCard title="Delivery Information" stop={quote.delivery} />
         </div>
@@ -182,7 +182,7 @@ export function PublicQuoteView({ quote }: { quote: QuoteDetail }) {
           <div className="mt-2 space-y-6">
             {quote.lines.map((line, index) => (
               <div key={`${line.name}-${index}`}>
-                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_88px_110px_110px]">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_88px_110px_110px]">
                   <div className="min-h-11 rounded-lg border border-line bg-white px-3 py-2.5 text-[15px] font-semibold text-ink">
                     {line.name}
                   </div>

@@ -66,7 +66,7 @@ export default async function SolicitacaoDetailPage({
         <StatusChanger id={r.id} current={r.status} />
       </div>
 
-      <div className="grid items-start gap-4 xl:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
         <RequestContactCard
           requestId={r.id}
           clientId={r.client_id}

@@ -110,8 +110,8 @@ export default async function CotacaoDetailPage({
         {q.archived_at ? <Badge tone="archived">Archived</Badge> : null}
       </div>
 
-      <div className="flex items-start gap-4">
-      <div className="grid min-w-0 flex-1 items-start gap-4 xl:grid-cols-2">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+      <div className="grid grid-cols-1 min-w-0 flex-1 items-start gap-4 xl:grid-cols-2">
         <QuoteSummaryCard snapshot={snapshot} />
         <QuoteServicesCard snapshot={snapshot} />
         {linkedRequest ? <QuoteCollectionCard request={linkedRequest} /> : null}

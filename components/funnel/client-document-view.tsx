@@ -59,7 +59,7 @@ export function ClientDocumentView({
 
       <div className="mx-auto max-w-[1040px] px-4 py-6 sm:px-6">
         <Card className="p-6 sm:p-8">
-          <div className="grid gap-6 border-b-2 border-line pb-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <div className="grid grid-cols-1 gap-6 border-b-2 border-line pb-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             <div className="space-y-1">
               <p className="text-[15px] text-ink-soft">{heading}</p>
               {title ? <p className="text-[17px] font-bold text-ink">{title}</p> : null}
@@ -91,7 +91,7 @@ export function ClientDocumentView({
           </div>
 
           <div className="overflow-x-auto">
-            <table className="mt-5 w-full min-w-[560px] text-left text-[15px]">
+            <table className="mt-5 w-full fit-table text-left text-[15px]">
               <thead>
                 <tr className="text-ink">
                   <th className="py-2 pr-4 font-bold">Product / Service</th>
@@ -113,10 +113,10 @@ export function ClientDocumentView({
                         <p className="mt-1 whitespace-pre-wrap text-ink">{line.description}</p>
                       ) : null}
                     </td>
-                    <td className="py-3 pr-4 text-right text-ink">{line.quantity}</td>
+                    <td data-label="Qty" className="py-3 pr-4 text-right text-ink">{line.quantity}</td>
                     {showPrices ? (
                       <>
-                        <td className="py-3 pr-4 text-right text-ink">{formatGBP(line.unitPrice)}</td>
+                        <td data-label="Unit price" className="py-3 pr-4 text-right text-ink">{formatGBP(line.unitPrice)}</td>
                         <td className="py-3 text-right text-ink">{formatGBP(line.total)}</td>
                       </>
                     ) : null}

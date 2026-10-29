@@ -46,7 +46,7 @@ export default async function PagamentoDetailPage({ params }: { params: Promise<
         ) : null}
       </div>
 
-      <div className="grid items-start gap-4 xl:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
         <ClientBox
           clientId={p.client_id}
           name={p.client_name}
@@ -66,7 +66,7 @@ export default async function PagamentoDetailPage({ params }: { params: Promise<
         <Card className="h-fit p-5 xl:col-span-2">
           <CardTitle>Applied to</CardTitle>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[560px] text-left text-sm">
+            <table className="w-full fit-table text-left text-sm">
               <thead>
                 <tr className="border-b border-line text-xs font-semibold text-ink-mute">
                   <th className="py-2 pr-4 font-semibold">Document</th>
@@ -84,8 +84,8 @@ export default async function PagamentoDetailPage({ params }: { params: Promise<
                       </Link>
                       <span className="ml-2 text-xs text-ink-mute">deposit</span>
                     </td>
-                    <td className="py-3 pr-4 text-right text-ink">{formatGBP(p.amount)}</td>
-                    <td className="py-3 pr-4 text-right text-ink-soft">—</td>
+                    <td data-label="Applied" className="py-3 pr-4 text-right text-ink">{formatGBP(p.amount)}</td>
+                    <td data-label="Document total" className="py-3 pr-4 text-right text-ink-soft">—</td>
                     <td className="py-3 text-right text-ink-soft">—</td>
                   </tr>
                 ) : null}
@@ -96,8 +96,8 @@ export default async function PagamentoDetailPage({ params }: { params: Promise<
                         Invoice {a.number}
                       </Link>
                     </td>
-                    <td className="py-3 pr-4 text-right text-ink">{formatGBP(a.amount)}</td>
-                    <td className="py-3 pr-4 text-right text-ink-soft">{formatGBP(a.total)}</td>
+                    <td data-label="Applied" className="py-3 pr-4 text-right text-ink">{formatGBP(a.amount)}</td>
+                    <td data-label="Document total" className="py-3 pr-4 text-right text-ink-soft">{formatGBP(a.total)}</td>
                     <td className="py-3 text-right font-semibold text-ink">{formatGBP(a.balance)}</td>
                   </tr>
                 ))}

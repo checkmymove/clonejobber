@@ -138,7 +138,7 @@ export function QuoteSummaryCard({ snapshot }: { snapshot: QuoteEditSnapshot }) 
       <Field label="Title">
         <input className={inlineField} value={title} onChange={(e) => setTitle(e.target.value)} />
       </Field>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label="Moving date">
           <input type="date" onClick={openPicker} className={inlineField} value={validUntil} onChange={(e) => setValidUntil(e.target.value)} />
         </Field>
@@ -146,7 +146,7 @@ export function QuoteSummaryCard({ snapshot }: { snapshot: QuoteEditSnapshot }) 
           <TimeField ariaLabel="Moving time" className={inlineField} value={moveTime} onChange={setMoveTime} />
         </Field>
       </div>
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Field label="Discount">
           <input
             className={inlineField}

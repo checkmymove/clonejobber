@@ -169,13 +169,13 @@ export function AppShell({
           >
             <Menu size={20} />
           </button>
-          <div className="flex items-center gap-2 text-sm font-bold text-ink">
+          <div className="flex shrink-0 items-center gap-2 whitespace-nowrap text-sm font-bold text-ink">
             <div className="grid h-8 w-8 place-items-center rounded-lg bg-ink text-xs font-black text-white">
               J
             </div>
             Job To Go
           </div>
-          <div className="ml-auto flex w-full max-w-md items-center gap-2 rounded-xl border border-line bg-card px-3 py-2 text-sm text-ink-mute">
+          <div className="ml-auto hidden w-full min-w-0 max-w-md items-center gap-2 rounded-xl border border-line bg-card px-3 py-2 text-sm text-ink-mute sm:flex">
             <Search size={16} />
             <span className="truncate">
               Press / to search — coming soon

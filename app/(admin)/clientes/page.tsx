@@ -29,7 +29,7 @@ export default async function ClientsPage({
         }
       />
 
-      <div className="grid gap-4 xl:grid-cols-[1fr_300px]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_300px]">
         <Card className="p-4">
           <form method="get" className="flex gap-2">
             <input
@@ -58,7 +58,7 @@ export default async function ClientsPage({
             </div>
           ) : (
             <div className="mt-3 overflow-x-auto">
-              <table className="w-full min-w-[640px] text-left text-sm">
+              <table className="w-full fit-table text-left text-sm">
                 <thead>
                   <tr className="border-b border-line text-xs uppercase tracking-wide text-ink-mute">
                     <th className="py-2 pr-3 font-bold">Client</th>
@@ -93,7 +93,7 @@ export default async function ClientsPage({
                           <Badge tone="sent">{c.invoices_count} fat.</Badge>
                         </div>
                       </td>
-                      <td className="py-3 text-right text-[13px] text-ink-soft">
+                      <td data-label="Since" className="py-3 text-right text-[13px] text-ink-soft">
                         {formatDateLondon(c.created_at)}
                       </td>
                     </ClickableRow>

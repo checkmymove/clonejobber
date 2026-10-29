@@ -390,7 +390,7 @@ export function RequestWizard({
       <div className="mt-5 space-y-4">
         {step === 0 ? (
           <>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="First name" required error={errors.firstName}>
                 <input
                   className={inputCls(errors.firstName)}
@@ -458,7 +458,7 @@ export function RequestWizard({
                 ))}
               </select>
             </Field>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field
                 label="Date of Your Move"
                 error={errors.moveDate}
@@ -525,7 +525,7 @@ export function RequestWizard({
         {step === 4 ? (
           <>
             <StepBlock title="Service">
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <MultiSelect
                   label="Which service do you require?"
                   required
@@ -802,7 +802,7 @@ function LocationFields({
           placeholder="Start typing the address…"
         />
       </Field>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Postcode" required error={err("postcode")}>
           <input
             className={inputCls(err("postcode"))}

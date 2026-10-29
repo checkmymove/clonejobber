@@ -43,3 +43,63 @@ textarea {
 ::placeholder {
   color: var(--color-ink-mute);
 }
+
+/*
+ * Tables that fit their box at every screen size: no fixed minimum width, and
+ * below 768px each row becomes a compact card (first cell on the left, last cell
+ * on the right, the rest underneath). Cells with data-label show that label.
+ */
+.fit-table {
+  min-width: 0;
+}
+
+@media (max-width: 767px) {
+  .fit-table,
+  .fit-table tbody,
+  .fit-table td {
+    display: block;
+    width: 100%;
+  }
+  .fit-table thead,
+  .fit-table colgroup {
+    display: none;
+  }
+  .fit-table tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 0.75rem;
+    row-gap: 0.125rem;
+    padding: 0.75rem 0;
+  }
+  .fit-table td {
+    padding: 0 !important;
+    width: auto;
+    min-width: 0;
+    text-align: left !important;
+    overflow-wrap: anywhere;
+  }
+  .fit-table td:first-child {
+    grid-column: 1;
+  }
+  .fit-table td:last-child {
+    grid-column: 2;
+    grid-row: 1;
+    text-align: right !important;
+  }
+  .fit-table td:only-child {
+    grid-column: 1 / -1;
+    text-align: left !important;
+  }
+  .fit-table td:not(:first-child):not(:last-child) {
+    grid-column: 1 / -1;
+    font-size: 0.8125rem;
+  }
+  .fit-table td[data-label]::before {
+    content: attr(data-label) ": ";
+    color: var(--color-ink-mute);
+    font-weight: 400;
+  }
+  .fit-table td:empty {
+    display: none;
+  }
+}

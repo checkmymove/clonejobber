@@ -193,7 +193,7 @@ export function LocationFields({
 }) {
   const patch = (part: Partial<LocationDraft>) => onChange({ ...value, ...part });
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       <Field label="Address">
         <input className={inlineField} value={value.address} onChange={(e) => patch({ address: e.target.value })} />
       </Field>
@@ -245,7 +245,7 @@ export function LineFields({
     <div className="space-y-3">
       {lines.map((line, index) => (
         <div key={line.id} className="space-y-2 rounded-xl border border-line p-3">
-          <div className="grid gap-2 sm:grid-cols-[1fr_5.5rem_6.5rem_auto]">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_5.5rem_6.5rem_auto]">
             <input
               aria-label={`Line ${index + 1} name`}
               className={inlineField}

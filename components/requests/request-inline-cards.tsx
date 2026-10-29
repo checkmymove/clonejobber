@@ -120,7 +120,7 @@ export function RequestContactCard({
       onCancel={() => setDraft(initial)}
       onSave={() => saveRequestContact(clientId, requestId, draft)}
     >
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label="First name">
           <input className={inlineField} value={draft.firstName} onChange={(e) => setDraft({ ...draft, firstName: e.target.value })} />
         </Field>
