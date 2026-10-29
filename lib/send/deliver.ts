@@ -3,8 +3,8 @@ import { sql } from "@/lib/db";
 import { changeInvoiceStatus, changeQuoteStatus } from "@/lib/funnel/engine";
 import { sendGmailMessage } from "@/lib/email/gmail";
 import { getValidAccessToken } from "@/lib/email/google";
-import { documentEmailHtml } from "@/lib/email/templates";
-import { DEFAULT_LOGO_PATH } from "@/lib/email/config";
+import { documentEmailHtml, stampImagePath } from "@/lib/email/templates";
+import { DEFAULT_LOGO_PATH, appUrl } from "@/lib/email/config";
 import { buildInvoicePdf, buildJobPdf, buildQuotePdf } from "@/lib/pdf/builders";
 import { LOGO_PNG_BASE64 } from "@/lib/pdf/logo";
 import { isValidMobile, normalizePhone } from "@/lib/sms/phone";
@@ -95,6 +95,7 @@ export async function deliverEmail(
     ...draft.card,
     buttonUrl: draft.viewUrl,
     message,
+    stampUrl: draft.stamp ? `${appUrl()}${stampImagePath(draft.stamp)}` : null,
   });
   const pdf = input.attachPdf ? await pdfFor(draft.kind, draft.id) : null;
   const ids = (input.attachmentIds ?? []).filter((x) => /^[0-9a-f-]{36}$/i.test(x));

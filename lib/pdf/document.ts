@@ -123,8 +123,31 @@ function text(ctx: Ctx, value: string, x: number, y: number, size: number, opts:
   ctx.page.drawText(safe, { x: drawX, y, size, font, color: opts.color ?? INK });
 }
 
+/** Big diagonal PAST DUE / PAID watermark, drawn first so the page content sits on top. */
+function drawStamp(ctx: Ctx) {
+  const stamp = ctx.doc.stamp ? pdfSafe(ctx.doc.stamp) : "";
+  if (!stamp) return;
+  const size = stamp.length > 5 ? 110 : 150;
+  const width = ctx.bold.widthOfTextAtSize(stamp, size);
+  const angle = 35;
+  const rad = (angle * Math.PI) / 180;
+  // Centre the rotated text on the page.
+  const cx = A4[0] / 2;
+  const cy = A4[1] / 2;
+  ctx.page.drawText(stamp, {
+    x: cx - (Math.cos(rad) * width) / 2 + (Math.sin(rad) * size) / 3,
+    y: cy - (Math.sin(rad) * width) / 2 - (Math.cos(rad) * size) / 3,
+    size,
+    font: ctx.bold,
+    color: /PAID/.test(stamp) && !/DUE/.test(stamp) ? rgb(0.2, 0.55, 0.25) : rgb(0.8, 0.2, 0.2),
+    opacity: 0.13,
+    rotate: degrees(angle),
+  });
+}
+
 function newPage(ctx: Ctx) {
   ctx.page = ctx.pdf.addPage(A4);
+  drawStamp(ctx);
   const top = A4[1] - M;
   ctx.page.drawImage(ctx.logo, { x: M, y: top - 62, width: 62, height: 62 });
   text(ctx, ctx.doc.companyName, 112, top - 22, 18, { bold: true });
@@ -306,17 +329,6 @@ export async function renderDocumentPdf(doc: DocumentPdf): Promise<Uint8Array> {
       color: INK,
     });
     page.drawLine({ start: { x: M, y: 42 }, end: { x: RIGHT, y: 42 }, thickness: 0.5, color: RULE });
-    if (doc.stamp) {
-      page.drawText(pdfSafe(doc.stamp), {
-        x: 150,
-        y: 330,
-        size: 92,
-        font: ctx.regular,
-        color: rgb(0.75, 0.35, 0.35),
-        opacity: 0.4,
-        rotate: degrees(35),
-      });
-    }
   });
   return pdf.save();
 }

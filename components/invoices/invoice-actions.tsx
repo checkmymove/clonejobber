@@ -75,7 +75,8 @@ export function InvoiceHeaderActions({
         items={[
           {
             kind: "action",
-            label: "Send email & text",
+            // Sent and unpaid: Jobber's follow-up reminder (PAST DUE watermark once overdue).
+            label: (status === "sent" || status === "overdue") && balance > 0 ? "Send payment reminder" : "Send email & text",
             icon: <Mail size={18} />,
             hidden: status === "cancelled",
             run: () => sender.open("invoice", invoiceId),

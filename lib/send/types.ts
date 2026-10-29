@@ -32,6 +32,8 @@ export type SendDraft = {
   attachment: string | null;
   /** False until an SMS provider is connected; texts are then only logged. */
   smsReady: boolean;
+  /** PAST DUE or PAID watermark on the email (and on the attached invoice PDF). */
+  stamp?: "past_due" | "paid";
 };
 
 export type ChannelResult = { ok: boolean; message?: string };

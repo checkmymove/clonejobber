@@ -122,8 +122,15 @@ export function documentEmailHtml(input: {
   buttonLabel?: string;
   buttonUrl?: string | null;
   message: string;
+  /** Big PAST DUE / PAID watermark behind the letter (absolute or page-relative image URL). */
+  stampUrl?: string | null;
 }): string {
   const company = escapeHtml(input.companyName.trim());
+  const stamp = input.stampUrl ? escapeHtml(input.stampUrl) : "";
+  // Email clients drop CSS rotation, so the watermark is a transparent PNG used as the cell background.
+  const stampAttrs = stamp
+    ? ` background="${stamp}" style="padding:28px 36px 40px;background-image:url('${stamp}');background-repeat:no-repeat;background-position:center center;background-size:contain"`
+    : ` style="padding:28px 36px 40px"`;
   const logo = input.logoUrl
     ? `<img src="${escapeHtml(input.logoUrl)}" alt="${company}" width="92" style="display:block;border:0;max-width:92px;height:auto"/>`
     : `<div style="width:92px;text-align:center;line-height:1.15">
@@ -168,7 +175,7 @@ export function documentEmailHtml(input: {
             </td>
           </tr>
           <tr>
-            <td style="padding:28px 36px 40px">
+            <td${stampAttrs}>
               <h1 style="margin:0 0 22px;font-size:22px;line-height:1.2;font-weight:700;color:#1c3d46">${escapeHtml(input.heading)}</h1>
               ${body}
             </td>
@@ -201,4 +208,11 @@ export function invoiceEmailHtml(input: {
     <p>Balance due ${formatGBP(input.balance)} · Due ${formatDateLondon(input.dueOn)}</p>
     <p>Please reply to this email if you have any questions.</p>
   </div>`;
+}
+
+export type EmailStamp = "past_due" | "paid";
+
+/** Path of the watermark image served from /public/stamps. */
+export function stampImagePath(stamp: EmailStamp): string {
+  return stamp === "paid" ? "/stamps/paid.png" : "/stamps/past-due.png";
 }

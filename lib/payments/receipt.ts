@@ -4,45 +4,11 @@ import { formatDateNumericLondon, formatGBP } from "@/lib/format";
 import { sendGmailMessage } from "@/lib/email/gmail";
 import { getValidAccessToken } from "@/lib/email/google";
 import { paymentMethodLabel } from "./constants";
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-export function paymentReceiptHtml(input: {
-  companyName: string;
-  clientName: string;
-  amount: number;
-  paidOn: string;
-  method: string;
-  reference: string;
-  appliedTo: { label: string; amount: number; balance: number | null }[];
-}): string {
-  const rows = input.appliedTo
-    .map(
-      (a) => `<tr>
-        <td style="padding:6px 0;border-bottom:1px solid #d5dde1">${escapeHtml(a.label)}</td>
-        <td style="padding:6px 0;border-bottom:1px solid #d5dde1;text-align:right">${formatGBP(a.amount)}</td>
-        <td style="padding:6px 0;border-bottom:1px solid #d5dde1;text-align:right;color:#5d6f78">${
-          a.balance == null ? "" : `Balance ${formatGBP(a.balance)}`
-        }</td>
-      </tr>`,
-    )
-    .join("");
-  return `<div style="font-family:system-ui,sans-serif;color:#042b3c;max-width:560px">
-    <p>Hello ${escapeHtml(input.clientName)},</p>
-    <p>Thank you. ${escapeHtml(input.companyName)} has received your payment of <strong>${formatGBP(input.amount)}</strong>.</p>
-    <p style="color:#5d6f78">Date ${formatDateNumericLondon(input.paidOn)} · ${escapeHtml(paymentMethodLabel(input.method))}${
-      input.reference ? ` · Ref ${escapeHtml(input.reference)}` : ""
-    }</p>
-    ${rows ? `<table width="100%" cellpadding="0" cellspacing="0">${rows}</table>` : ""}
-    <p>Please reply to this email if you have any questions.</p>
-  </div>`;
-}
+import { appUrl } from "@/lib/email/config";
+import { documentEmailHtml, stampImagePath } from "@/lib/email/templates";
+import { buildInvoicePdf } from "@/lib/pdf/builders";
+import { LOGO_PNG_BASE64 } from "@/lib/pdf/logo";
+import { baseVars, letterFor } from "@/lib/send/drafts";
 
 /** Emails a payment receipt from the connected Gmail account and logs it on the client. */
 export async function sendPaymentReceipt(
@@ -79,28 +45,40 @@ export async function sendPaymentReceipt(
   if (!p) return { ok: false, message: "Payment not found" };
   if (!p.client_email) return { ok: false, message: "This client has no email address." };
 
-  const allocations = await sql<{ number: string; amount: number; balance: number }[]>`
-    select i.number, a.amount, i.balance
+  const allocations = await sql<{ id: string; number: string; amount: number; balance: number }[]>`
+    select i.id, i.number, a.amount, i.balance
     from payment_allocations a join invoices i on i.id = a.invoice_id
     where a.payment_id = ${paymentId}
     order by i.number
   `;
-  const appliedTo = [
-    ...(p.kind === "deposit" && p.quote_number
-      ? [{ label: `Deposit for quote ${p.quote_number}`, amount: p.amount, balance: null }]
-      : []),
-    ...allocations.map((a) => ({ label: `Invoice ${a.number}`, amount: a.amount, balance: a.balance })),
-  ];
-  const subject = `Payment receipt from ${p.company_name}`;
-  const html = paymentReceiptHtml({
-    companyName: p.company_name,
-    clientName: p.client_name,
-    amount: p.amount,
-    paidOn: p.paid_on,
-    method: p.method,
-    reference: p.reference,
-    appliedTo,
+  const kindLabel = p.kind === "deposit" ? "deposit" : "payment";
+  const letter = await letterFor(companyId, "payment_receipt", {
+    ...baseVars({ name: p.company_name }, { name: p.client_name }),
+    PAYMENT_AMOUNT: formatGBP(p.amount),
+    PAYMENT_OR_DEPOSIT: kindLabel,
+    QUOTE_NUMBER: p.quote_number ?? "",
+    INVOICE_NUMBER: allocations.map((a) => a.number).join(", "),
   });
+  const applied = [
+    ...(p.kind === "deposit" && p.quote_number ? [`Deposit for quote ${p.quote_number}: ${formatGBP(p.amount)}`] : []),
+    ...allocations.map((a) => `Invoice ${a.number}: ${formatGBP(a.amount)} · balance ${formatGBP(a.balance)}`),
+  ];
+  const message = applied.length ? `${letter.message}\n\nApplied to:\n${applied.join("\n")}` : letter.message;
+  const subject = letter.subject;
+  // Jobber's receipt: amount on top and a PAID watermark behind the letter.
+  const html = documentEmailHtml({
+    companyName: p.company_name,
+    logoUrl: "cid:company-logo",
+    heading: p.kind === "deposit" ? "Deposit receipt" : "Payment receipt",
+    amount: formatGBP(p.amount),
+    amountNote: `Paid on ${formatDateNumericLondon(p.paid_on)} · ${paymentMethodLabel(p.method)}${p.reference ? ` · Ref ${p.reference}` : ""}`,
+    message,
+    stampUrl: `${appUrl()}${stampImagePath("paid")}`,
+  });
+  // The invoice PDF goes along; a fully paid invoice carries the PAID stamp too.
+  const pdfs = (
+    await Promise.all(allocations.map((a) => buildInvoicePdf(a.id).catch(() => null)))
+  ).filter((x): x is NonNullable<typeof x> => Boolean(x));
 
   try {
     await sendGmailMessage({
@@ -109,6 +87,10 @@ export async function sendPaymentReceipt(
       to: p.client_email,
       subject,
       html,
+      attachments: pdfs.map((pdf) => ({ fileName: pdf.fileName, mimeType: "application/pdf", data: pdf.bytes })),
+      inlineImages: [
+        { contentId: "company-logo", fileName: "logo.png", mimeType: "image/png", data: Buffer.from(LOGO_PNG_BASE64, "base64") },
+      ],
     });
   } catch (err) {
     return { ok: false, message: err instanceof Error ? err.message : "Gmail send failed" };

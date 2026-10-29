@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, FileText, Mail, MessageSquare, Paperclip, X } from "lucide-react";
-import { documentEmailHtml } from "@/lib/email/templates";
+import { documentEmailHtml, stampImagePath } from "@/lib/email/templates";
 import { prepareSend, removeSendAttachment, sendDocument, uploadSendAttachment } from "@/lib/send/actions";
 import {
   ATTACHMENT_FILE_MAX_BYTES,
@@ -119,6 +119,7 @@ export function SendDialog({
         ...draft.card,
         buttonUrl: draft.viewUrl ?? "#",
         message,
+        stampUrl: draft.stamp ? `${window.location.origin}${stampImagePath(draft.stamp)}` : null,
       }),
     [draft, message],
   );

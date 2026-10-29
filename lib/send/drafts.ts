@@ -3,7 +3,8 @@ import { sql } from "@/lib/db";
 import { COMPANY_SLUG } from "@/lib/company";
 import { DEFAULT_LOGO_PATH, clientInvoiceUrl, clientJobUrl, clientQuoteUrl } from "@/lib/email/config";
 import { COMPANY_PHONE_DISPLAY, quoteClientGreeting } from "@/lib/email/templates";
-import { formatDateNumericLondon, formatPounds } from "@/lib/format";
+import { formatDateNumericLondon, formatPounds, todayLondonInput } from "@/lib/format";
+import { deriveInvoiceStatus } from "@/lib/invoices/status";
 import { getInvoiceDetail } from "@/lib/invoices/queries";
 import { getJobDetail } from "@/lib/jobs/queries";
 import { pdfFileName } from "@/lib/pdf/document";
@@ -192,15 +193,21 @@ async function invoiceDraft(company: Company, id: string): Promise<Result> {
   if (!inv) return { ok: false, message: "Invoice not found." };
   if (inv.status === "cancelled") return { ok: false, message: "A voided invoice cannot be sent." };
   if (inv.total <= 0) return { ok: false, message: "Set line item prices before sending." };
+  const today = todayLondonInput();
+  const listStatus = deriveInvoiceStatus(inv.status, inv.due_on, today);
   const due = inv.status === "draft" ? "" : formatDateNumericLondon(inv.due_on);
   const url = clientInvoiceUrl(id);
-  const letter = await letterFor(company.id, "invoice_sent", {
+  // Once sent and still unpaid, sending again is Jobber's "invoice follow-up" reminder.
+  const followUp = Boolean(inv.sent_at) && (listStatus === "past_due" || listStatus === "awaiting_payment");
+  const daysLate = listStatus === "past_due" ? daysBetween(inv.due_on, today) : 0;
+  const letter = await letterFor(company.id, followUp ? "invoice_followup" : "invoice_sent", {
     ...baseVars(company, { name: inv.client_name }),
     INVOICE_NUMBER: inv.number,
     INVOICE_SUBJECT: inv.subject && !/^invoice\b/i.test(inv.subject) ? inv.subject : "",
     INVOICE_TOTAL: pounds(inv.total),
     INVOICE_BALANCE: pounds(inv.balance),
     INVOICE_DUE_DATE: due || "upon receipt",
+    DAYS_OVERDUE: daysLate > 0 ? `${daysLate} day${daysLate === 1 ? "" : "s"} overdue` : "awaiting payment",
   });
   return {
     ok: true,
@@ -213,7 +220,12 @@ async function invoiceDraft(company: Company, id: string): Promise<Result> {
       card: {
         heading: "Invoice",
         amount: pounds(inv.balance || inv.total),
-        amountNote: due ? `Your invoice is due on ${due}` : "Your invoice is due upon receipt",
+        amountNote:
+          listStatus === "past_due"
+            ? `Your invoice was due on ${due}`
+            : due
+              ? `Your invoice is due on ${due}`
+              : "Your invoice is due upon receipt",
         buttonLabel: "View Invoice",
       },
       email: {
@@ -224,8 +236,15 @@ async function invoiceDraft(company: Company, id: string): Promise<Result> {
       },
       sms: { to: normalizePhone(inv.client_phone), message: withLink(letter.sms, url) },
       attachment: pdfFileName("invoice", inv.number),
+      stamp: listStatus === "past_due" ? "past_due" : listStatus === "paid" ? "paid" : undefined,
     },
   };
+}
+
+function daysBetween(from: string, to: string): number {
+  const a = Date.parse(`${from}T12:00:00Z`);
+  const b = Date.parse(`${to}T12:00:00Z`);
+  return Number.isFinite(a) && Number.isFinite(b) ? Math.max(0, Math.round((b - a) / 86400000)) : 0;
 }
 
 export async function buildSendDraft(kind: SendKind, id: string): Promise<Result> {
