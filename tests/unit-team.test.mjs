@@ -9,6 +9,7 @@ import {
   parseManualEntry,
   visitShare,
 } from "../.testbuild/team/time.js";
+import { DEFAULT_WORKING_HOURS, hoursLabel, normaliseHours, validateMember } from "../.testbuild/team/member.js";
 
 const visit = (patch = {}) => ({
   done: false,
@@ -102,5 +103,48 @@ describe("manual time entry", () => {
     assert.equal(parseManualEntry({ ...base }).ok, false);
     assert.equal(parseManualEntry({ ...base, minutes: "75" }).ok, false);
     assert.equal(parseManualEntry({ ...base, hours: "1.5" }).ok, false);
+  });
+});
+
+
+describe("team member (Jobber Manage team)", () => {
+  const base = {
+    name: "Jailton Bento",
+    email: "",
+    phone: "",
+    street: "",
+    city: "",
+    province: "",
+    postcode: "",
+    country: "United Kingdom",
+    admin: false,
+    permission: "field_crew",
+    workingHours: DEFAULT_WORKING_HOURS,
+  };
+
+  it("accepts a member with only a name", () => {
+    assert.deepEqual(validateMember(base), {});
+  });
+
+  it("checks email, permission level and working hours", () => {
+    const e = validateMember({
+      ...base,
+      email: "nope",
+      permission: "boss",
+      workingHours: { ...DEFAULT_WORKING_HOURS, mon: ["19:00", "08:00"] },
+    });
+    assert.ok(e.email && e.permission && e["hours.mon"]);
+  });
+
+  it("lists hours like Jobber", () => {
+    assert.equal(hoursLabel(["08:00", "19:00"]), "8:00 AM – 7:00 PM");
+    assert.equal(hoursLabel(null), "Unavailable");
+  });
+
+  it("fills missing days from the default week", () => {
+    const h = normaliseHours({ sun: null, mon: ["09:00", "17:00"] });
+    assert.deepEqual(h.mon, ["09:00", "17:00"]);
+    assert.deepEqual(h.tue, ["08:00", "19:00"]);
+    assert.equal(h.sun, null);
   });
 });

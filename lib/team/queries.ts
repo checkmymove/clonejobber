@@ -4,16 +4,54 @@ import { toDateInput, todayLondonInput } from "@/lib/format";
 import { getScheduleBundle } from "@/lib/schedule/queries";
 import { KIND_META, type ScheduleKind } from "@/lib/schedule/types";
 import { appointmentStatus, entrySeconds, visitShare, type AppointmentStatus } from "./time";
+import { normaliseHours, type PermissionPreset, type TeamRole, type WorkingHours } from "./member";
+
+export type TeamMemberDetail = {
+  id: string;
+  name: string;
+  active: boolean;
+  role: TeamRole;
+  permission: PermissionPreset;
+  email: string;
+  phone: string;
+  street: string;
+  city: string;
+  province: string;
+  postcode: string;
+  country: string;
+  workingHours: WorkingHours;
+  lastActive: string | null;
+};
+
+/** Jobber Manage team › member page. "Last active" is the member's latest time entry. */
+export async function getTeamMember(companySlug: string, id: string): Promise<TeamMemberDetail | null> {
+  const rows = await sql<(Omit<TeamMemberDetail, "workingHours"> & { working_hours: unknown })[]>`
+    select m.id, m.name, m.active, m.role, m.permission, m.email, m.phone, m.street, m.city,
+           m.province, m.postcode, m.country, m.working_hours,
+           (select max(coalesce(t.ended_at, t.started_at)) from time_entries t where t.member_id = m.id) as "lastActive"
+    from team_members m
+    join companies co on co.id = m.company_id
+    where co.slug = ${companySlug} and m.id = ${id}
+    limit 1
+  `;
+  const r = rows[0];
+  if (!r) return null;
+  const { working_hours, ...rest } = r;
+  return { ...rest, workingHours: normaliseHours(working_hours) };
+}
 
 export type TeamMember = {
   id: string;
   name: string;
   active: boolean;
+  role?: TeamRole;
+  email?: string;
+  phone?: string;
 };
 
 export async function listTeam(companySlug: string, includeInactive = false): Promise<TeamMember[]> {
   return sql<TeamMember[]>`
-    select m.id, m.name, m.active
+    select m.id, m.name, m.active, m.role, m.email, m.phone
     from team_members m
     join companies co on co.id = m.company_id
     where co.slug = ${companySlug}

@@ -10,8 +10,8 @@ export default async function EquipaPage() {
   return (
     <div className="max-w-3xl">
       <PageHeader
-        title="Team"
-        subtitle="People you assign to visits. Their clock in/out and time entries show on the dashboard and on each job."
+        title="Manage team"
+        subtitle="People you assign to visits. Open a member to edit their details, working hours and permissions."
       />
       <TeamManager team={team} />
     </div>

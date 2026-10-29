@@ -1,25 +1,24 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Pencil } from "lucide-react";
+import { ClickableRow } from "@/components/clickable-row";
 import { Card } from "@/components/ui";
 import { Avatar } from "@/components/team/team-ui";
-import {
-  addTeamMemberAction,
-  renameTeamMemberAction,
-  setTeamMemberActiveAction,
-  type TeamActionResult,
-} from "@/lib/team/actions";
+import { addTeamMemberAction, type TeamActionResult } from "@/lib/team/actions";
+import { ROLE_LABEL } from "@/lib/team/member";
 import type { TeamMember } from "@/lib/team/queries";
 
 const field =
   "h-10 w-full rounded-xl border border-line bg-white px-3 text-sm text-ink outline-none focus:border-accent focus:ring-2 focus:ring-emerald-100";
 
+/** Jobber Settings › Manage team: the list, search and "Invite New Member". */
 export function TeamManager({ team }: { team: TeamMember[] }) {
   const router = useRouter();
   const [name, setName] = useState("");
-  const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
+  const [email, setEmail] = useState("");
+  const [query, setQuery] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -36,92 +35,98 @@ export function TeamManager({ team }: { team: TeamMember[] }) {
     router.refresh();
   };
 
+  const q = query.trim().toLowerCase();
+  const shown = team.filter((m) => !q || `${m.name} ${m.email ?? ""} ${m.phone ?? ""}`.toLowerCase().includes(q));
+  const active = shown.filter((m) => m.active);
+  const inactive = shown.filter((m) => !m.active);
+
+  return (
+    <div className="space-y-4">
+      <Card className="p-5">
+        <h2 className="mb-3 text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">Add team member</h2>
+        <form
+          className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_auto]"
+          onSubmit={(e) => {
+            e.preventDefault();
+            run(addTeamMemberAction(name, email), () => {
+              setName("");
+              setEmail("");
+            });
+          }}
+        >
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" aria-label="Full name" className={field} />
+          <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email address (optional)" aria-label="Email address" className={field} />
+          <button
+            type="submit"
+            disabled={pending || !name.trim()}
+            className="h-10 shrink-0 rounded-xl bg-accent px-4 text-sm font-bold text-white disabled:opacity-60"
+          >
+            Add member
+          </button>
+        </form>
+        {message ? <p className="mt-2 text-xs font-semibold text-rose-700">{message}</p> : null}
+      </Card>
+
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search team members"
+        aria-label="Search team members"
+        className={field}
+      />
+
+      <MemberTable title={`Active (${active.length})`} members={active} />
+      {inactive.length > 0 ? <MemberTable title={`Deactivated (${inactive.length})`} members={inactive} /> : null}
+    </div>
+  );
+}
+
+function MemberTable({ title, members }: { title: string; members: TeamMember[] }) {
   return (
     <Card className="p-5">
-      <form
-        className="flex flex-col gap-2 sm:flex-row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          run(addTeamMemberAction(name), () => setName(""));
-        }}
-      >
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Full name"
-          aria-label="New team member name"
-          className={field}
-        />
-        <button
-          type="submit"
-          disabled={pending || !name.trim()}
-          className="h-10 shrink-0 rounded-xl bg-accent px-4 text-sm font-bold text-white disabled:opacity-60"
-        >
-          Add team member
-        </button>
-      </form>
-      {message ? <p className="mt-2 text-xs font-semibold text-rose-700">{message}</p> : null}
-
-      <div className="mt-4 divide-y divide-line">
-        {team.length === 0 ? <p className="py-3 text-sm text-ink-mute">No team members yet.</p> : null}
-        {team.map((m) => (
-          <div key={m.id} className="flex flex-wrap items-center gap-3 py-3">
-            <Avatar id={m.id} name={m.name} size={32} />
-            {editing?.id === m.id ? (
-              <form
-                className="flex min-w-0 flex-1 gap-2"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  run(renameTeamMemberAction(m.id, editing.name), () => setEditing(null));
-                }}
-              >
-                <input
-                  autoFocus
-                  value={editing.name}
-                  onChange={(e) => setEditing({ id: m.id, name: e.target.value })}
-                  aria-label="Name"
-                  className={field}
-                />
-                <button type="submit" disabled={pending} className="h-10 rounded-xl bg-accent px-3 text-sm font-bold text-white">
-                  Save
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEditing(null)}
-                  className="h-10 rounded-xl border border-line px-3 text-sm font-bold text-ink"
-                >
-                  Cancel
-                </button>
-              </form>
-            ) : (
-              <>
-                <div className="min-w-0 flex-1">
-                  <p className={m.active ? "truncate font-bold text-ink" : "truncate font-bold text-ink-mute line-through"}>
-                    {m.name}
-                  </p>
-                  <p className="text-xs text-ink-soft">{m.active ? "Active" : "Deactivated"}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setEditing({ id: m.id, name: m.name })}
-                  aria-label={`Rename ${m.name}`}
-                  className="grid h-8 w-8 place-items-center rounded-lg text-ink-soft hover:bg-cream hover:text-ink"
-                >
-                  <Pencil size={14} />
-                </button>
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() => run(setTeamMemberActiveAction(m.id, !m.active))}
-                  className="h-8 rounded-lg border border-line px-3 text-xs font-bold text-ink hover:bg-cream disabled:opacity-50"
-                >
-                  {m.active ? "Deactivate" : "Reactivate"}
-                </button>
-              </>
-            )}
-          </div>
-        ))}
-      </div>
+      <h2 className="mb-2 font-extrabold text-ink">{title}</h2>
+      {members.length === 0 ? (
+        <p className="text-sm text-ink-mute">No team members.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full fit-table text-left text-sm">
+            <thead>
+              <tr className="border-b border-line text-xs font-semibold text-ink-mute">
+                <th className="py-2 pr-4 font-semibold">Name</th>
+                <th className="py-2 pr-4 font-semibold">Role</th>
+                <th className="py-2 pr-4 font-semibold">Contact</th>
+                <th className="py-2 font-semibold">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {members.map((m) => (
+                <ClickableRow key={m.id} href={`/equipa/${m.id}`}>
+                  <td className="py-3 pr-4">
+                    <Link href={`/equipa/${m.id}`} className="flex items-center gap-2.5 font-bold text-accent hover:underline">
+                      <Avatar id={m.id} name={m.name} size={30} />
+                      {m.name}
+                    </Link>
+                  </td>
+                  <td data-label="Role" className="py-3 pr-4 text-ink">{ROLE_LABEL[m.role ?? "user"]}</td>
+                  <td data-label="Contact" className="py-3 pr-4 text-ink-soft [overflow-wrap:anywhere]">
+                    {[m.email, m.phone].filter(Boolean).join(" · ") || "—"}
+                  </td>
+                  <td className="py-3">
+                    <span
+                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                        m.active ? "bg-emerald-50 text-emerald-800" : "bg-stone-100 text-stone-600"
+                      }`}
+                    >
+                      <span className={`h-1.5 w-1.5 rounded-full ${m.active ? "bg-emerald-600" : "bg-stone-400"}`} />
+                      {m.active ? "Active" : "Deactivated"}
+                    </span>
+                  </td>
+                </ClickableRow>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </Card>
   );
 }

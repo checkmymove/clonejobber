@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/auth/session";
 import { getCompanyId } from "@/lib/company";
 import { sql } from "@/lib/db";
 import { parseManualEntry, type ManualEntryInput } from "./time";
+import { validateMember, type MemberInput } from "./member";
 
 type Db = any;
 
@@ -151,15 +152,17 @@ export async function deleteTimeEntryAction(entryId: string): Promise<TeamAction
   return { ok: true };
 }
 
-export async function addTeamMemberAction(name: string): Promise<TeamActionResult> {
+export async function addTeamMemberAction(name: string, email = ""): Promise<TeamActionResult> {
   const companyId = await companyOrFail();
   if (!companyId) return { ok: false, message: "Company not found." };
   const clean = name.trim().replace(/\s+/g, " ");
   if (!clean) return { ok: false, message: "Enter a name." };
   if (clean.length > 80) return { ok: false, message: "Name is too long." };
+  const mail = email.trim();
+  if (mail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) return { ok: false, message: "Enter a valid email address." };
   const rows = await sql`
-    insert into team_members (company_id, name, sort)
-    values (${companyId}, ${clean},
+    insert into team_members (company_id, name, email, sort)
+    values (${companyId}, ${clean}, ${mail},
             (select coalesce(max(sort), 0) + 1 from team_members where company_id = ${companyId}))
     on conflict (company_id, name) do update set active = true, updated_at = now()
     returning id
@@ -213,5 +216,50 @@ export async function setTeamMemberActiveAction(memberId: string, active: boolea
     }
   });
   refresh();
+  return { ok: true };
+}
+
+/** Jobber member page: personal info, working hours and permissions. */
+export async function saveTeamMemberAction(
+  memberId: string,
+  input: MemberInput,
+): Promise<TeamActionResult & { errors?: Record<string, string> }> {
+  const companyId = await companyOrFail();
+  if (!companyId) return { ok: false, message: "Company not found." };
+  const errors = validateMember(input);
+  if (Object.keys(errors).length) return { ok: false, errors, message: Object.values(errors)[0] };
+  const current = await sql<{ role: string }[]>`
+    select role from team_members where id = ${memberId} and company_id = ${companyId}
+  `;
+  if (!current[0]) return { ok: false, message: "Team member not found." };
+  // The owner stays the owner; others switch between Admin and User with "Make administrator".
+  const role = current[0].role === "owner" ? "owner" : input.admin ? "admin" : "user";
+  const name = input.name.trim().replace(/\s+/g, " ");
+  try {
+    await sql.begin(async (tx) => {
+      await tx`
+        update team_members set
+          name = ${name},
+          email = ${input.email.trim()},
+          phone = ${input.phone.trim()},
+          street = ${input.street.trim()},
+          city = ${input.city.trim()},
+          province = ${input.province.trim()},
+          postcode = ${input.postcode.trim().toUpperCase()},
+          country = ${input.country.trim()},
+          role = ${role},
+          permission = ${input.permission},
+          working_hours = ${sql.json(input.workingHours)},
+          updated_at = now()
+        where id = ${memberId} and company_id = ${companyId}
+      `;
+      const vs = await tx<{ visit_id: string }[]>`select visit_id from job_visit_members where member_id = ${memberId}`;
+      for (const v of vs) await syncAssigneeText(tx, v.visit_id);
+    });
+  } catch {
+    return { ok: false, message: "Someone on the team already has that name." };
+  }
+  refresh();
+  revalidatePath(`/equipa/${memberId}`);
   return { ok: true };
 }
