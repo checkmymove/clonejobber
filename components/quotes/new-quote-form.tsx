@@ -1,19 +1,16 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { Calendar, ChevronDown, Hammer, Mail, MessageSquare, Quote, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Calendar, ChevronDown, Hammer, Mail, Quote, Trash2 } from "lucide-react";
 import { StickySaveBar } from "@/components/forms/sticky-save-bar";
 import { TimeField, toTime24 } from "@/components/time-field";
-import { EmailQuoteDialog } from "@/components/quotes/email-quote-dialog";
-import { SmsQuoteDialog } from "@/components/quotes/sms-quote-dialog";
-import type { QuoteEmailDraft } from "@/lib/email/draft";
-import type { QuoteSmsDraft } from "@/lib/sms/draft";
+import { SendDialog, useSendDialog } from "@/components/funnel/send-dialog";
 import {
   createQuote,
   loadQuotePrefill,
-  prepareQuoteEmail,
-  prepareQuoteSms,
   saveQuoteAndConvert,
+  saveQuoteAndPrepareSend,
   updateQuote,
 } from "@/lib/quotes/actions";
 import { QUOTE_TERMS } from "@/lib/quotes/terms";
@@ -99,8 +96,8 @@ export function NewQuoteForm({
   const [taxOpen, setTaxOpen] = useState(Boolean(initialTax));
   const [depositOpen, setDepositOpen] = useState(Boolean(initialDeposit));
   const [savedQuoteId, setSavedQuoteId] = useState(quoteId);
-  const [emailDraft, setEmailDraft] = useState<QuoteEmailDraft | null>(null);
-  const [smsDraft, setSmsDraft] = useState<QuoteSmsDraft | null>(null);
+  const sender = useSendDialog();
+  const router = useRouter();
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const [lines, setLines] = useState<Line[]>(
@@ -191,7 +188,7 @@ export function NewQuoteForm({
   const taxAmount = money(tax);
   const quoteTotal = Math.max(0, subtotal - discountAmount + taxAmount);
 
-  async function submit(followUp?: "email" | "job" | "sms") {
+  async function submit(followUp?: "send" | "job") {
     setError("");
     setPending(true);
     const payload = {
@@ -214,26 +211,15 @@ export function NewQuoteForm({
       })),
     };
     const currentId = savedQuoteId;
-    if (followUp === "email") {
-      const prepared = await prepareQuoteEmail(currentId, payload);
+    if (followUp === "send") {
+      const prepared = await saveQuoteAndPrepareSend(currentId, payload);
       setPending(false);
       if (prepared.id) setSavedQuoteId(prepared.id);
       if (!prepared.ok || !prepared.draft) {
-        setError(prepared.message || Object.values(prepared.errors ?? {})[0] || "Could not prepare the email.");
+        setError(prepared.message || Object.values(prepared.errors ?? {})[0] || "Could not prepare the message.");
         return;
       }
-      setEmailDraft(prepared.draft);
-      return;
-    }
-    if (followUp === "sms") {
-      const prepared = await prepareQuoteSms(currentId, payload);
-      setPending(false);
-      if (prepared.id) setSavedQuoteId(prepared.id);
-      if (!prepared.ok || !prepared.draft) {
-        setError(prepared.message || Object.values(prepared.errors ?? {})[0] || "Could not prepare the text message.");
-        return;
-      }
-      setSmsDraft(prepared.draft);
+      sender.show(prepared.draft);
       return;
     }
     const result =
@@ -622,14 +608,9 @@ export function NewQuoteForm({
         saveLabel="Save Quote"
         menuItems={[
           {
-            label: "Send as Email",
+            label: "Send email & text",
             icon: <Mail size={18} />,
-            onClick: () => void submit("email"),
-          },
-          {
-            label: "Send Text Message",
-            icon: <MessageSquare size={18} />,
-            onClick: () => void submit("sms"),
+            onClick: () => void submit("send"),
           },
           {
             label: "Convert to Job",
@@ -639,10 +620,13 @@ export function NewQuoteForm({
         ]}
       />
     </form>
-    {emailDraft ? (
-      <EmailQuoteDialog draft={emailDraft} onClose={() => setEmailDraft(null)} />
+    {sender.draft ? (
+      <SendDialog
+        draft={sender.draft}
+        onClose={sender.close}
+        onDone={() => router.push(`/cotacoes/${sender.draft?.id}`)}
+      />
     ) : null}
-    {smsDraft ? <SmsQuoteDialog draft={smsDraft} onClose={() => setSmsDraft(null)} /> : null}
     </>
   );
 }

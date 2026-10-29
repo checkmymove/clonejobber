@@ -14,10 +14,8 @@ import {
   deleteQuote as deleteQuoteRecord,
   type ActionResult,
 } from "@/lib/funnel/engine";
-import type { QuoteEmailDraft } from "@/lib/email/draft";
-import { buildQuoteEmailDraft, sendComposedQuoteEmail } from "@/lib/email/send";
-import type { QuoteSmsDraft } from "@/lib/sms/draft";
-import { buildQuoteSmsDraft, sendComposedQuoteSms } from "@/lib/sms/send";
+import { buildSendDraft } from "@/lib/send/drafts";
+import type { SendDraft } from "@/lib/send/types";
 import { isUuid, type QuoteInput } from "@/lib/funnel/validation";
 import { getServiceForQuote } from "@/lib/products/queries";
 import { getQuotePrefillForClient, getQuotePrefillFromRequest } from "@/lib/quotes/queries";
@@ -78,85 +76,16 @@ export async function saveQuoteInPlace(quoteId: string, input: QuoteInput): Prom
   return writeQuote(quoteId, input);
 }
 
-export async function prepareQuoteEmail(
+/** Save button "Send email & text": saves the quote, then opens the send dialog. */
+export async function saveQuoteAndPrepareSend(
   quoteId: string | undefined,
   input: QuoteInput,
-): Promise<ActionResult & { draft?: QuoteEmailDraft }> {
+): Promise<ActionResult & { draft?: SendDraft }> {
   const saved = await writeQuote(quoteId, input);
   if (!saved.ok || !saved.id) return saved;
-  const companyId = await getCompanyId();
-  if (!companyId) return { ok: false, id: saved.id, message: "Company not found." };
-  const draft = await buildQuoteEmailDraft(companyId, saved.id);
-  if (!draft.ok) return { ok: false, id: saved.id, message: draft.message };
-  return { ok: true, id: saved.id, draft: draft.draft };
-}
-
-export async function sendPreparedQuoteEmail(input: {
-  quoteId: string;
-  to: string;
-  subject: string;
-  message: string;
-  copyToSender: boolean;
-}): Promise<ActionResult> {
-  await requireAdmin();
-  const sent = await sendComposedQuoteEmail(input);
-  if (sent.ok) {
-    revalidatePath("/cotacoes");
-    revalidatePath(`/cotacoes/${input.quoteId}`);
-    revalidatePath("/clientes");
-    redirect(`/cotacoes/${input.quoteId}`);
-  }
-  return sent;
-}
-
-export async function prepareQuoteSms(
-  quoteId: string | undefined,
-  input: QuoteInput,
-): Promise<ActionResult & { draft?: QuoteSmsDraft }> {
-  const saved = await writeQuote(quoteId, input);
-  if (!saved.ok || !saved.id) return saved;
-  const companyId = await getCompanyId();
-  if (!companyId) return { ok: false, id: saved.id, message: "Company not found." };
-  const draft = await buildQuoteSmsDraft(companyId, saved.id);
-  if (!draft.ok) return { ok: false, id: saved.id, message: draft.message };
-  return { ok: true, id: saved.id, draft: draft.draft };
-}
-
-export async function prepareSavedQuoteEmail(
-  quoteId: string,
-): Promise<ActionResult & { draft?: QuoteEmailDraft }> {
-  await requireAdmin();
-  if (!isUuid(quoteId)) return { ok: false, message: "Quote not found." };
-  const companyId = await getCompanyId();
-  if (!companyId) return { ok: false, message: "Company not found." };
-  const draft = await buildQuoteEmailDraft(companyId, quoteId);
-  if (!draft.ok) return { ok: false, message: draft.message };
-  return { ok: true, id: quoteId, draft: draft.draft };
-}
-
-export async function prepareSavedQuoteSms(
-  quoteId: string,
-): Promise<ActionResult & { draft?: QuoteSmsDraft }> {
-  await requireAdmin();
-  if (!isUuid(quoteId)) return { ok: false, message: "Quote not found." };
-  const companyId = await getCompanyId();
-  if (!companyId) return { ok: false, message: "Company not found." };
-  const draft = await buildQuoteSmsDraft(companyId, quoteId);
-  if (!draft.ok) return { ok: false, message: draft.message };
-  return { ok: true, id: quoteId, draft: draft.draft };
-}
-
-export async function sendPreparedQuoteSms(input: {
-  quoteId: string;
-  to: string;
-  message: string;
-}): Promise<ActionResult> {
-  await requireAdmin();
-  const sent = await sendComposedQuoteSms(input);
-  revalidatePath("/cotacoes");
-  revalidatePath(`/cotacoes/${input.quoteId}`);
-  revalidatePath("/clientes");
-  return sent;
+  const prepared = await buildSendDraft("quote", saved.id);
+  if (!prepared.ok) return { ok: false, id: saved.id, message: prepared.message };
+  return { ok: true, id: saved.id, draft: prepared.draft };
 }
 
 export async function archiveSavedQuote(quoteId: string, archived = true): Promise<ActionResult> {

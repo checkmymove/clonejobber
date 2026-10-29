@@ -48,3 +48,26 @@ Fonte: conta Jobber da Moving London observada em 14 out 2026 (páginas, DOM e r
 - `invoices.balance` = total − alocações − `bad_debt_amount`, recalculado em `lib/payments/engine.ts`.
 - Os depósitos sem alocação de uma quote são aplicados à invoice quando ela é criada a partir do job dessa quote.
 - Ficou de fora, por ser exclusivo do Jobber Payments ou de outros módulos: cobrança online, payouts, disputas, refunds, gorjetas, client hub, jobs recorrentes, timesheets e expenses, assinatura e PDF.
+
+## Envio por e-mail e texto, PDF e Preview as Client (observado em 28 out 2026)
+
+Fonte: conta Jobber da Moving London, via Chrome com porta de debug (fluxo REA de observação), sem enviar nada.
+
+**Invoice → More**: "Send as… Text Message / Email", Create Similar Invoice, Preview as Client, Collect Signature, Print or Save PDF, Close Invoice, Delete, Void Invoice.
+
+**Email invoice #609**: To, Subject `Invoice from Moving London Removals & Transport - Removal Service`, Message ("Hi {cliente}, Thank you for your recent business with us. The invoice total is £380.00, with £380.00 to be paid by 28/10/2026. …"), checkbox com `invoice_<id>.pdf` anexado, Attachments, Send me a copy. À direita, preview do e-mail: INVOICE + empresa + logo, valor grande, "Your invoice is due on …", botão View Invoice, a mensagem e o rodapé.
+
+**Text invoice**: "Hi {cliente}, here's your invoice from {empresa} for £380.00." + "View your invoice here: {link curto}". Contador de caracteres.
+
+**Job → More**: Close Job, Create Similar Job, Send Job Follow-up Email, Resend Booking Confirmation Text / Email, Create Invoice, Collect Signature, Print or Save PDF, Delete. A confirmação de reserva por e-mail: "Booking confirmation from {empresa}", "Your booking is confirmed! … Location / Date / Estimated Arrival Time". Por texto: "Good news, your work has been booked! Location / Date / Estimated Arrival Time / View details here {link}". O Jobber não tem Preview as Client no job; o cliente vê o job no Client Hub.
+
+**PDF** (`heavy.getjobber.com/invoices/<id>.pdf`, `/work_orders/<id>.pdf`): logo e empresa (morada | telefone | e-mail | site) no topo de cada página; RECIPIENT à esquerda; à direita caixa cinza-escura "Invoice #609" com Issued, Due e a linha Total; título; tabela com cabeçalho escuro Product/Service · Description · Qty. · Unit Price · Total (o job só tem Qty.); totais à direita e nota à esquerda; "Page x of y"; carimbo PAST DUE.
+
+**Preview as Client da invoice**: Client Hub com empresa no topo, cartão com Invoice #, título, cliente, Issued/Due, estado, tabela e totais.
+
+### Como o Job To Go reproduz
+
+- Um único "Send email & text" (`components/funnel/send-dialog.tsx`) no More de request, quote, job e invoice e no menu do Save de New quote, New job e New invoice. Abas Email (composer + preview HTML ao lado, PDF anexado) e Text message (SMS curto + preview). Um clique envia os dois; o texto fica registado como não enviado até haver fornecedor de SMS.
+- Rascunhos em `lib/send/drafts.ts` com os textos acima; entrega em `lib/send/deliver.ts` (Gmail com PDF e logo inline; registo em `email_deliveries`, `sms_deliveries`, `communications` e `activity_log`).
+- PDFs em `lib/pdf/document.ts` (pdf-lib, layout acima) para quote, job e invoice; rotas `/api/{quotes,jobs,invoices}/<id>/pdf` e, para o cliente, `/q|/j|/i/<id>/pdf`.
+- Preview as Client: `/i/<id>` (invoice) e `/j/<id>` (job), no estilo do Client Hub.

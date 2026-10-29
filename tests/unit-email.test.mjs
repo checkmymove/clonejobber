@@ -21,6 +21,33 @@ describe("mime", () => {
     assert.equal(encoded.includes("+"), false);
     assert.equal(encoded.includes("/"), false);
   });
+  it("attaches a pdf as multipart/mixed", () => {
+    const raw = buildRawEmail({
+      from: "Ops <ops@example.com>",
+      to: "client@example.co.uk",
+      subject: "Invoice INV-0001",
+      html: "<p>Hello</p>",
+      boundary: "b1",
+      attachments: [{ fileName: "invoice_INV-0001.pdf", mimeType: "application/pdf", data: new Uint8Array([37, 80, 68, 70]) }],
+    });
+    assert.match(raw, /Content-Type: multipart\/mixed; boundary="b1"/);
+    assert.match(raw, /Content-Disposition: attachment; filename="invoice_INV-0001.pdf"/);
+    assert.match(raw, /JVBERg==/);
+    assert.match(raw, /--b1--/);
+  });
+  it("carries inline images as multipart/related", () => {
+    const raw = buildRawEmail({
+      from: "Ops <ops@example.com>",
+      to: "client@example.co.uk",
+      subject: "Quote",
+      html: '<img src="cid:company-logo"/>',
+      boundary: "b2",
+      inlineImages: [{ contentId: "company-logo", fileName: "logo.png", mimeType: "image/png", data: new Uint8Array([1, 2, 3]) }],
+    });
+    assert.match(raw, /Content-Type: multipart\/related; boundary="b2-rel"/);
+    assert.match(raw, /Content-ID: <company-logo>/);
+    assert.match(raw, /--b2-rel--/);
+  });
 });
 
 describe("oauth config", () => {

@@ -15,6 +15,7 @@ import {
 } from "@/components/requests/request-inline-cards";
 import { JobHeaderActions, VisitDoneToggle } from "@/components/jobs/job-actions";
 import { NotesCard } from "@/components/funnel/notes-card";
+import { SentCard } from "@/components/funnel/sent-card";
 import { StatusDot, StatusPill } from "@/components/funnel/list-kit";
 import {
   AddressCard,
@@ -308,6 +309,8 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
             <p className="mt-2 text-sm text-ink-mute">No invoices yet.</p>
           ) : null}
         </Card>
+
+        <SentCard kind="job" id={j.id} />
 
         <NotesCard kind="job" id={j.id} notes={j.notes} />
       </div>

@@ -99,14 +99,51 @@ export function quoteEmailHtml(input: {
   viewQuoteUrl: string;
   message: string;
 }): string {
+  return documentEmailHtml({
+    companyName: input.companyName,
+    logoUrl: input.logoUrl,
+    heading: "Quote",
+    buttonLabel: "View Quote",
+    buttonUrl: input.viewQuoteUrl,
+    message: input.message,
+  });
+}
+
+/**
+ * Branded email for any funnel document, after Jobber's: logo and company on top,
+ * the document heading, an optional amount line, the letter and a View button.
+ */
+export function documentEmailHtml(input: {
+  companyName: string;
+  logoUrl?: string | null;
+  heading: string;
+  amount?: string;
+  amountNote?: string;
+  buttonLabel?: string;
+  buttonUrl?: string | null;
+  message: string;
+}): string {
   const company = escapeHtml(input.companyName.trim());
-  const viewUrl = escapeHtml(input.viewQuoteUrl);
   const logo = input.logoUrl
     ? `<img src="${escapeHtml(input.logoUrl)}" alt="${company}" width="92" style="display:block;border:0;max-width:92px;height:auto"/>`
     : `<div style="width:92px;text-align:center;line-height:1.15">
         <div style="color:#c4a35a;font-size:22px;line-height:1">▲</div>
         <div style="margin-top:4px;font-size:10px;font-weight:800;letter-spacing:0.4px;color:#123035">MOVING<br/>LONDON</div>
       </div>`;
+  const amount = input.amount
+    ? `<p style="margin:0;font-size:32px;line-height:1.1;font-weight:800;color:#1c3d46">${escapeHtml(input.amount)}</p>
+       ${input.amountNote ? `<p style="margin:6px 0 0;font-weight:700;color:#1c3d46">${escapeHtml(input.amountNote)}</p>` : ""}`
+    : "";
+  const button =
+    input.buttonLabel && input.buttonUrl
+      ? `<p style="margin:22px 0 26px">
+          <a href="${escapeHtml(input.buttonUrl)}" target="_blank" style="background-color:${VIEW_QUOTE_GREEN};border:1px solid ${VIEW_QUOTE_GREEN};border-radius:4px;color:#ffffff;display:inline-block;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:700;line-height:1;padding:12px 18px;text-decoration:none">${escapeHtml(input.buttonLabel)}</a>
+        </p>`
+      : "";
+  // Amount documents put the button above the letter, like Jobber's invoice email.
+  const body = input.amount
+    ? `${amount}${button}<p style="margin:0;color:#5d6f78">${letterBodyHtml(input.message)}</p>`
+    : `<p style="margin:0;color:#5d6f78">${letterBodyHtml(input.message)}</p>${button.replace("margin:22px 0 26px", "margin:28px 0 0")}`;
 
   return `<!DOCTYPE html>
 <html>
@@ -132,11 +169,8 @@ export function quoteEmailHtml(input: {
           </tr>
           <tr>
             <td style="padding:28px 36px 40px">
-              <h1 style="margin:0 0 22px;font-size:22px;line-height:1.2;font-weight:700;color:#1c3d46">Quote</h1>
-              <p style="margin:0;color:#5d6f78">${letterBodyHtml(input.message)}</p>
-              <p style="margin:28px 0 0">
-                <a href="${viewUrl}" target="_blank" style="background-color:${VIEW_QUOTE_GREEN};border:1px solid ${VIEW_QUOTE_GREEN};border-radius:4px;color:#ffffff;display:inline-block;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:700;line-height:1;padding:12px 18px;text-decoration:none">View Quote</a>
-              </p>
+              <h1 style="margin:0 0 22px;font-size:22px;line-height:1.2;font-weight:700;color:#1c3d46">${escapeHtml(input.heading)}</h1>
+              ${body}
             </td>
           </tr>
         </table>

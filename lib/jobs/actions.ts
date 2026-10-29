@@ -16,6 +16,8 @@ import {
 } from "@/lib/funnel/engine";
 import type { JobInput } from "@/lib/funnel/validation";
 import { closeJob, deleteJob, reopenJob, setVisitDone } from "@/lib/jobs/lifecycle";
+import { buildSendDraft } from "@/lib/send/drafts";
+import type { SendDraft } from "@/lib/send/types";
 
 export type { ActionResult };
 
@@ -116,6 +118,18 @@ export async function saveJobAndConvert(
   const saved = await saveJobRecord(jobId, input);
   if (!saved.ok || !saved.id) return saved;
   redirect(`/faturas/novo?jobId=${saved.id}`);
+}
+
+/** Save button "Send email & text": saves the job, then opens the send dialog. */
+export async function saveJobAndPrepareSend(
+  jobId: string | undefined,
+  input: JobInput,
+): Promise<ActionResult & { draft?: SendDraft }> {
+  const saved = await saveJobRecord(jobId, input);
+  if (!saved.ok || !saved.id) return saved;
+  const prepared = await buildSendDraft("job", saved.id);
+  if (!prepared.ok) return { ok: false, id: saved.id, message: prepared.message };
+  return { ok: true, id: saved.id, draft: prepared.draft };
 }
 
 export async function updateJobStatus(

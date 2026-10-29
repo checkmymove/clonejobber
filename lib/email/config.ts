@@ -10,6 +10,17 @@ export function clientQuoteUrl(quoteId: string): string {
   return `${appUrl()}/q/${quoteId}`;
 }
 
+export function clientJobUrl(jobId: string): string {
+  return `${appUrl()}/j/${jobId}`;
+}
+
+export function clientInvoiceUrl(invoiceId: string): string {
+  return `${appUrl()}/i/${invoiceId}`;
+}
+
+/** Company logo in /public: the send preview shows it; sent emails carry it inline. */
+export const DEFAULT_LOGO_PATH = "/brand/moving-london-logo.png";
+
 export function googleRedirectUri(): string {
   return (
     process.env.GOOGLE_REDIRECT_URI ||

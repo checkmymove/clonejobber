@@ -5,6 +5,8 @@ import {
   Ban,
   Banknote,
   CheckCircle,
+  Eye,
+  FileDown,
   Lock,
   Mail,
   Pencil,
@@ -14,7 +16,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { ActionButton, MoreMenu } from "@/components/funnel/more-menu";
-import { emailInvoice } from "@/lib/email/actions";
+import { SendDialog, useSendDialog } from "@/components/funnel/send-dialog";
 import {
   badDebtInvoiceAction,
   closeInvoiceAction,
@@ -30,7 +32,6 @@ export function InvoiceHeaderActions({
   status,
   balance,
   paymentCount,
-  gmailConnected,
 }: {
   invoiceId: string;
   clientId: string;
@@ -38,9 +39,9 @@ export function InvoiceHeaderActions({
   status: string;
   balance: number;
   paymentCount: number;
-  gmailConnected: boolean;
 }) {
   const router = useRouter();
+  const sender = useSendDialog();
   const refresh = async <T extends { ok: boolean }>(work: Promise<T>) => {
     const result = await work;
     if (result.ok) router.refresh();
@@ -74,13 +75,10 @@ export function InvoiceHeaderActions({
         items={[
           {
             kind: "action",
-            label: "Send as Email",
+            label: "Send email & text",
             icon: <Mail size={18} />,
-            hidden: !open,
-            run: async () =>
-              gmailConnected
-                ? refresh(emailInvoice(invoiceId))
-                : { ok: false, message: "Connect Gmail in Settings → Email before sending." },
+            hidden: status === "cancelled",
+            run: () => sender.open("invoice", invoiceId),
           },
           {
             kind: "action",
@@ -95,6 +93,20 @@ export function InvoiceHeaderActions({
             icon: <Pencil size={18} />,
             hidden: status === "cancelled",
             href: `/faturas/${invoiceId}/editar`,
+          },
+          {
+            kind: "link",
+            label: "Preview as Client",
+            icon: <Eye size={18} />,
+            href: `/i/${invoiceId}`,
+            file: true,
+          },
+          {
+            kind: "link",
+            label: "Print or Save PDF",
+            icon: <FileDown size={18} />,
+            href: `/api/invoices/${invoiceId}/pdf`,
+            file: true,
           },
           {
             kind: "link",
@@ -147,6 +159,16 @@ export function InvoiceHeaderActions({
         ]}
       />
       {primary}
+      {sender.draft ? (
+        <SendDialog
+          draft={sender.draft}
+          onClose={sender.close}
+          onDone={() => {
+            sender.close();
+            router.refresh();
+          }}
+        />
+      ) : null}
     </div>
   );
 }

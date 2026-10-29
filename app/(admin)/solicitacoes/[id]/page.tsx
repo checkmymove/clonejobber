@@ -12,6 +12,8 @@ import {
   RequestLocationCard,
   RequestPackingCard,
 } from "@/components/requests/request-inline-cards";
+import { RequestMoreMenu } from "@/components/requests/request-actions";
+import { SentCard } from "@/components/funnel/sent-card";
 import { Badge, Card, PageHeader } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -42,6 +44,7 @@ export default async function SolicitacaoDetailPage({
         subtitle={`Received on ${formatDateLondon(r.submitted_at)}${r.move_date ? ` · move on ${formatDateLondon(r.move_date)}${r.move_time ? ` at ${r.move_time}` : ""}` : " · no date set"}`}
         action={
           <div className="flex gap-2">
+            <RequestMoreMenu requestId={r.id} />
             <Link
               href={`/cotacoes/novo?requestId=${r.id}`}
               className="inline-flex h-10 items-center rounded-xl bg-ink px-4 text-sm font-bold text-white hover:opacity-90"
@@ -80,6 +83,7 @@ export default async function SolicitacaoDetailPage({
         <RequestLocationCard title="Collection Information" snapshot={snapshot} kind="pickup" />
         <RequestLocationCard title="Delivery Information" snapshot={snapshot} kind="delivery" />
         <RequestInventoryCard snapshot={snapshot} files={r.files} />
+        <SentCard kind="request" id={r.id} />
 
         <Card className="h-fit p-5 xl:col-span-2">
           <h2 className="mb-2 text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">

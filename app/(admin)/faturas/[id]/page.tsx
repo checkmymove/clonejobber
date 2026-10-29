@@ -2,14 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Pencil } from "lucide-react";
 import { formatDateNumericLondon, formatGBP } from "@/lib/format";
-import { COMPANY_SLUG, getCompanyId } from "@/lib/company";
 import { getInvoiceDetail } from "@/lib/invoices/queries";
 import { INVOICE_STATUS_META, paymentTermsLabel } from "@/lib/invoices/status";
 import { listInvoicePayments } from "@/lib/payments/queries";
 import { paymentMethodLabel } from "@/lib/payments/constants";
 import { getClientFinancials } from "@/lib/clients/crm-queries";
-import { getGoogleConnection } from "@/lib/email/google";
-import { listDeliveries } from "@/lib/email/send";
+import { SentCard } from "@/components/funnel/sent-card";
 import { getRequestDetail } from "@/lib/requests/queries";
 import { requestSnapshotFromDetail } from "@/lib/requests/edit-snapshot";
 import {
@@ -36,10 +34,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
   const inv = await getInvoiceDetail(id);
   if (!inv) notFound();
 
-  const companyId = await getCompanyId(COMPANY_SLUG);
-  const [gmail, deliveries, payments, financials, request] = await Promise.all([
-    companyId ? getGoogleConnection(companyId) : null,
-    listDeliveries("invoice", id),
+  const [payments, financials, request] = await Promise.all([
     listInvoicePayments(id),
     getClientFinancials(inv.client_id),
     inv.linked_request_id ? getRequestDetail(inv.linked_request_id) : null,
@@ -95,7 +90,6 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
               status={inv.status}
               balance={inv.balance}
               paymentCount={payments.length}
-              gmailConnected={Boolean(gmail)}
             />
           </div>
         }
@@ -177,22 +171,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
           </Card>
         ) : null}
 
-        {deliveries.length ? (
-          <Card className="h-fit p-5 xl:col-span-2">
-            <CardTitle>Sent</CardTitle>
-            <ul className="space-y-2 text-sm">
-              {deliveries.map((d) => (
-                <li key={d.id} className="flex justify-between gap-3 border-b border-line py-2 last:border-0">
-                  <span>
-                    {d.status === "sent" ? "Email sent" : "Email failed"} · {d.to_email}
-                    {d.error ? <span className="block text-rose-700">{d.error}</span> : null}
-                  </span>
-                  <span className="text-ink-soft">{dateOrDash(d.sent_at)}</span>
-                </li>
-              ))}
-            </ul>
-          </Card>
-        ) : null}
+        <SentCard kind="invoice" id={inv.id} />
 
         <NotesCard kind="invoice" id={inv.id} notes={inv.notes} />
       </div>

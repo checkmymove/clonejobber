@@ -1,5 +1,5 @@
 import "server-only";
-import { buildRawEmail, toBase64Url } from "./mime";
+import { buildRawEmail, toBase64Url, type EmailAttachment, type InlineImage } from "./mime";
 
 export async function sendGmailMessage(input: {
   accessToken: string;
@@ -8,6 +8,8 @@ export async function sendGmailMessage(input: {
   bcc?: string;
   subject: string;
   html: string;
+  attachments?: EmailAttachment[];
+  inlineImages?: InlineImage[];
 }): Promise<{ id: string }> {
   const raw = toBase64Url(
     buildRawEmail({
@@ -16,6 +18,8 @@ export async function sendGmailMessage(input: {
       bcc: input.bcc,
       subject: input.subject,
       html: input.html,
+      attachments: input.attachments,
+      inlineImages: input.inlineImages,
     }),
   );
   const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {

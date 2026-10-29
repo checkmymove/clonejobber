@@ -6,7 +6,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { sql } from "@/lib/db";
 import { getCompanyId } from "@/lib/company";
-import { emailInvoice } from "@/lib/email/actions";
+import { buildSendDraft } from "@/lib/send/drafts";
+import type { SendDraft } from "@/lib/send/types";
 import {
   changeInvoiceStatus,
   convertCompletedJobToInvoice,
@@ -112,15 +113,16 @@ export async function saveInvoiceInPlace(
   return writeInvoice(invoiceId, input);
 }
 
-export async function saveInvoiceAndEmail(
+/** Save button "Send email & text": saves the invoice, then opens the send dialog. */
+export async function saveInvoiceAndPrepareSend(
   invoiceId: string | undefined,
   input: InvoiceInput,
-): Promise<ActionResult> {
+): Promise<ActionResult & { draft?: SendDraft }> {
   const saved = await saveInvoiceRecord(invoiceId, input);
   if (!saved.ok || !saved.id) return saved;
-  const emailed = await emailInvoice(saved.id);
-  if (!emailed.ok) return { ok: false, id: saved.id, message: emailed.message };
-  redirect(`/faturas/${saved.id}`);
+  const prepared = await buildSendDraft("invoice", saved.id);
+  if (!prepared.ok) return { ok: false, id: saved.id, message: prepared.message };
+  return { ok: true, id: saved.id, draft: prepared.draft };
 }
 
 export async function saveInvoiceAndMarkSent(

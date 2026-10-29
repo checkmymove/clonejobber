@@ -11,3 +11,10 @@ export async function getCompanyId(
   `;
   return rows[0]?.id ?? null;
 }
+
+export async function getCompanyName(slug: string = COMPANY_SLUG): Promise<string> {
+  const rows = await sql<{ name: string }[]>`
+    select name from companies where slug = ${slug} limit 1
+  `;
+  return rows[0]?.name ?? "";
+}

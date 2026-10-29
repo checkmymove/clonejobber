@@ -8,7 +8,15 @@ export const moreItemClass =
   "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] font-semibold text-[#1c3d46] hover:bg-[#f7f8f8] disabled:cursor-not-allowed disabled:opacity-40";
 
 export type MoreMenuItem =
-  | { kind: "link"; label: string; icon: ReactNode; href: string; hidden?: boolean }
+  | {
+      kind: "link";
+      label: string;
+      icon: ReactNode;
+      href: string;
+      hidden?: boolean;
+      /** Plain <a> opened in a new tab (PDFs, client previews). */
+      file?: boolean;
+    }
   | {
       kind: "action";
       label: string;
@@ -69,6 +77,22 @@ export function MoreMenu({ items, label = "More" }: { items: MoreMenuItem[]; lab
           {visible.map((item, index) => {
             if (item.kind === "separator") {
               return <hr key={`sep-${index}`} className="my-1 border-line" />;
+            }
+            if (item.kind === "link" && item.file) {
+              return (
+                <a
+                  key={item.label}
+                  href={item.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  role="menuitem"
+                  className={moreItemClass}
+                  onClick={() => setOpen(false)}
+                >
+                  {item.icon}
+                  {item.label}
+                </a>
+              );
             }
             if (item.kind === "link") {
               return (

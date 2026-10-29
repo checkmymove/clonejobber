@@ -2,7 +2,9 @@
 
 import { openPicker } from "@/components/date-field";
 import { useMemo, useState } from "react";
-import { createInvoice, saveInvoiceAndEmail, saveInvoiceAndMarkSent, updateInvoice } from "@/lib/invoices/actions";
+import { useRouter } from "next/navigation";
+import { createInvoice, saveInvoiceAndMarkSent, saveInvoiceAndPrepareSend, updateInvoice } from "@/lib/invoices/actions";
+import { SendDialog, useSendDialog } from "@/components/funnel/send-dialog";
 import { ClientSelect } from "@/components/funnel/client-select";
 import { StickySaveBar } from "@/components/forms/sticky-save-bar";
 import { formatPounds, padMoney } from "@/lib/format";
@@ -76,6 +78,8 @@ export function NewInvoiceForm({
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const [savedInvoiceId, setSavedInvoiceId] = useState(invoiceId);
+  const sender = useSendDialog();
+  const router = useRouter();
   const [number, setNumber] = useState(initialNumber ?? "554");
   const [terms, setTerms] = useState(initialTerms ?? "due_on_receipt");
   const [askReview, setAskReview] = useState(true);
@@ -112,7 +116,7 @@ export function NewInvoiceForm({
     subtotal - (Number(discount.replace(",", ".")) || 0) + (Number(tax.replace(",", ".")) || 0),
   );
 
-  async function submit(followUp?: "email" | "sent") {
+  async function submit(followUp?: "send" | "sent") {
     setError("");
     setPending(true);
     const payload = {
@@ -134,10 +138,19 @@ export function NewInvoiceForm({
       })),
     };
     const currentId = savedInvoiceId;
+    if (followUp === "send") {
+      const prepared = await saveInvoiceAndPrepareSend(currentId, payload);
+      setPending(false);
+      if (prepared.id) setSavedInvoiceId(prepared.id);
+      if (!prepared.ok || !prepared.draft) {
+        setError(prepared.message || Object.values(prepared.errors ?? {})[0] || "Could not prepare the message.");
+        return;
+      }
+      sender.show(prepared.draft);
+      return;
+    }
     const result =
-      followUp === "email"
-        ? await saveInvoiceAndEmail(currentId, payload)
-        : followUp === "sent"
+      followUp === "sent"
           ? await saveInvoiceAndMarkSent(currentId, payload)
           : currentId
             ? await updateInvoice(currentId, payload)
@@ -150,6 +163,7 @@ export function NewInvoiceForm({
   }
 
   return (
+    <>
     <form
       className="space-y-5 pb-24"
       onSubmit={async (event) => {
@@ -490,9 +504,9 @@ export function NewInvoiceForm({
         saveLabel={savedInvoiceId ? "Update invoice" : "Save invoice"}
         menuItems={[
           {
-            label: "Send as Email",
+            label: "Send email & text",
             icon: <Mail size={18} />,
-            onClick: () => void submit("email"),
+            onClick: () => void submit("send"),
           },
           {
             label: "Mark as sent",
@@ -502,5 +516,13 @@ export function NewInvoiceForm({
         ]}
       />
     </form>
+    {sender.draft ? (
+      <SendDialog
+        draft={sender.draft}
+        onClose={sender.close}
+        onDone={() => router.push(`/faturas/${sender.draft?.id}`)}
+      />
+    ) : null}
+    </>
   );
 }

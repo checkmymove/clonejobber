@@ -10,19 +10,14 @@ import {
   FileDown,
   Hammer,
   Mail,
-  MessageSquare,
   MoreHorizontal,
   Trash2,
 } from "lucide-react";
-import { EmailQuoteDialog } from "@/components/quotes/email-quote-dialog";
-import { SmsQuoteDialog } from "@/components/quotes/sms-quote-dialog";
-import type { QuoteEmailDraft } from "@/lib/email/draft";
-import type { QuoteSmsDraft } from "@/lib/sms/draft";
+import { useRouter } from "next/navigation";
+import { SendDialog, useSendDialog } from "@/components/funnel/send-dialog";
 import {
   archiveSavedQuote,
   deleteSavedQuote,
-  prepareSavedQuoteEmail,
-  prepareSavedQuoteSms,
   updateQuoteStatus,
 } from "@/lib/quotes/actions";
 
@@ -45,8 +40,8 @@ export function QuoteMoreMenu({
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState("");
   const [error, setError] = useState("");
-  const [emailDraft, setEmailDraft] = useState<QuoteEmailDraft | null>(null);
-  const [smsDraft, setSmsDraft] = useState<QuoteSmsDraft | null>(null);
+  const sender = useSendDialog();
+  const router = useRouter();
   const rootRef = useRef<HTMLDivElement>(null);
   const convertible = status !== "rejected" && status !== "expired";
   const approvable = ["draft", "sent", "changes_requested"].includes(status);
@@ -139,34 +134,12 @@ export function QuoteMoreMenu({
           <button
             type="button"
             role="menuitem"
-            disabled={Boolean(pending) || archived}
-            onClick={() =>
-              void run("email", async () => {
-                const prepared = await prepareSavedQuoteEmail(quoteId);
-                if (!prepared.ok || !prepared.draft) return prepared;
-                setEmailDraft(prepared.draft);
-              })
-            }
+            disabled={Boolean(pending) || archived || !convertible}
+            onClick={() => void run("send", () => sender.open("quote", quoteId))}
             className={itemClass}
           >
             <Mail size={18} />
-            Send as Email
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            disabled={Boolean(pending) || archived}
-            onClick={() =>
-              void run("sms", async () => {
-                const prepared = await prepareSavedQuoteSms(quoteId);
-                if (!prepared.ok || !prepared.draft) return prepared;
-                setSmsDraft(prepared.draft);
-              })
-            }
-            className={itemClass}
-          >
-            <MessageSquare size={18} />
-            Send Text Message
+            Send email &amp; text
           </button>
           <Link
             href={`/q/${quoteId}`}
@@ -226,8 +199,16 @@ export function QuoteMoreMenu({
         </div>
       ) : null}
       {error ? <p className="mt-2 text-sm font-semibold text-rose-700">{error}</p> : null}
-      {emailDraft ? <EmailQuoteDialog draft={emailDraft} onClose={() => setEmailDraft(null)} /> : null}
-      {smsDraft ? <SmsQuoteDialog draft={smsDraft} onClose={() => setSmsDraft(null)} /> : null}
+      {sender.draft ? (
+        <SendDialog
+          draft={sender.draft}
+          onClose={sender.close}
+          onDone={() => {
+            sender.close();
+            router.refresh();
+          }}
+        />
+      ) : null}
     </div>
   );
 }

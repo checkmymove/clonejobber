@@ -5,13 +5,17 @@ import { useRouter } from "next/navigation";
 import {
   Archive,
   Banknote,
+  Eye,
+  FileDown,
   FileText,
   Lock,
+  Mail,
   Pencil,
   RotateCcw,
   Trash2,
 } from "lucide-react";
 import { ActionButton, MoreMenu } from "@/components/funnel/more-menu";
+import { SendDialog, useSendDialog } from "@/components/funnel/send-dialog";
 import {
   closeJobAction,
   deleteJobAction,
@@ -33,6 +37,7 @@ export function JobHeaderActions({
   invoiceCount: number;
 }) {
   const router = useRouter();
+  const sender = useSendDialog();
   const refresh = async <T extends { ok: boolean }>(work: Promise<T>) => {
     const result = await work;
     if (result.ok) router.refresh();
@@ -83,6 +88,20 @@ export function JobHeaderActions({
           },
           { kind: "link", label: "Edit Job", icon: <Pencil size={18} />, href: `/servicos/${jobId}/editar` },
           {
+            kind: "action",
+            label: "Send email & text",
+            icon: <Mail size={18} />,
+            run: () => sender.open("job", jobId),
+          },
+          { kind: "link", label: "Preview as Client", icon: <Eye size={18} />, href: `/j/${jobId}`, file: true },
+          {
+            kind: "link",
+            label: "Print or Save PDF",
+            icon: <FileDown size={18} />,
+            href: `/api/jobs/${jobId}/pdf`,
+            file: true,
+          },
+          {
             kind: "link",
             label: "Collect Deposit",
             icon: <Banknote size={18} />,
@@ -101,6 +120,16 @@ export function JobHeaderActions({
         ]}
       />
       {primary}
+      {sender.draft ? (
+        <SendDialog
+          draft={sender.draft}
+          onClose={sender.close}
+          onDone={() => {
+            sender.close();
+            router.refresh();
+          }}
+        />
+      ) : null}
     </div>
   );
 }

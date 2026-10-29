@@ -3,7 +3,9 @@
 import { openPicker } from "@/components/date-field";
 import { TimeField } from "@/components/time-field";
 import { useMemo, useState } from "react";
-import { createJob, saveJobAndConvert, updateJob } from "@/lib/jobs/actions";
+import { useRouter } from "next/navigation";
+import { createJob, saveJobAndConvert, saveJobAndPrepareSend, updateJob } from "@/lib/jobs/actions";
+import { SendDialog, useSendDialog } from "@/components/funnel/send-dialog";
 import { ClientSelect } from "@/components/funnel/client-select";
 import { StickySaveBar } from "@/components/forms/sticky-save-bar";
 import { formatPounds, padMoney } from "@/lib/format";
@@ -12,6 +14,7 @@ import {
   ChevronDown,
   FileText,
   Flag,
+  Mail,
   MoreHorizontal,
   Plus,
   X,
@@ -203,7 +206,11 @@ export function NewJobForm({
     [lines],
   );
 
-  async function submit(followUp?: "invoice") {
+  const [savedJobId, setSavedJobId] = useState(jobId);
+  const sender = useSendDialog();
+  const router = useRouter();
+
+  async function submit(followUp?: "invoice" | "send") {
     setError("");
     setPending(true);
     const payload = {
@@ -233,11 +240,23 @@ export function NewJobForm({
         unitPrice: l.price,
       })),
     };
+    const currentId = savedJobId;
+    if (followUp === "send") {
+      const prepared = await saveJobAndPrepareSend(currentId, payload);
+      setPending(false);
+      if (prepared.id) setSavedJobId(prepared.id);
+      if (!prepared.ok || !prepared.draft) {
+        setError(prepared.message || Object.values(prepared.errors ?? {})[0] || "Could not prepare the message.");
+        return;
+      }
+      sender.show(prepared.draft);
+      return;
+    }
     const result =
       followUp === "invoice"
-        ? await saveJobAndConvert(jobId, payload)
-        : jobId
-          ? await updateJob(jobId, payload)
+        ? await saveJobAndConvert(currentId, payload)
+        : currentId
+          ? await updateJob(currentId, payload)
           : await createJob(payload);
     setPending(false);
     if (result && !result.ok) {
@@ -246,6 +265,7 @@ export function NewJobForm({
   }
 
   return (
+    <>
     <form
       className="space-y-5 pb-24"
       onSubmit={async (event) => {
@@ -693,11 +713,16 @@ export function NewJobForm({
       </section>
 
       <StickySaveBar
-        cancelHref={jobId ? `/servicos/${jobId}` : quoteId ? `/cotacoes/${quoteId}` : "/servicos"}
+        cancelHref={savedJobId ? `/servicos/${savedJobId}` : quoteId ? `/cotacoes/${quoteId}` : "/servicos"}
         error={error}
         pending={pending}
         saveLabel={jobId ? "Update job" : "Save job"}
         menuItems={[
+          {
+            label: "Send email & text",
+            icon: <Mail size={18} />,
+            onClick: () => void submit("send"),
+          },
           {
             label: "Convert to Invoice",
             icon: <FileText size={18} style={{ color: green }} />,
@@ -706,5 +731,13 @@ export function NewJobForm({
         ]}
       />
     </form>
+    {sender.draft ? (
+      <SendDialog
+        draft={sender.draft}
+        onClose={sender.close}
+        onDone={() => router.push(`/servicos/${sender.draft?.id}`)}
+      />
+    ) : null}
+    </>
   );
 }

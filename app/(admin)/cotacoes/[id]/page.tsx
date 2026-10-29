@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { formatDateLondon, formatGBP, penceToInput, toDateInput } from "@/lib/format";
+import { formatGBP, penceToInput, toDateInput } from "@/lib/format";
 import { getQuoteDetail } from "@/lib/quotes/queries";
 import { getLatestRequestId, getRequestDetail } from "@/lib/requests/queries";
 import { requestSnapshotFromDetail } from "@/lib/requests/edit-snapshot";
@@ -17,9 +17,8 @@ import {
 } from "@/components/quotes/quote-inline-cards";
 import { TotalsCard, depositTotalRows, type TotalRow } from "@/components/funnel/document-cards";
 import { getQuoteDeposits } from "@/lib/payments/queries";
-import { listDeliveries } from "@/lib/email/send";
-import { listSmsDeliveries } from "@/lib/sms/send";
-import { Badge, Card, PageHeader } from "@/components/ui";
+import { SentCard } from "@/components/funnel/sent-card";
+import { Badge, PageHeader } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -40,11 +39,7 @@ export default async function CotacaoDetailPage({
   const { id } = await params;
   const q = await getQuoteDetail(id);
   if (!q) notFound();
-  const [deliveries, smsDeliveries, deposits] = await Promise.all([
-    listDeliveries("quote", id),
-    listSmsDeliveries(id),
-    getQuoteDeposits(id),
-  ]);
+  const deposits = await getQuoteDeposits(id);
   const requestId = q.request_id ?? (await getLatestRequestId(q.client_id));
   const request = requestId ? await getRequestDetail(requestId) : null;
   const linkedRequest =
@@ -129,33 +124,7 @@ export default async function CotacaoDetailPage({
             <QuotePackingCard request={linkedRequest} />
           </div>
         ) : null}
-        {deliveries.length || smsDeliveries.length ? (
-          <Card className="h-fit p-5 xl:col-span-2">
-            <h2 className="mb-2 text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">
-              Sent
-            </h2>
-            <ul className="space-y-2 text-sm">
-              {deliveries.map((d) => (
-                <li key={d.id} className="flex justify-between gap-3 border-b border-line py-2 last:border-0">
-                  <span>
-                    {d.status === "sent" ? "Email sent" : "Email failed"} · {d.to_email}
-                    {d.error ? <span className="block text-rose-700">{d.error}</span> : null}
-                  </span>
-                  <span className="text-ink-soft">{formatDateLondon(d.sent_at)}</span>
-                </li>
-              ))}
-              {smsDeliveries.map((d) => (
-                <li key={d.id} className="flex justify-between gap-3 border-b border-line py-2 last:border-0">
-                  <span>
-                    {d.status === "sent" ? "Text sent" : "Text not sent"} · {d.to_phone}
-                    {d.error ? <span className="block text-rose-700">{d.error}</span> : null}
-                  </span>
-                  <span className="text-ink-soft">{formatDateLondon(d.sent_at)}</span>
-                </li>
-              ))}
-            </ul>
-          </Card>
-        ) : null}
+        <SentCard kind="quote" id={id} />
         <TotalsCard totals={totals} />
       </div>
       <QuoteRequestSidebar request={request} />

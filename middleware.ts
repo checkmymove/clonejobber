@@ -3,7 +3,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { isAllowedAdminEmail } from "@/lib/auth/allowlist";
 
 function isPublicPath(pathname: string) {
-  return pathname === "/login" || pathname.startsWith("/r/") || pathname.startsWith("/q/");
+  // /q, /j and /i are the client views of a quote, job and invoice (Preview as Client).
+  return pathname === "/login" || ["/r/", "/q/", "/j/", "/i/"].some((prefix) => pathname.startsWith(prefix));
 }
 
 function withSessionCookies(from: NextResponse, to: NextResponse) {
