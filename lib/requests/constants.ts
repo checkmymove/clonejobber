@@ -28,7 +28,6 @@ export const STEP_TITLES = [
   "Contact Information",
   "Collection Information",
   "Delivery Information",
-  "Packing Service",
   "Service & Inventory",
   "Review",
 ] as const;

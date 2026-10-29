@@ -126,7 +126,6 @@ export async function submitRequest(formData: FormData): Promise<SubmitResult> {
   const serviceIds = parseJson<string[]>(formData.get("services"), []);
   const hours = parseJson<string[]>(formData.get("hours"), []);
   const inventory = String(formData.get("inventory") ?? "");
-  const termsAccepted = formData.get("termsAccepted") === "true";
 
   const [leadSources, services] = await Promise.all([
     getLeadSources(company.id),
@@ -161,9 +160,6 @@ export async function submitRequest(formData: FormData): Promise<SubmitResult> {
   }
   if (serviceIds.length !== new Set(serviceIds).size) {
     errors.services = "Duplicate services selected";
-  }
-  if (!termsAccepted) {
-    errors.terms = "You must accept the Terms and Conditions";
   }
   if (Object.keys(errors).length > 0) {
     return { ok: false, errors, message: "Please review the highlighted fields." };

@@ -3,29 +3,40 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
+/** Label text with the REQUIRED tag flowing right after it, even when it wraps. */
+function FieldLabel({ label, required }: { label: string; required?: boolean }) {
+  return (
+    <span className="mb-1.5 block text-sm font-semibold text-ink">
+      {label}
+      {required ? (
+        <span className="ml-2 whitespace-nowrap text-[11px] font-bold uppercase tracking-wide text-ink-mute">
+          Required
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
 export function Field({
   label,
   required,
   error,
   hint,
+  group,
   children,
 }: {
   label: string;
   required?: boolean;
   error?: string;
   hint?: string;
+  /** Wraps buttons, not a single input: a <label> would click the first button. */
+  group?: boolean;
   children: ReactNode;
 }) {
+  const Wrapper = group ? "div" : "label";
   return (
-    <label className="block">
-      <span className="mb-1.5 flex items-baseline gap-2 text-sm font-semibold text-ink">
-        {label}
-        {required ? (
-          <span className="text-[11px] font-bold uppercase tracking-wide text-ink-mute">
-            Required
-          </span>
-        ) : null}
-      </span>
+    <Wrapper className="block">
+      <FieldLabel label={label} required={required} />
       {children}
       {hint ? <span className="mt-1 block text-xs text-ink-soft">{hint}</span> : null}
       {error ? (
@@ -33,7 +44,47 @@ export function Field({
           {error}
         </span>
       ) : null}
-    </label>
+    </Wrapper>
+  );
+}
+
+export function OptionGrid({
+  options,
+  value,
+  onChange,
+  invalid,
+}: {
+  options: { id: string; name: string }[];
+  value: string;
+  onChange: (id: string) => void;
+  invalid?: boolean;
+}) {
+  return (
+    <div
+      role="radiogroup"
+      className={cn(
+        "grid grid-cols-2 gap-2 rounded-xl border p-1 sm:grid-cols-3",
+        invalid ? "border-rose-400" : "border-line bg-stone-50",
+      )}
+    >
+      {options.map((o) => (
+        <button
+          key={o.id}
+          type="button"
+          role="radio"
+          aria-checked={value === o.id}
+          onClick={() => onChange(o.id)}
+          className={cn(
+            "min-h-10 rounded-lg px-2 py-1.5 text-sm font-bold transition",
+            value === o.id
+              ? "bg-ink text-white shadow"
+              : "bg-white text-ink-soft hover:bg-cream",
+          )}
+        >
+          {o.name}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -134,14 +185,7 @@ export function MultiSelect({
 
   return (
     <div ref={ref} className="relative">
-      <span className="mb-1.5 flex items-baseline gap-2 text-sm font-semibold text-ink">
-        {label}
-        {required ? (
-          <span className="text-[11px] font-bold uppercase tracking-wide text-ink-mute">
-            Required
-          </span>
-        ) : null}
-      </span>
+      <FieldLabel label={label} required={required} />
       <button
         type="button"
         aria-expanded={open}

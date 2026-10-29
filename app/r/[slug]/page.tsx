@@ -44,7 +44,6 @@ export default async function PublicRequestPage({
         slug={company.slug}
         companyName={company.name}
         primaryColor={company.primary_color}
-        termsUrl={company.terms_url}
         maxImages={company.max_request_images}
         leadSources={leadSources}
         services={services}

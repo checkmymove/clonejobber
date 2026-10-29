@@ -26,6 +26,7 @@ import {
 import {
   Field,
   MultiSelect,
+  OptionGrid,
   ProgressBar,
   YesNo,
   inputCls,
@@ -35,7 +36,6 @@ export interface WizardProps {
   slug: string;
   companyName: string;
   primaryColor: string;
-  termsUrl: string | null;
   maxImages: number;
   leadSources: { id: string; name: string }[];
   services: { id: string; name: string }[];
@@ -62,9 +62,7 @@ const ERROR_STEP: [RegExp, number][] = [
   [/^(firstName|lastName|companyName|email|phone|leadSourceId|moveDate|moveTime)$/, 0],
   [/^pickup\./, 1],
   [/^delivery\./, 2],
-  [/^(needsService|needsMaterials)$/, 3],
-  [/^(services|hours|inventory|images)$/, 4],
-  [/^terms$/, LAST_STEP],
+  [/^(services|hours|inventory|images|needsService|needsMaterials)$/, 3],
 ];
 
 function stepForErrors(errors: Errors): number {
@@ -77,11 +75,15 @@ function stepForErrors(errors: Errors): number {
   return first;
 }
 
-/** Map a saved draft onto the current 6-step form (older drafts had 7). */
+/**
+ * Map a saved draft onto the current 5-step form. Older drafts had 6 steps
+ * (packing on its own step) or 7 (formSteps not saved).
+ */
 function restoreDraftStep(rawStep: unknown, formSteps: unknown): number {
-  const step = typeof rawStep === "number" && Number.isFinite(rawStep) ? rawStep : 0;
-  if (formSteps !== DRAFT_FORM_STEPS && step >= 5) {
-    return Math.min(step - 1, LAST_STEP);
+  let step = typeof rawStep === "number" && Number.isFinite(rawStep) ? rawStep : 0;
+  if (formSteps !== DRAFT_FORM_STEPS) {
+    if (formSteps !== 6 && step >= 5) step -= 1;
+    if (step >= 4) step -= 1;
   }
   return Math.min(Math.max(step, 0), LAST_STEP);
 }
@@ -90,7 +92,6 @@ export function RequestWizard({
   slug,
   companyName,
   primaryColor,
-  termsUrl,
   maxImages,
   leadSources,
   services,
@@ -119,7 +120,6 @@ export function RequestWizard({
   const [hours, setHours] = useState<string[]>([]);
   const [inventory, setInventory] = useState("");
   const [images, setImages] = useState<DraftImage[]>([]);
-  const [terms, setTerms] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ number: string } | null>(null);
@@ -208,8 +208,6 @@ export function RequestWizard({
       case 2:
         return validateLocation(delivery);
       case 3:
-        return validatePacking(packing);
-      case 4:
         return {
           ...validateServices(serviceIds, validServiceIds),
           ...validateHours(hours),
@@ -222,9 +220,10 @@ export function RequestWizard({
             })),
             maxImages,
           ),
+          ...validatePacking(packing),
         };
       default:
-        return terms ? {} : { terms: "You must accept the Terms and Conditions" };
+        return {};
     }
   }
 
@@ -289,7 +288,6 @@ export function RequestWizard({
     });
 
   const confirm = async () => {
-    const e = validateStep(LAST_STEP);
     // Re-validate everything server will check, surfacing the first bad step.
     const all: Errors = {
       ...validateContact(contact),
@@ -310,7 +308,6 @@ export function RequestWizard({
         images.map((i) => ({ name: i.file.name, size: i.file.size, type: i.file.type })),
         maxImages,
       ),
-      ...e,
     };
     if (Object.keys(all).length > 0) {
       setErrors(all);
@@ -333,7 +330,6 @@ export function RequestWizard({
       fd.set("services", JSON.stringify(serviceIds));
       fd.set("hours", JSON.stringify(hours));
       fd.set("inventory", inventory);
-      fd.set("termsAccepted", terms ? "true" : "false");
       for (const img of images) fd.append("images", img.file, img.file.name);
 
       const res = await submitRequest(fd);
@@ -443,20 +439,15 @@ export function RequestWizard({
             <Field
               label="How did you hear about us?"
               required
+              group
               error={errors.leadSourceId}
             >
-              <select
-                className={inputCls(errors.leadSourceId)}
+              <OptionGrid
+                options={leadSources}
                 value={contact.leadSourceId}
-                onChange={(e) => setC({ leadSourceId: e.target.value })}
-              >
-                <option value="">Select an option</option>
-                {leadSources.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.name}
-                  </option>
-                ))}
-              </select>
+                onChange={(id) => setC({ leadSourceId: id })}
+                invalid={!!errors.leadSourceId}
+              />
             </Field>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field
@@ -501,31 +492,8 @@ export function RequestWizard({
 
         {step === 3 ? (
           <>
-            <Field label="Do you need packing services?" required>
-              <YesNo
-                value={packing.needsService}
-                onChange={(v) =>
-                  setPacking((p) => ({ ...p, needsService: v }))
-                }
-                error={errors.needsService}
-              />
-            </Field>
-            <Field label="Do you need packing materials?" required>
-              <YesNo
-                value={packing.needsMaterials}
-                onChange={(v) =>
-                  setPacking((p) => ({ ...p, needsMaterials: v }))
-                }
-                error={errors.needsMaterials}
-              />
-            </Field>
-          </>
-        ) : null}
-
-        {step === 4 ? (
-          <>
             <StepBlock title="Service">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4">
                 <MultiSelect
                   label="Which service do you require?"
                   required
@@ -614,6 +582,26 @@ export function RequestWizard({
                 ) : null}
               </div>
             </StepBlock>
+            <StepBlock title="Packing Service">
+              <Field label="Do you need packing services?" required group>
+                <YesNo
+                  value={packing.needsService}
+                  onChange={(v) =>
+                    setPacking((p) => ({ ...p, needsService: v }))
+                  }
+                  error={errors.needsService}
+                />
+              </Field>
+              <Field label="Do you need packing materials?" required group>
+                <YesNo
+                  value={packing.needsMaterials}
+                  onChange={(v) =>
+                    setPacking((p) => ({ ...p, needsMaterials: v }))
+                  }
+                  error={errors.needsMaterials}
+                />
+              </Field>
+            </StepBlock>
           </>
         ) : null}
 
@@ -643,16 +631,6 @@ export function RequestWizard({
             </ReviewSection>
             <ReviewSection title="Delivery Information">
               <LocationReview value={delivery} />
-            </ReviewSection>
-            <ReviewSection title="Packing Service">
-              <ReviewRow
-                label="Packing services"
-                value={packing.needsService ? "Yes" : "No"}
-              />
-              <ReviewRow
-                label="Packing materials"
-                value={packing.needsMaterials ? "Yes" : "No"}
-              />
             </ReviewSection>
             <ReviewSection title="Service Details">
               <div>
@@ -692,38 +670,23 @@ export function RequestWizard({
                 <p className="mt-1 text-ink-mute">No images attached.</p>
               )}
             </ReviewSection>
-            <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-line bg-stone-50 p-3 text-[13px] text-ink-soft">
-              <input
-                type="checkbox"
-                checked={terms}
-                onChange={(e) => setTerms(e.target.checked)}
-                className="mt-0.5 h-4 w-4 accent-emerald-700"
+            <ReviewSection title="Packing Service">
+              <ReviewRow
+                label="Packing services"
+                value={packing.needsService ? "Yes" : "No"}
               />
-              <span>
-                By continuing you agree to our{" "}
-                {termsUrl ? (
-                  <a
-                    href={termsUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="font-bold text-ink underline"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    Terms and Conditions
-                  </a>
-                ) : (
-                  "Terms and Conditions"
-                )}
-                .
-              </span>
-            </label>
-            {errors.terms || errors.services || errors.inventory ? (
+              <ReviewRow
+                label="Packing materials"
+                value={packing.needsMaterials ? "Yes" : "No"}
+              />
+            </ReviewSection>
+            {errors.services || errors.inventory ? (
               <p className="text-xs font-semibold text-rose-700">
-                {errors.terms ?? errors.services ?? errors.inventory}
+                {errors.services ?? errors.inventory}
               </p>
             ) : null}
             {Object.keys(errors).filter(
-              (k) => !["terms", "services", "inventory"].includes(k),
+              (k) => !["services", "inventory"].includes(k),
             ).length > 0 ? (
               <p className="text-xs font-semibold text-rose-700">
                 Some sections need attention — use Back to fix them.
@@ -817,11 +780,11 @@ function LocationFields({
             className={inputCls(err("floor"))}
             value={value.floor}
             onChange={(e) => onChange({ floor: e.target.value })}
-            placeholder="Ground Floor"
+            placeholder="House, Ground Floor, 1st, 2nd, …"
           />
         </Field>
       </div>
-      <Field label="Lift" required>
+      <Field label="Lift" required group>
         <YesNo
           value={value.hasLift}
           onChange={(v) => onChange({ hasLift: v })}
@@ -844,6 +807,7 @@ function LocationFields({
           className={inputCls(err("bedrooms"))}
           value={value.bedrooms}
           onChange={(e) => onChange({ bedrooms: e.target.value })}
+          placeholder="1, 2, 3, 4, …"
         />
       </Field>
     </>
