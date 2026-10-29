@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { sql } from "@/lib/db";
 import { changeQuoteStatus, type ActionResult } from "@/lib/funnel/engine";
 import { isUuid } from "@/lib/funnel/validation";
+import { sendQuoteApprovedNotice } from "@/lib/send/notices";
 
 type PublicQuote = {
   id: string;
@@ -48,7 +49,11 @@ export async function approvePublicQuote(quoteId: string): Promise<ActionResult>
   if (blocked) return blocked;
   if (quote.status === "approved") return { ok: true, id: quote.id };
   const result = await changeQuoteStatus(sql, quote.id, "approved", "client");
-  if (result.ok) refresh(quote.id);
+  if (result.ok) {
+    // The thank-you email and text must never undo or block the client's approval.
+    await sendQuoteApprovedNotice(quote.id).catch(() => undefined);
+    refresh(quote.id);
+  }
   return result;
 }
 

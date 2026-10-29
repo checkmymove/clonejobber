@@ -7,11 +7,14 @@ import { getRequestDetail } from "@/lib/requests/queries";
 import { requestSnapshotFromDetail } from "@/lib/requests/edit-snapshot";
 import { getActiveServices } from "@/lib/requests/company";
 import {
+  PackingServiceCard,
+  RemovalServiceCard,
   RequestContactCard,
   RequestInventoryCard,
   RequestLocationCard,
-  RequestPackingCard,
+  hasRemovalService,
 } from "@/components/requests/request-inline-cards";
+import { FunnelHistoryCard } from "@/components/funnel/funnel-history-card";
 import { RequestMoreMenu } from "@/components/requests/request-actions";
 import { SentCard } from "@/components/funnel/sent-card";
 import { Badge, Card, PageHeader } from "@/components/ui";
@@ -79,9 +82,11 @@ export default async function SolicitacaoDetailPage({
           marketingEmail={r.marketing_email}
           marketingSms={r.marketing_sms}
         />
-        <RequestPackingCard snapshot={snapshot} services={services} />
+        <FunnelHistoryCard clientId={r.client_id} requestId={r.id} currentId={r.id} />
         <RequestLocationCard title="Collection Information" snapshot={snapshot} kind="pickup" />
         <RequestLocationCard title="Delivery Information" snapshot={snapshot} kind="delivery" />
+        <PackingServiceCard snapshot={snapshot} />
+        {hasRemovalService(snapshot) ? <RemovalServiceCard snapshot={snapshot} services={services} /> : null}
         <RequestInventoryCard snapshot={snapshot} files={r.files} />
         <SentCard kind="request" id={r.id} />
 

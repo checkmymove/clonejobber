@@ -11,6 +11,9 @@ import {
   toAdminRequestInput,
   type RequestEditSnapshot,
 } from "@/lib/requests/edit-snapshot";
+import { ClientContactCard } from "@/components/funnel/client-contact-card";
+import { TotalsList, type TotalRow } from "@/components/funnel/document-cards";
+import type { ClientContact } from "@/lib/clients/queries";
 import {
   Dl,
   Field,
@@ -73,108 +76,103 @@ function toQuoteInput(
   };
 }
 
-export function QuoteSummaryCard({ snapshot }: { snapshot: QuoteEditSnapshot }) {
-  const [title, setTitle] = useState(snapshot.title);
+/** Client box of a quote: the client record plus the quote's moving date and time. */
+export function QuoteClientCard({
+  snapshot,
+  client,
+  address,
+}: {
+  snapshot: QuoteEditSnapshot;
+  client: ClientContact;
+  address: string;
+}) {
   const [validUntil, setValidUntil] = useState(snapshot.validUntil);
   const [moveTime, setMoveTime] = useState(toTime24(snapshot.moveTime));
+  useEffect(() => {
+    setValidUntil(snapshot.validUntil);
+    setMoveTime(toTime24(snapshot.moveTime));
+  }, [snapshot]);
+
+  return (
+    <ClientContactCard
+      client={client}
+      address={address}
+      extraRows={[
+        ["Moving date", snapshot.validUntil ? formatDateLondon(snapshot.validUntil) : "—"],
+        ["Moving time", snapshot.moveTime.trim() || "—"],
+      ]}
+      onCancelExtra={() => {
+        setValidUntil(snapshot.validUntil);
+        setMoveTime(toTime24(snapshot.moveTime));
+      }}
+      onSaveExtra={() => saveQuoteInPlace(snapshot.id, toQuoteInput(snapshot, { validUntil, moveTime }))}
+      extraFields={
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Field label="Moving date">
+            <input type="date" onClick={openPicker} className={inlineField} value={validUntil} onChange={(e) => setValidUntil(e.target.value)} />
+          </Field>
+          <Field label="Moving time">
+            <TimeField ariaLabel="Moving time" className={inlineField} value={moveTime} onChange={setMoveTime} />
+          </Field>
+        </div>
+      }
+    />
+  );
+}
+
+/** Terms and conditions, collapsed behind its arrow like the Inventory list. */
+export function QuoteTermsCard({ snapshot }: { snapshot: QuoteEditSnapshot }) {
+  const [message, setMessage] = useState(snapshot.message);
+  useEffect(() => setMessage(snapshot.message), [snapshot.message]);
+  return (
+    <InlineEditCard
+      className="h-fit p-5 xl:col-span-2"
+      title="Terms and conditions"
+      collapsible
+      summary={snapshot.message ? `${snapshot.message.split(/\s+/).length} words` : "None"}
+      onCancel={() => setMessage(snapshot.message)}
+      onSave={() => saveQuoteInPlace(snapshot.id, toQuoteInput(snapshot, { message }))}
+      view={<p className="max-h-96 overflow-y-auto whitespace-pre-wrap text-sm text-ink">{snapshot.message || "—"}</p>}
+    >
+      <textarea className={inlineArea} value={message} onChange={(e) => setMessage(e.target.value)} />
+    </InlineEditCard>
+  );
+}
+
+/** Totals with the pencil for discount, tax and the required deposit. */
+export function QuoteTotalsCard({ snapshot, totals }: { snapshot: QuoteEditSnapshot; totals: TotalRow[] }) {
   const [discount, setDiscount] = useState(snapshot.discount);
   const [tax, setTax] = useState(snapshot.tax);
   const [deposit, setDeposit] = useState(snapshot.deposit);
-  const [message, setMessage] = useState(snapshot.message);
-
   useEffect(() => {
-    setTitle(snapshot.title);
-    setValidUntil(snapshot.validUntil);
-    setMoveTime(toTime24(snapshot.moveTime));
     setDiscount(snapshot.discount);
     setTax(snapshot.tax);
     setDeposit(snapshot.deposit);
-    setMessage(snapshot.message);
   }, [snapshot]);
 
   return (
     <InlineEditCard
-      title="Resumo"
+      className="h-fit p-5 xl:col-span-2"
+      title="Totals"
       onCancel={() => {
-        setTitle(snapshot.title);
-        setValidUntil(snapshot.validUntil);
-        setMoveTime(toTime24(snapshot.moveTime));
         setDiscount(snapshot.discount);
         setTax(snapshot.tax);
         setDeposit(snapshot.deposit);
-        setMessage(snapshot.message);
       }}
-      onSave={async () => {
-        const saved = await saveQuoteInPlace(
-          snapshot.id,
-          toQuoteInput(snapshot, { title, validUntil, moveTime, discount, tax, deposit, message }),
-        );
-        if (!saved.ok) return saved;
-        return saved;
-      }}
-      view={
-        <>
-          <Dl
-            rows={[
-              ["Source", snapshot.source],
-              ["Recipient", snapshot.recipient],
-              ["Moving date", snapshot.validUntil ? formatDateLondon(snapshot.validUntil) : "—"],
-              ["Moving time", snapshot.moveTime.trim() || "—"],
-            ]}
-          />
-          {snapshot.message ? (
-            <details className="mt-4 rounded-xl border border-line">
-              <summary className="cursor-pointer px-3 py-2 text-sm font-bold text-ink">
-                Terms and conditions
-              </summary>
-              <p className="max-h-80 overflow-y-auto whitespace-pre-wrap border-t border-line px-3 py-3 text-sm text-ink">
-                {snapshot.message}
-              </p>
-            </details>
-          ) : null}
-        </>
-      }
+      onSave={() => saveQuoteInPlace(snapshot.id, toQuoteInput(snapshot, { discount, tax, deposit }))}
+      view={<TotalsList totals={totals} className="ml-auto max-w-sm" />}
     >
-      <Field label="Title">
-        <input className={inlineField} value={title} onChange={(e) => setTitle(e.target.value)} />
-      </Field>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Field label="Moving date">
-          <input type="date" onClick={openPicker} className={inlineField} value={validUntil} onChange={(e) => setValidUntil(e.target.value)} />
-        </Field>
-        <Field label="Moving time">
-          <TimeField ariaLabel="Moving time" className={inlineField} value={moveTime} onChange={setMoveTime} />
-        </Field>
-      </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Field label="Discount">
-          <input
-            className={inlineField}
-            value={discount}
-            onChange={(e) => setDiscount(e.target.value)}
-            onBlur={(e) => setDiscount(padMoney(e.target.value))}
-          />
+          <input className={inlineField} value={discount} onChange={(e) => setDiscount(e.target.value)} onBlur={(e) => setDiscount(padMoney(e.target.value))} />
         </Field>
         <Field label="Tax">
-          <input
-            className={inlineField}
-            value={tax}
-            onChange={(e) => setTax(e.target.value)}
-            onBlur={(e) => setTax(padMoney(e.target.value))}
-          />
+          <input className={inlineField} value={tax} onChange={(e) => setTax(e.target.value)} onBlur={(e) => setTax(padMoney(e.target.value))} />
         </Field>
         <Field label="Deposit">
-          <input
-            className={inlineField}
-            value={deposit}
-            onChange={(e) => setDeposit(e.target.value)}
-            onBlur={(e) => setDeposit(padMoney(e.target.value))}
-          />
+          <input className={inlineField} value={deposit} onChange={(e) => setDeposit(e.target.value)} onBlur={(e) => setDeposit(padMoney(e.target.value))} />
         </Field>
       </div>
-      <Field label="Terms and conditions">
-        <textarea className={inlineArea} value={message} onChange={(e) => setMessage(e.target.value)} />
-      </Field>
     </InlineEditCard>
   );
 }
@@ -185,7 +183,10 @@ export function QuoteServicesCard({ snapshot }: { snapshot: QuoteEditSnapshot })
 
   return (
     <InlineEditCard
+      className="h-fit p-5 xl:col-span-2"
       title="Services"
+      collapsible
+      summary={`${snapshot.lines.length} item${snapshot.lines.length === 1 ? "" : "s"} · ${formatGBP(snapshot.subtotal)}`}
       onCancel={() => setLines(snapshot.lines)}
       onSave={() => saveQuoteInPlace(snapshot.id, toQuoteInput(snapshot, { lines }))}
       view={<ServicesView lines={snapshot.lines} />}
@@ -195,7 +196,6 @@ export function QuoteServicesCard({ snapshot }: { snapshot: QuoteEditSnapshot })
   );
 }
 
-// Inside InlineEditCard, so it collapses to the height of the neighbouring Resumo card.
 function ServicesView({ lines }: { lines: QuoteEditSnapshot["lines"] }) {
   return (
     <div className="space-y-2 text-sm">
@@ -214,131 +214,6 @@ function ServicesView({ lines }: { lines: QuoteEditSnapshot["lines"] }) {
   );
 }
 
-export function QuotePackingCard({ request }: { request: RequestEditSnapshot }) {
-  const [needsPacking, setNeedsPacking] = useState(request.needsPacking);
-  const [needsBoxes, setNeedsBoxes] = useState(request.needsBoxes);
-  useEffect(() => {
-    setNeedsPacking(request.needsPacking);
-    setNeedsBoxes(request.needsBoxes);
-  }, [request]);
-
-  return (
-    <InlineEditCard
-      title="Packing service"
-      onCancel={() => {
-        setNeedsPacking(request.needsPacking);
-        setNeedsBoxes(request.needsBoxes);
-      }}
-      onSave={() =>
-        saveRequestInPlace(
-          request.id,
-          toAdminRequestInput({ ...request, needsPacking, needsBoxes }),
-        )
-      }
-      view={
-        <Dl
-          rows={[
-            ["Packing services", request.needsPacking ? "Yes" : "No"],
-            ["Packing materials", request.needsBoxes ? "Yes" : "No"],
-          ]}
-        />
-      }
-    >
-      <Field label="Packing services">
-        <YesNoSelect value={needsPacking} onChange={setNeedsPacking} />
-      </Field>
-      <Field label="Packing materials">
-        <YesNoSelect value={needsBoxes} onChange={setNeedsBoxes} />
-      </Field>
-    </InlineEditCard>
-  );
-}
-
-function QuoteLocationCard({
-  title,
-  request,
-  kind,
-}: {
-  title: string;
-  request: RequestEditSnapshot;
-  kind: "pickup" | "delivery";
-}) {
-  const current: LocationDraft =
-    kind === "pickup"
-      ? {
-          address: request.pickupAddress,
-          postcode: request.pickupPostcode,
-          floor: request.pickupFloor,
-          lift: request.pickupLift,
-          parking: request.pickupParking,
-          bedrooms: request.pickupBedrooms,
-        }
-      : {
-          address: request.deliveryAddress,
-          postcode: request.deliveryPostcode,
-          floor: request.deliveryFloor,
-          lift: request.deliveryLift,
-          parking: request.deliveryParking,
-          bedrooms: request.deliveryBedrooms,
-        };
-  const [draft, setDraft] = useState(current);
-  useEffect(() => setDraft(current), [request, kind]);
-
-  return (
-    <InlineEditCard
-      title={title}
-      view={
-        <Dl
-          rows={[
-            ["Address", `${current.address}${current.postcode ? `, ${current.postcode}` : ""}`.replace(/^, /, "") || "—"],
-            ["Floor", current.floor || "—"],
-            ["Lift", current.lift ? "Yes" : "No"],
-            ["Parking", current.parking || "—"],
-            ["Bedrooms", current.bedrooms || "—"],
-          ]}
-        />
-      }
-      onCancel={() => setDraft(current)}
-      onSave={() =>
-        saveRequestInPlace(
-          request.id,
-          toAdminRequestInput(
-            kind === "pickup"
-              ? {
-                  ...request,
-                  pickupAddress: draft.address,
-                  pickupPostcode: draft.postcode,
-                  pickupFloor: draft.floor,
-                  pickupLift: draft.lift,
-                  pickupParking: draft.parking,
-                  pickupBedrooms: draft.bedrooms,
-                }
-              : {
-                  ...request,
-                  deliveryAddress: draft.address,
-                  deliveryPostcode: draft.postcode,
-                  deliveryFloor: draft.floor,
-                  deliveryLift: draft.lift,
-                  deliveryParking: draft.parking,
-                  deliveryBedrooms: draft.bedrooms,
-                },
-          ),
-        )
-      }
-    >
-      <LocationFields value={draft} onChange={setDraft} />
-    </InlineEditCard>
-  );
-}
-
-export function QuoteCollectionCard({ request }: { request: RequestEditSnapshot }) {
-  return <QuoteLocationCard title="Collection Information" request={request} kind="pickup" />;
-}
-
-export function QuoteDeliveryCard({ request }: { request: RequestEditSnapshot }) {
-  return <QuoteLocationCard title="Delivery Information" request={request} kind="delivery" />;
-}
-
 export function QuoteInventoryCard({
   snapshot,
   request,
@@ -351,6 +226,7 @@ export function QuoteInventoryCard({
 
   return (
     <InlineEditCard
+      className="h-fit p-5 xl:col-span-2"
       title="Inventory list"
       collapsible
       summary={inventorySummary(snapshot.inventory)}

@@ -8,14 +8,23 @@ import { quoteLinesFromPence } from "@/lib/quotes/edit-snapshot";
 import { QuoteRequestSidebar } from "@/components/quotes/quote-request-sidebar";
 import { ConvertToJobButton, QuoteMoreMenu } from "@/components/quotes/quote-more-menu";
 import {
-  QuoteCollectionCard,
-  QuoteDeliveryCard,
+  QuoteClientCard,
   QuoteInventoryCard,
-  QuotePackingCard,
   QuoteServicesCard,
-  QuoteSummaryCard,
+  QuoteTermsCard,
+  QuoteTotalsCard,
 } from "@/components/quotes/quote-inline-cards";
-import { TotalsCard, depositTotalRows, type TotalRow } from "@/components/funnel/document-cards";
+import {
+  PackingServiceCard,
+  RemovalServiceCard,
+  RequestLocationCard,
+  hasRemovalService,
+} from "@/components/requests/request-inline-cards";
+import { depositTotalRows, type TotalRow } from "@/components/funnel/document-cards";
+import { FunnelHistoryCard } from "@/components/funnel/funnel-history-card";
+import { getClientContact } from "@/lib/clients/queries";
+import { getCompanyId } from "@/lib/company";
+import { getActiveServices } from "@/lib/requests/company";
 import { getQuoteDeposits } from "@/lib/payments/queries";
 import { SentCard } from "@/components/funnel/sent-card";
 import { Badge, PageHeader } from "@/components/ui";
@@ -39,7 +48,13 @@ export default async function CotacaoDetailPage({
   const { id } = await params;
   const q = await getQuoteDetail(id);
   if (!q) notFound();
-  const deposits = await getQuoteDeposits(id);
+  const [deposits, client, companyId] = await Promise.all([
+    getQuoteDeposits(id),
+    getClientContact(q.client_id),
+    getCompanyId(),
+  ]);
+  if (!client) notFound();
+  const services = companyId ? await getActiveServices(companyId) : [];
   const requestId = q.request_id ?? (await getLatestRequestId(q.client_id));
   const request = requestId ? await getRequestDetail(requestId) : null;
   const linkedRequest =
@@ -112,20 +127,27 @@ export default async function CotacaoDetailPage({
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
       <div className="grid grid-cols-1 min-w-0 flex-1 items-start gap-4 xl:grid-cols-2">
-        <QuoteSummaryCard snapshot={snapshot} />
-        <QuoteServicesCard snapshot={snapshot} />
-        {linkedRequest ? <QuoteCollectionCard request={linkedRequest} /> : null}
-        {linkedRequest ? <QuoteDeliveryCard request={linkedRequest} /> : null}
-        <div className="xl:col-span-2">
-          <QuoteInventoryCard snapshot={snapshot} request={linkedRequest} />
-        </div>
-        {linkedRequest && (linkedRequest.needsPacking || linkedRequest.needsBoxes) ? (
-          <div className="xl:col-span-2">
-            <QuotePackingCard request={linkedRequest} />
-          </div>
+        <QuoteClientCard
+          snapshot={snapshot}
+          client={client}
+          address={linkedRequest ? [linkedRequest.pickupAddress, linkedRequest.pickupPostcode].filter(Boolean).join(", ") : ""}
+        />
+        <FunnelHistoryCard clientId={q.client_id} requestId={q.request_id} quoteId={id} currentId={id} />
+        {linkedRequest ? (
+          <>
+            <RequestLocationCard title="Collection Information" snapshot={linkedRequest} kind="pickup" />
+            <RequestLocationCard title="Delivery Information" snapshot={linkedRequest} kind="delivery" />
+            <PackingServiceCard snapshot={linkedRequest} />
+            {hasRemovalService(linkedRequest) ? (
+              <RemovalServiceCard snapshot={linkedRequest} services={services} />
+            ) : null}
+          </>
         ) : null}
+        <QuoteServicesCard snapshot={snapshot} />
+        <QuoteInventoryCard snapshot={snapshot} request={linkedRequest} />
+        <QuoteTermsCard snapshot={snapshot} />
         <SentCard kind="quote" id={id} />
-        <TotalsCard totals={totals} />
+        <QuoteTotalsCard snapshot={snapshot} totals={totals} />
       </div>
       <QuoteRequestSidebar request={request} />
       </div>

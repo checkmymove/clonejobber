@@ -57,6 +57,19 @@ export function InlineEditCard({
   const router = useRouter();
   const shown = open || editing;
 
+  async function save() {
+    setPending(true);
+    setError("");
+    const result = await onSave();
+    setPending(false);
+    if (!result.ok) {
+      setError(result.message || Object.values(result.errors ?? {})[0] || "Could not save.");
+      return;
+    }
+    setEditing(false);
+    router.refresh();
+  }
+
   return (
     <Card className={className ?? "h-fit p-5"} accent={accent}>
       <div className={`flex items-start justify-between gap-2 ${shown ? "mb-2" : ""}`}>
@@ -93,24 +106,15 @@ export function InlineEditCard({
         ) : null}
       </div>
       {!shown ? null : editing ? (
-        <form
+        // A div, not a form: these cards also sit inside page forms (New quote), and a
+        // nested form would submit the outer one.
+        <div
           className="space-y-3"
-          onSubmit={async (event) => {
-            event.preventDefault();
-            setPending(true);
-            setError("");
-            const result = await onSave();
-            setPending(false);
-            if (!result.ok) {
-              setError(
-                result.message ||
-                  Object.values(result.errors ?? {})[0] ||
-                  "Could not save.",
-              );
-              return;
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && event.target instanceof HTMLInputElement) {
+              event.preventDefault();
+              void save();
             }
-            setEditing(false);
-            router.refresh();
           }}
         >
           {children}
@@ -128,14 +132,15 @@ export function InlineEditCard({
               Cancel
             </button>
             <button
-              type="submit"
+              type="button"
+              onClick={() => void save()}
               disabled={pending}
               className="h-9 rounded-xl bg-ink px-3 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
             >
               {pending ? "Saving…" : "Save"}
             </button>
           </div>
-        </form>
+        </div>
       ) : (
         <EqualHeightBody label={title.toLowerCase()}>{view}</EqualHeightBody>
       )}

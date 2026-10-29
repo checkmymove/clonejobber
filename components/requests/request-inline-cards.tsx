@@ -157,60 +157,30 @@ export function RequestContactCard({
   );
 }
 
-export function RequestPackingCard({
-  snapshot,
-  services,
-}: {
-  snapshot: RequestEditSnapshot;
-  services: { id: string; name: string }[];
-}) {
+type Saved = { ok: boolean; message?: string; errors?: Record<string, string> };
+
+/** Calls onSaved after a successful save, so a form holding a copy can reload it. */
+async function saveThen(work: Promise<Saved>, onSaved?: () => void): Promise<Saved> {
+  const result = await work;
+  if (result.ok) onSaved?.();
+  return result;
+}
+
+export function PackingServiceCard({ snapshot, onSaved }: { snapshot: RequestEditSnapshot; onSaved?: () => void }) {
   const [draft, setDraft] = useState(snapshot);
   useEffect(() => setDraft(snapshot), [snapshot]);
-  const selected = services.filter((s) => snapshot.serviceIds.includes(s.id));
-  const showPacking = snapshot.needsPacking || snapshot.needsBoxes;
-
   return (
     <InlineEditCard
-      title={showPacking ? "Packing Service" : "Service Details"}
-      accent="#2f7d3b"
+      title="Packing Service"
       onCancel={() => setDraft(snapshot)}
-      onSave={() => saveRequestInPlace(snapshot.id, toAdminRequestInput(draft))}
+      onSave={() => saveThen(saveRequestInPlace(snapshot.id, toAdminRequestInput(draft)), onSaved)}
       view={
-        <>
-          {showPacking ? (
-            <Dl
-              rows={[
-                ["Packing services", snapshot.needsPacking ? "Yes" : "No"],
-                ["Packing materials", snapshot.needsBoxes ? "Yes" : "No"],
-              ]}
-            />
-          ) : null}
-          <div className={`${showPacking ? "mt-4 " : ""}rounded-xl border border-accent/25 bg-accent-soft p-4`}>
-            {showPacking ? (
-              <h2 className="mb-3 text-sm font-extrabold uppercase tracking-wide text-accent">
-                Service Details
-              </h2>
-            ) : null}
-            {selected.length > 0 ? (
-              <ul className="space-y-2">
-                {selected.map((s) => (
-                  <li key={s.id} className="flex items-center gap-2.5 text-[15px] font-bold text-ink">
-                    <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-accent text-[11px] font-bold text-white">
-                      ✓
-                    </span>
-                    {s.name}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-ink-soft">No service selected.</p>
-            )}
-            <p className="mt-3 border-t border-accent/20 pt-3 text-sm text-ink-soft">
-              Hours{" "}
-              <span className="text-lg font-extrabold text-ink">{snapshot.hours || "—"}</span>
-            </p>
-          </div>
-        </>
+        <Dl
+          rows={[
+            ["Packing services", snapshot.needsPacking ? "Yes" : "No"],
+            ["Packing materials", snapshot.needsBoxes ? "Yes" : "No"],
+          ]}
+        />
       }
     >
       <Field label="Packing services">
@@ -219,37 +189,81 @@ export function RequestPackingCard({
       <Field label="Packing materials">
         <YesNoSelect value={draft.needsBoxes} onChange={(needsBoxes) => setDraft({ ...draft, needsBoxes })} />
       </Field>
-      <div>
-        <p className="mb-2 text-[13px] font-extrabold uppercase tracking-wide text-accent">Service Details</p>
-        <div className="space-y-2">
-          {services.map((service) => {
-            const checked = draft.serviceIds.includes(service.id);
-            return (
-              <label key={service.id} className="flex items-center gap-2 text-sm font-semibold text-ink">
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={() =>
-                    setDraft({
-                      ...draft,
-                      serviceIds: checked
-                        ? draft.serviceIds.filter((id) => id !== service.id)
-                        : [...draft.serviceIds, service.id],
-                    })
-                  }
-                />
-                {service.name}
-              </label>
-            );
-          })}
-        </div>
+    </InlineEditCard>
+  );
+}
+
+/** Whether the request has a removal service or hours to show. */
+export function hasRemovalService(snapshot: RequestEditSnapshot): boolean {
+  return snapshot.serviceIds.length > 0 || Boolean(snapshot.hours);
+}
+
+/** The service and hours the client asked for in the request form. */
+export function RemovalServiceCard({
+  snapshot,
+  services,
+  onSaved,
+}: {
+  snapshot: RequestEditSnapshot;
+  services: { id: string; name: string }[];
+  onSaved?: () => void;
+}) {
+  const [draft, setDraft] = useState(snapshot);
+  useEffect(() => setDraft(snapshot), [snapshot]);
+  const selected = services.filter((s) => snapshot.serviceIds.includes(s.id));
+
+  return (
+    <InlineEditCard
+      title="Removal Service"
+      accent="#2f7d3b"
+      onCancel={() => setDraft(snapshot)}
+      onSave={() => saveThen(saveRequestInPlace(snapshot.id, toAdminRequestInput(draft)), onSaved)}
+      view={
+        <>
+          {selected.length > 0 ? (
+            <ul className="space-y-2">
+              {selected.map((s) => (
+                <li key={s.id} className="flex items-center gap-2.5 text-[15px] font-bold text-ink">
+                  <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-accent text-[11px] font-bold text-white">
+                    ✓
+                  </span>
+                  {s.name}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-ink-soft">No service selected.</p>
+          )}
+          <p className="mt-3 border-t border-line pt-3 text-sm text-ink-soft">
+            Hours <span className="text-lg font-extrabold text-ink">{snapshot.hours || "—"}</span>
+          </p>
+        </>
+      }
+    >
+      <div className="space-y-2">
+        {services.map((service) => {
+          const checked = draft.serviceIds.includes(service.id);
+          return (
+            <label key={service.id} className="flex items-center gap-2 text-sm font-semibold text-ink">
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={() =>
+                  setDraft({
+                    ...draft,
+                    serviceIds: checked
+                      ? draft.serviceIds.filter((id) => id !== service.id)
+                      : [...draft.serviceIds, service.id],
+                  })
+                }
+              />
+              {service.name}
+            </label>
+          );
+        })}
       </div>
       <Field label="Hours">
-        <select
-          className={inlineField}
-          value={draft.hours}
-          onChange={(e) => setDraft({ ...draft, hours: e.target.value })}
-        >
+        <select className={inlineField} value={draft.hours} onChange={(e) => setDraft({ ...draft, hours: e.target.value })}>
           <option value="">—</option>
           {HOURS_OPTIONS.map((hours) => (
             <option key={hours} value={hours}>
@@ -266,10 +280,12 @@ export function RequestLocationCard({
   title,
   snapshot,
   kind,
+  onSaved,
 }: {
   title: string;
   snapshot: RequestEditSnapshot;
   kind: "pickup" | "delivery";
+  onSaved?: () => void;
 }) {
   const current = kind === "pickup" ? pickupOf(snapshot) : deliveryOf(snapshot);
   const [draft, setDraft] = useState(current);
@@ -288,9 +304,12 @@ export function RequestLocationCard({
       view={<Dl rows={viewRows} />}
       onCancel={() => setDraft(current)}
       onSave={() =>
-        saveRequestInPlace(
-          snapshot.id,
-          toAdminRequestInput(kind === "pickup" ? withPickup(snapshot, draft) : withDelivery(snapshot, draft)),
+        saveThen(
+          saveRequestInPlace(
+            snapshot.id,
+            toAdminRequestInput(kind === "pickup" ? withPickup(snapshot, draft) : withDelivery(snapshot, draft)),
+          ),
+          onSaved,
         )
       }
     >

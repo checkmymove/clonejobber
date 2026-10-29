@@ -8,6 +8,7 @@ import { isUuid } from "@/lib/funnel/validation";
 import { NewQuoteDialog } from "@/components/quotes/new-quote-dialog";
 import { NewQuoteForm } from "@/components/quotes/new-quote-form";
 import { QUOTE_TERMS } from "@/lib/quotes/terms";
+import { getActiveServices } from "@/lib/requests/company";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +40,10 @@ export default async function NovaCotacaoPage({
     service = found;
   }
 
-  const clients = await listClientsForSelect(COMPANY_SLUG);
+  const [clients, requestServices] = await Promise.all([
+    listClientsForSelect(COMPANY_SLUG),
+    getActiveServices(companyId),
+  ]);
   let prefill = sp.requestId
     ? await getQuotePrefillFromRequest(sp.requestId, service)
     : null;
@@ -64,6 +68,7 @@ export default async function NovaCotacaoPage({
       <div className="mx-auto max-w-[860px]">
         <NewQuoteForm
           clients={clients}
+          requestServices={requestServices}
           requestId={prefill?.requestId ?? (sp.requestId || undefined)}
           sourceRequestId={sp.requestId}
           initialClientId={prefill?.clientId ?? sp.clientId}

@@ -5,12 +5,12 @@ import Link from "next/link";
 import {
   Archive,
   Banknote,
-  Check,
   Eye,
   FileDown,
   Hammer,
   Mail,
   MoreHorizontal,
+  ThumbsUp,
   Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -105,10 +105,15 @@ export function QuoteMoreMenu({
             disabled={Boolean(pending) || archived || !approvable}
             title={status === "approved" ? "This quote is already approved" : undefined}
             onClick={() => void run("approved", () => updateQuoteStatus(quoteId, "approved"))}
-            className={itemClass}
+            className={status === "approved" ? `${itemClass} disabled:opacity-100 text-emerald-700` : itemClass}
           >
-            <Check size={18} />
-            Approved
+            <ThumbsUp size={18} fill={status === "approved" ? "currentColor" : "none"} />
+            <span>
+              Approved
+              <span className={`block text-xs font-semibold ${status === "approved" ? "text-emerald-700" : "text-sky-700"}`}>
+                {status === "approved" ? "Approved" : status === "sent" ? "Sent" : status === "changes_requested" ? "Changes requested" : "Draft"}
+              </span>
+            </span>
           </button>
           {archived || !convertible ? (
             <button type="button" role="menuitem" disabled className={itemClass}>

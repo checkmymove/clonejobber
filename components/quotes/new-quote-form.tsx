@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Calendar, ChevronDown, Hammer, Mail, Quote, Trash2 } from "lucide-react";
 import { StickySaveBar } from "@/components/forms/sticky-save-bar";
@@ -16,6 +16,14 @@ import {
 import { QUOTE_TERMS } from "@/lib/quotes/terms";
 import type { QuoteInventoryFile, QuotePacking, QuoteServiceChoice, QuoteStop } from "@/lib/quotes/types";
 import { ClientSelect } from "@/components/funnel/client-select";
+import {
+  PackingServiceCard,
+  RemovalServiceCard,
+  RequestLocationCard,
+  hasRemovalService,
+} from "@/components/requests/request-inline-cards";
+import { loadRequestEditSnapshot } from "@/lib/requests/actions";
+import type { RequestEditSnapshot } from "@/lib/requests/edit-snapshot";
 import { formatPounds, padMoney } from "@/lib/format";
 
 const ink = "text-[#042b3c]";
@@ -50,7 +58,10 @@ export function NewQuoteForm({
   initialTax,
   initialDeposit,
   service,
+  requestServices = [],
 }: {
+  /** Services of the request form, for the editable Removal Service card. */
+  requestServices?: { id: string; name: string }[];
   clients: Client[];
   requestId?: string;
   sourceRequestId?: string;
@@ -96,6 +107,14 @@ export function NewQuoteForm({
   const [taxOpen, setTaxOpen] = useState(Boolean(initialTax));
   const [depositOpen, setDepositOpen] = useState(Boolean(initialDeposit));
   const [savedQuoteId, setSavedQuoteId] = useState(quoteId);
+  // The linked request, editable in place with the same pencil cards as the request page.
+  const [requestSnap, setRequestSnap] = useState<RequestEditSnapshot | null>(null);
+  const reloadRequest = useCallback(async () => {
+    setRequestSnap(linkedRequestId ? await loadRequestEditSnapshot(linkedRequestId) : null);
+  }, [linkedRequestId]);
+  useEffect(() => {
+    void reloadRequest();
+  }, [reloadRequest]);
   const sender = useSendDialog();
   const router = useRouter();
   const [error, setError] = useState("");
@@ -306,22 +325,34 @@ export function NewQuoteForm({
         </label>
       </div>
 
-      {packing ? (
-        <section className={`rounded-lg border ${line} bg-white p-4 sm:p-5`}>
-          <h2 className={`text-[17px] font-bold ${ink}`}>Packing service</h2>
-          <dl className="mt-3 text-sm">
-            <Fact name="Packing services" value={packing.service} />
-            <Fact name="Packing materials" value={packing.materials} />
-          </dl>
-        </section>
-      ) : null}
-
-      {collection || delivery ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {collection ? <StopCard title="Collection Information" stop={collection} /> : null}
-          {delivery ? <StopCard title="Delivery Information" stop={delivery} /> : null}
+      {requestSnap ? (
+        <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
+          <RequestLocationCard title="Collection Information" snapshot={requestSnap} kind="pickup" onSaved={reloadRequest} />
+          <RequestLocationCard title="Delivery Information" snapshot={requestSnap} kind="delivery" onSaved={reloadRequest} />
+          <PackingServiceCard snapshot={requestSnap} onSaved={reloadRequest} />
+          {hasRemovalService(requestSnap) ? (
+            <RemovalServiceCard snapshot={requestSnap} services={requestServices} onSaved={reloadRequest} />
+          ) : null}
         </div>
-      ) : null}
+      ) : (
+        <>
+          {collection || delivery ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {collection ? <StopCard title="Collection Information" stop={collection} /> : null}
+              {delivery ? <StopCard title="Delivery Information" stop={delivery} /> : null}
+            </div>
+          ) : null}
+          {packing ? (
+            <section className={`rounded-lg border ${line} bg-white p-4 sm:p-5`}>
+              <h2 className={`text-[17px] font-bold ${ink}`}>Packing service</h2>
+              <dl className="mt-3 text-sm">
+                <Fact name="Packing services" value={packing.service} />
+                <Fact name="Packing materials" value={packing.materials} />
+              </dl>
+            </section>
+          ) : null}
+        </>
+      )}
 
       <section className={`rounded-lg border ${line} bg-white p-4 sm:p-5`}>
         <h2 className={`text-[17px] font-bold ${ink}`}>Product / Service</h2>

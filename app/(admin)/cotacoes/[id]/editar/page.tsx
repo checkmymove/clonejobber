@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { listClientsForSelect } from "@/lib/clients/queries";
-import { COMPANY_SLUG } from "@/lib/company";
+import { COMPANY_SLUG, getCompanyId } from "@/lib/company";
+import { getActiveServices } from "@/lib/requests/company";
 import { penceToInput, toDateInput } from "@/lib/format";
 import { getQuoteDetail, listRequestInventoryFiles } from "@/lib/quotes/queries";
 import { NewQuoteForm } from "@/components/quotes/new-quote-form";
@@ -16,7 +17,11 @@ export default async function EditCotacaoPage({
   const q = await getQuoteDetail(id);
   if (!q) notFound();
 
-  const clients = await listClientsForSelect(COMPANY_SLUG);
+  const companyId = await getCompanyId();
+  const [clients, requestServices] = await Promise.all([
+    listClientsForSelect(COMPANY_SLUG),
+    companyId ? getActiveServices(companyId) : [],
+  ]);
   const files = q.request_id ? await listRequestInventoryFiles(q.request_id) : [];
 
   return (
@@ -24,6 +29,7 @@ export default async function EditCotacaoPage({
       <div className="mx-auto max-w-[860px]">
         <NewQuoteForm
           clients={clients}
+          requestServices={requestServices}
           quoteId={q.id}
           requestId={q.request_id ?? undefined}
           initialClientId={q.client_id}

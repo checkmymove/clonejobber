@@ -739,3 +739,12 @@ export async function saveRequestContact(
   revalidatePath("/clientes");
   return { ok: true };
 }
+
+/** Reloads a request after an inline edit made from another page (New quote). */
+export async function loadRequestEditSnapshot(requestId: string) {
+  await requireAdmin();
+  const { getRequestDetail } = await import("@/lib/requests/queries");
+  const { requestSnapshotFromDetail } = await import("@/lib/requests/edit-snapshot");
+  const detail = await getRequestDetail(requestId).catch(() => null);
+  return detail ? requestSnapshotFromDetail(detail) : null;
+}

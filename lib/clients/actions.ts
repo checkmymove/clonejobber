@@ -73,3 +73,43 @@ export async function createClient(
     throw e;
   }
 }
+
+export type ClientContactInput = {
+  firstName: string;
+  lastName: string;
+  companyName: string;
+  email: string;
+  phone: string;
+};
+
+/** Pencil on the client box of a quote, job or invoice: updates the client everywhere. */
+export async function saveClientContact(clientId: string, input: ClientContactInput): Promise<ActionResult> {
+  await requireAdmin();
+  const { isValidEmail, isValidPhone } = await import("@/lib/requests/validation");
+  const errors: Errors = {};
+  if (!input.firstName.trim()) errors.firstName = "First name is required";
+  if (!input.lastName.trim()) errors.lastName = "Last name is required";
+  if (!input.email.trim()) errors.email = "Email is required";
+  else if (!isValidEmail(input.email)) errors.email = "Enter a valid email address";
+  if (!input.phone.trim()) errors.phone = "Phone is required";
+  else if (!isValidPhone(input.phone)) errors.phone = "Enter a valid phone number";
+  if (Object.keys(errors).length) return { ok: false, errors, message: "Check the highlighted fields." };
+
+  const company = await companyId();
+  if (!company) return { ok: false, message: "Company not found." };
+  const rows = await sql`
+    update clients set
+      first_name = ${input.firstName.trim()},
+      last_name = ${input.lastName.trim()},
+      company_name = ${input.companyName.trim() || null},
+      email = ${input.email.trim()},
+      phone = ${input.phone.trim()},
+      updated_at = now()
+    where id = ${clientId} and company_id = ${company}
+    returning id
+  `;
+  if (!rows[0]) return { ok: false, message: "Client not found." };
+  // The client's name and contact show on every funnel page.
+  revalidatePath("/", "layout");
+  return { ok: true };
+}

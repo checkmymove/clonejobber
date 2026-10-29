@@ -147,7 +147,7 @@ export function LineItemsCard({
   );
 }
 
-function TotalsList({ totals, className = "" }: { totals: TotalRow[]; className?: string }) {
+export function TotalsList({ totals, className = "" }: { totals: TotalRow[]; className?: string }) {
   return (
     <div className={`divide-y divide-line border-line text-sm ${className}`}>
       {totals.map((row, index) => (

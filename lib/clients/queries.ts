@@ -108,3 +108,23 @@ export async function listClients(
     limit 100
   `;
 }
+
+export type ClientContact = {
+  id: string;
+  number: number | null;
+  firstName: string;
+  lastName: string;
+  companyName: string;
+  email: string;
+  phone: string;
+};
+
+/** What the editable Client box on quote, job and invoice pages shows and edits. */
+export async function getClientContact(clientId: string): Promise<ClientContact | null> {
+  const rows = await sql<ClientContact[]>`
+    select id, number, first_name as "firstName", last_name as "lastName",
+           coalesce(company_name, '') as "companyName", email::text as email, phone
+    from clients where id = ${clientId} limit 1
+  `;
+  return rows[0] ?? null;
+}

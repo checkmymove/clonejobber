@@ -2,12 +2,7 @@ import "server-only";
 import { sql } from "@/lib/db";
 import { COMPANY_SLUG } from "@/lib/company";
 import { DEFAULT_LOGO_PATH, clientInvoiceUrl, clientJobUrl, clientQuoteUrl } from "@/lib/email/config";
-import {
-  COMPANY_PHONE_DISPLAY,
-  COMPANY_WHATSAPP_DISPLAY,
-  quoteClientGreeting,
-  quoteEmailPlain,
-} from "@/lib/email/templates";
+import { COMPANY_PHONE_DISPLAY, quoteClientGreeting } from "@/lib/email/templates";
 import { formatDateNumericLondon, formatPounds } from "@/lib/format";
 import { getInvoiceDetail } from "@/lib/invoices/queries";
 import { getJobDetail } from "@/lib/jobs/queries";
@@ -15,9 +10,23 @@ import { pdfFileName } from "@/lib/pdf/document";
 import { getQuoteDetail } from "@/lib/quotes/queries";
 import { getRequestDetail } from "@/lib/requests/queries";
 import { normalizePhone } from "@/lib/sms/phone";
+import { jobDetailsText, renderLetter, type TemplateKey } from "@/lib/templates/catalog";
+import { getTemplate } from "@/lib/templates/queries";
 import type { SendDraft, SendKind } from "./types";
 
 type Company = { id: string; name: string; logo_url: string | null; sms_ready: boolean };
+
+/** "Everaldo Aquino, Jailton Bento" per visit, from Team assignments. */
+export async function visitTeamNames(visitIds: string[]): Promise<Map<string, string>> {
+  if (visitIds.length === 0) return new Map();
+  const rows = await sql<{ visit_id: string; names: string }[]>`
+    select vm.visit_id, string_agg(m.name, ', ' order by m.sort, m.name) as names
+    from job_visit_members vm join team_members m on m.id = vm.member_id
+    where vm.visit_id = any(${visitIds}::uuid[])
+    group by vm.visit_id
+  `.catch(() => []);
+  return new Map(rows.map((r) => [r.visit_id, r.names]));
+}
 
 export async function sendCompany(): Promise<Company | null> {
   const rows = await sql<Company[]>`
@@ -32,8 +41,35 @@ export async function sendCompany(): Promise<Company | null> {
 }
 
 const pounds = (pence: number) => formatPounds(pence / 100);
-const firstName = (name: string) => name.trim().split(/\s+/)[0] || "there";
-const contactLine = `If you have any questions, please don't hesitate to get in touch with us at ${COMPANY_PHONE_DISPLAY} or by WhatsApp ${COMPANY_WHATSAPP_DISPLAY}.`;
+export const COMPANY_EMAIL_DISPLAY = "hello@movinglondontransport.com";
+
+/** Variables every template can use (Jobber: General, Client, Your Branding). */
+export function baseVars(company: { name: string }, client: { name: string; title?: string }) {
+  const parts = client.name.trim().split(/\s+/);
+  return {
+    CURRENT_DATE: formatDateNumericLondon(new Date()),
+    CLIENT_NAME: quoteClientGreeting(client.title ?? "", client.name),
+    CLIENT_FIRST_NAME: parts[0] || "there",
+    CLIENT_LAST_NAME: parts.length > 1 ? parts[parts.length - 1] : "",
+    CLIENT_COMPANY_NAME: "",
+    COMPANY_NAME: company.name,
+    DEFAULT_EMAIL: COMPANY_EMAIL_DISPLAY,
+    DEFAULT_PHONE: COMPANY_PHONE_DISPLAY,
+  };
+}
+
+/** The account's template (Settings › Emails & Texts) filled in for one document. */
+export async function letterFor(companyId: string, key: TemplateKey, vars: Record<string, string>) {
+  const t = await getTemplate(companyId, key);
+  return {
+    subject: renderLetter(t.email.subject, vars),
+    message: renderLetter(t.email.body, vars),
+    sms: t.sms ? renderLetter(t.sms.body, vars) : "",
+  };
+}
+
+/** Jobber adds the document link to template texts. */
+const withLink = (text: string, url: string | null) => (url ? `${text}\n\n${url}` : text);
 
 type Result = { ok: true; draft: SendDraft } | { ok: false; message: string };
 
@@ -50,7 +86,11 @@ async function requestDraft(company: Company, id: string): Promise<Result> {
   const r = await getRequestDetail(id);
   if (!r) return { ok: false, message: "Request not found." };
   const name = `${r.client_first_name} ${r.client_last_name}`.trim();
-  const when = r.move_date ? ` for your move on ${formatDateNumericLondon(r.move_date)}` : "";
+  const letter = await letterFor(company.id, "request_submitted", {
+    ...baseVars(company, { name }),
+    CLIENT_COMPANY_NAME: r.company_name ?? "",
+    REQUEST_NUMBER: r.number,
+  });
   return {
     ok: true,
     draft: {
@@ -60,27 +100,8 @@ async function requestDraft(company: Company, id: string): Promise<Result> {
       clientName: name,
       viewUrl: null,
       card: { heading: "Request received" },
-      email: {
-        to: r.client_email,
-        subject: `We received your request ${r.number} - ${company.name}`,
-        message: [
-          `Hi ${name},`,
-          "",
-          `Thank you for getting in touch. We have received your request${when} and our team is preparing your quote.`,
-          "",
-          "We will send it to you shortly.",
-          "",
-          contactLine,
-          "",
-          "Best wishes,",
-          "",
-          company.name,
-        ].join("\n"),
-      },
-      sms: {
-        to: normalizePhone(r.client_phone),
-        message: `Hi ${firstName(name)}, thanks for your request ${r.number} with ${company.name}. We'll send your quote shortly.`,
-      },
+      email: { to: r.client_email, subject: letter.subject, message: letter.message },
+      sms: { to: normalizePhone(r.client_phone), message: letter.sms },
       attachment: null,
     },
   };
@@ -94,11 +115,12 @@ async function quoteDraft(company: Company, id: string): Promise<Result> {
     return { ok: false, message: "This quote cannot be sent." };
   }
   if (q.total <= 0) return { ok: false, message: "Set line item prices before sending." };
-  const letter = quoteEmailPlain({
-    companyName: company.name,
-    clientName: q.client_name,
-    clientTitle: q.client_title,
-    deposit: q.deposit,
+  const letter = await letterFor(company.id, "quote_sent", {
+    ...baseVars(company, { name: q.client_name, title: q.client_title }),
+    QUOTE_NUMBER: q.number,
+    QUOTE_TOTAL: pounds(q.total),
+    DEPOSIT_AMOUNT: q.deposit > 0 ? pounds(q.deposit) : "",
+    DISCOUNT_AMOUNT: q.discount > 0 ? pounds(q.discount) : "",
   });
   const url = clientQuoteUrl(id);
   return {
@@ -118,7 +140,7 @@ async function quoteDraft(company: Company, id: string): Promise<Result> {
       email: { to: q.client_email, subject: letter.subject, message: letter.message },
       sms: {
         to: normalizePhone(q.client_phone),
-        message: `Hi ${firstName(q.client_name)}, here's your quote from ${company.name} for ${pounds(q.total)}. View it here: ${url}`,
+        message: withLink(letter.sms, url),
       },
       attachment: pdfFileName("quote", q.number),
     },
@@ -136,8 +158,19 @@ async function jobDraft(company: Company, id: string): Promise<Result> {
     visit && !visit.anytime && visit.start_time
       ? `${visit.start_time}${visit.end_time ? ` – ${visit.end_time}` : ""}`
       : "Anytime";
-  const location = j.pickup_address || j.client_address || "—";
+  const location = j.pickup_address || j.client_address || "";
   const url = clientJobUrl(id);
+  const team = visit ? (await visitTeamNames([visit.id])).get(visit.id) ?? "" : "";
+  const letter = await letterFor(company.id, "job_booking", {
+    ...baseVars(company, { name: j.client_name }),
+    JOB_NUMBER: j.number,
+    JOB_TITLE: j.title || "",
+    JOB_DATE: date,
+    ARRIVAL_WINDOW: time,
+    ASSIGNED_TO: team,
+    JOB_LOCATION: location,
+    JOB_DETAILS: jobDetailsText({ date, time, team, address: location }),
+  });
   return {
     ok: true,
     draft: {
@@ -147,38 +180,8 @@ async function jobDraft(company: Company, id: string): Promise<Result> {
       clientName: j.client_name,
       viewUrl: url,
       card: { heading: "Booking confirmation", buttonLabel: "View Job" },
-      email: {
-        to: j.client_email,
-        subject: `Booking confirmation from ${company.name}`,
-        message: [
-          `Hi ${j.client_name},`,
-          "",
-          "Your booking is confirmed!",
-          "Thank you for choosing us.",
-          "",
-          `Location: ${location}`,
-          ...(j.delivery_address ? [`Delivery: ${j.delivery_address}`] : []),
-          `Date: ${date}`,
-          `Estimated Arrival Time: ${time}`,
-          "",
-          contactLine,
-          "",
-          "Best,",
-          "",
-          company.name,
-        ].join("\n"),
-      },
-      sms: {
-        to: normalizePhone(j.client_phone),
-        message: [
-          "Good news, your move is booked!",
-          "",
-          `Date: ${date}`,
-          `Arrival: ${time}`,
-          "",
-          `View details here ${url}`,
-        ].join("\n"),
-      },
+      email: { to: j.client_email, subject: letter.subject, message: letter.message },
+      sms: { to: normalizePhone(j.client_phone), message: withLink(letter.sms, url) },
       attachment: pdfFileName("job", j.number),
     },
   };
@@ -191,7 +194,14 @@ async function invoiceDraft(company: Company, id: string): Promise<Result> {
   if (inv.total <= 0) return { ok: false, message: "Set line item prices before sending." };
   const due = inv.status === "draft" ? "" : formatDateNumericLondon(inv.due_on);
   const url = clientInvoiceUrl(id);
-  const greeted = quoteClientGreeting("", inv.client_name);
+  const letter = await letterFor(company.id, "invoice_sent", {
+    ...baseVars(company, { name: inv.client_name }),
+    INVOICE_NUMBER: inv.number,
+    INVOICE_SUBJECT: inv.subject && !/^invoice\b/i.test(inv.subject) ? inv.subject : "",
+    INVOICE_TOTAL: pounds(inv.total),
+    INVOICE_BALANCE: pounds(inv.balance),
+    INVOICE_DUE_DATE: due || "upon receipt",
+  });
   return {
     ok: true,
     draft: {
@@ -208,26 +218,11 @@ async function invoiceDraft(company: Company, id: string): Promise<Result> {
       },
       email: {
         to: inv.client_email,
-        // Jobber adds the invoice subject unless it already reads "Invoice from …".
-        subject: `Invoice from ${company.name}${inv.subject && !/^invoice\b/i.test(inv.subject) ? ` - ${inv.subject}` : ""}`,
-        message: [
-          `Hi ${greeted},`,
-          "",
-          "Thank you for your recent business with us.",
-          "",
-          `The invoice total is ${pounds(inv.total)}, with ${pounds(inv.balance)} to be paid${due ? ` by ${due}` : " upon receipt"}.`,
-          "",
-          `If you have any questions or concerns regarding this invoice, please don't hesitate to get in touch with us at ${COMPANY_PHONE_DISPLAY} or by WhatsApp ${COMPANY_WHATSAPP_DISPLAY}.`,
-          "",
-          "Sincerely,",
-          "",
-          company.name,
-        ].join("\n"),
+        // Jobber's subject reads "… - {{INVOICE_SUBJECT}}"; drop the dangling dash when there is none.
+        subject: letter.subject.replace(/\s+-\s*$/, ""),
+        message: letter.message,
       },
-      sms: {
-        to: normalizePhone(inv.client_phone),
-        message: `Hi ${firstName(inv.client_name)}, here's your invoice from ${company.name} for ${pounds(inv.balance || inv.total)}. View your invoice here: ${url}`,
-      },
+      sms: { to: normalizePhone(inv.client_phone), message: withLink(letter.sms, url) },
       attachment: pdfFileName("invoice", inv.number),
     },
   };
