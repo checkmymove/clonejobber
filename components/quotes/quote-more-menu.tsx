@@ -103,22 +103,7 @@ export function QuoteMoreMenu({
               <Hammer size={18} />
               View job
             </Link>
-          ) : archived || !convertible ? (
-            <button type="button" role="menuitem" disabled className={itemClass}>
-              <Hammer size={18} />
-              Convert to Job
-            </button>
-          ) : (
-            <Link
-              href={`/servicos/novo?quoteId=${quoteId}`}
-              role="menuitem"
-              className={itemClass}
-              onClick={() => setOpen(false)}
-            >
-              <Hammer size={18} />
-              Convert to Job
-            </Link>
-          )}
+          ) : null}
           <button
             type="button"
             role="menuitem"
@@ -244,5 +229,29 @@ export function QuoteMoreMenu({
       {emailDraft ? <EmailQuoteDialog draft={emailDraft} onClose={() => setEmailDraft(null)} /> : null}
       {smsDraft ? <SmsQuoteDialog draft={smsDraft} onClose={() => setSmsDraft(null)} /> : null}
     </div>
+  );
+}
+
+/** Header button that moves the quote to the next stage, like Convert to Quote on a request. */
+export function ConvertToJobButton({
+  quoteId,
+  status,
+  archived,
+  jobId,
+}: {
+  quoteId: string;
+  status: string;
+  archived: boolean;
+  jobId: string | null;
+}) {
+  if (jobId || archived || status === "rejected" || status === "expired") return null;
+  return (
+    <Link
+      href={`/servicos/novo?quoteId=${quoteId}`}
+      className="inline-flex h-10 items-center gap-2 rounded-xl bg-ink px-4 text-sm font-bold text-white hover:opacity-90"
+    >
+      <Hammer size={16} />
+      Convert to Job
+    </Link>
   );
 }

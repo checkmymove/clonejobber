@@ -87,7 +87,6 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
               jobId={j.id}
               clientId={j.client_id}
               quoteId={j.quote_id}
-              listStatus={j.list_status}
               closed={closed}
               invoiceCount={j.invoice_count}
             />

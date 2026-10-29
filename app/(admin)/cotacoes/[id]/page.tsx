@@ -6,7 +6,7 @@ import { getLatestRequestId, getRequestDetail } from "@/lib/requests/queries";
 import { requestSnapshotFromDetail } from "@/lib/requests/edit-snapshot";
 import { quoteLinesFromPence } from "@/lib/quotes/edit-snapshot";
 import { QuoteRequestSidebar } from "@/components/quotes/quote-request-sidebar";
-import { QuoteMoreMenu } from "@/components/quotes/quote-more-menu";
+import { ConvertToJobButton, QuoteMoreMenu } from "@/components/quotes/quote-more-menu";
 import {
   QuoteCollectionCard,
   QuoteDeliveryCard,
@@ -100,6 +100,12 @@ export default async function CotacaoDetailPage({
             >
               ← Voltar
             </Link>
+            <ConvertToJobButton
+              quoteId={id}
+              status={q.status}
+              archived={Boolean(q.archived_at)}
+              jobId={q.job_id}
+            />
           </div>
         }
       />

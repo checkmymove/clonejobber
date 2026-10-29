@@ -18,20 +18,17 @@ import {
   reopenJobAction,
   setVisitDoneAction,
 } from "@/lib/jobs/actions";
-import type { JobListStatus } from "@/lib/jobs/status";
 
 export function JobHeaderActions({
   jobId,
   clientId,
   quoteId,
-  listStatus,
   closed,
   invoiceCount,
 }: {
   jobId: string;
   clientId: string;
   quoteId: string | null;
-  listStatus: JobListStatus;
   closed: boolean;
   invoiceCount: number;
 }) {
@@ -42,28 +39,28 @@ export function JobHeaderActions({
     return result;
   };
 
-  const primary = closed ? (
-    listStatus === "requires_invoicing" ? (
+  // Like Convert to Quote / Convert to Job: the job's next stage is its invoice.
+  const primary =
+    invoiceCount === 0 ? (
       <ActionButton
         label="Create Invoice"
         icon={<FileText size={16} />}
         run={async () => router.push(`/faturas/novo?jobId=${jobId}`)}
       />
-    ) : (
+    ) : closed ? (
       <ActionButton
         label="Re-open Job"
         icon={<RotateCcw size={16} />}
         run={() => refresh(reopenJobAction(jobId))}
       />
-    )
-  ) : (
-    <ActionButton
-      label="Close Job"
-      icon={<Lock size={16} />}
-      confirm="Close this job? Open visits will be marked complete."
-      run={() => refresh(closeJobAction(jobId))}
-    />
-  );
+    ) : (
+      <ActionButton
+        label="Close Job"
+        icon={<Lock size={16} />}
+        confirm="Close this job? Open visits will be marked complete."
+        run={() => refresh(closeJobAction(jobId))}
+      />
+    );
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -85,12 +82,6 @@ export function JobHeaderActions({
             run: () => refresh(reopenJobAction(jobId)),
           },
           { kind: "link", label: "Edit Job", icon: <Pencil size={18} />, href: `/servicos/${jobId}/editar` },
-          {
-            kind: "link",
-            label: "Create Invoice",
-            icon: <FileText size={18} />,
-            href: `/faturas/novo?jobId=${jobId}`,
-          },
           {
             kind: "link",
             label: "Collect Deposit",
