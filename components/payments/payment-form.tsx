@@ -1,5 +1,6 @@
 "use client";
 
+import { openPicker } from "@/components/date-field";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CreditCard, Mail } from "lucide-react";
@@ -190,7 +191,7 @@ export function PaymentForm({
             </label>
             <label className="block">
               <span className="mb-1 block text-[13px] text-[#5d6f78]">Transaction date</span>
-              <input type="date" aria-label="Transaction date" value={paidOn} onChange={(e) => setPaidOn(e.target.value)} className={field} />
+              <input type="date" onClick={openPicker} aria-label="Transaction date" value={paidOn} onChange={(e) => setPaidOn(e.target.value)} className={field} />
             </label>
             <label className="block">
               <span className="mb-1 block text-[13px] text-[#5d6f78]">Details</span>

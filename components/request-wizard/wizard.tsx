@@ -1,5 +1,6 @@
 "use client";
 
+import { openPicker } from "@/components/date-field";
 import { TimeField } from "@/components/time-field";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { submitRequest } from "@/lib/requests/actions";
@@ -465,6 +466,7 @@ export function RequestWizard({
               >
                 <input
                   type="date"
+                  onClick={openPicker}
                   className={inputCls(errors.moveDate)}
                   value={contact.moveDate}
                   onChange={(e) => setC({ moveDate: e.target.value })}

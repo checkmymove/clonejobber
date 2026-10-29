@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { Calendar, ChevronDown, Hammer, Mail, MessageSquare, Quote, Trash2 } from "lucide-react";
 import { StickySaveBar } from "@/components/forms/sticky-save-bar";
+import { TimeField, toTime24 } from "@/components/time-field";
 import { EmailQuoteDialog } from "@/components/quotes/email-quote-dialog";
 import { SmsQuoteDialog } from "@/components/quotes/sms-quote-dialog";
 import type { QuoteEmailDraft } from "@/lib/email/draft";
@@ -80,7 +81,7 @@ export function NewQuoteForm({
   const loadSeq = useRef(0);
   const [title, setTitle] = useState(initialTitle ?? service?.name ?? "");
   const [moveDate, setMoveDate] = useState(initialMoveDate ?? "");
-  const [moveTime, setMoveTime] = useState(initialMoveTime ?? "");
+  const [moveTime, setMoveTime] = useState(toTime24(initialMoveTime));
   const dateRef = useRef<HTMLInputElement>(null);
   const [message] = useState(initialMessage?.trim() ? initialMessage : QUOTE_TERMS);
   const [termsOpen, setTermsOpen] = useState(false);
@@ -155,7 +156,7 @@ export function NewQuoteForm({
     setLinkedRequestId(next.requestId);
     setTitle(service?.name ?? next.title);
     setMoveDate(next.moveDate);
-    setMoveTime(next.moveTime);
+    setMoveTime(toTime24(next.moveTime));
     setInventory(next.inventory);
     setFiles(next.files);
     setCollection(next.collection);
@@ -309,12 +310,7 @@ export function NewQuoteForm({
         </label>
         <label className="block">
           <span className={label}>Moving time</span>
-          <input
-            value={moveTime}
-            onChange={(e) => setMoveTime(e.target.value)}
-            placeholder="Moving time"
-            className={field}
-          />
+          <TimeField ariaLabel="Moving time" value={moveTime} onChange={setMoveTime} className={field} />
         </label>
       </div>
 

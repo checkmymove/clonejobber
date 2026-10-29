@@ -1,6 +1,6 @@
-# Opero — identidade de repositório e serviços
+# Job To Go — identidade de repositório e serviços
 
-Este workspace é **Opero** (clone interno do Jobber para Moving London Transport). Não é um projecto Koren.
+Este workspace é **Job To Go** (antes Opero; clone interno do Jobber para Moving London Transport). Não é um projecto Koren.
 
 ## GitHub
 

@@ -171,9 +171,9 @@ export function AppShell({
           </button>
           <div className="flex items-center gap-2 text-sm font-bold text-ink">
             <div className="grid h-8 w-8 place-items-center rounded-lg bg-ink text-xs font-black text-white">
-              O
+              J
             </div>
-            Opero
+            Job To Go
           </div>
           <div className="ml-auto flex w-full max-w-md items-center gap-2 rounded-xl border border-line bg-card px-3 py-2 text-sm text-ink-mute">
             <Search size={16} />

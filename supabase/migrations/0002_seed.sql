@@ -1,11 +1,11 @@
 -- Opero · 0002 · Seed: company, lead sources, services catalog.
--- Company data mirrors the current operation; brand is Opero.
+-- Company data mirrors the current operation; brand is Job To Go.
 
 insert into companies (slug, name, brand_name, primary_color, terms_url)
 values (
   'moving-london',
   'Moving London Transport',
-  'Opero',
+  'Job To Go',
   '#123035',
   'https://movinglondontransport.com/terms'
 )

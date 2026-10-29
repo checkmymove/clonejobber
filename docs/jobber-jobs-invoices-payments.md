@@ -1,6 +1,6 @@
 # Jobber: Jobs, Invoices e Payments (engenharia reversa)
 
-Fonte: conta Jobber da Moving London observada em 14 out 2026 (páginas, DOM e respostas da API GraphQL interna, só leitura) e a ajuda pública do Jobber. Este ficheiro descreve o que o Jobber faz e como o Opero o reproduz.
+Fonte: conta Jobber da Moving London observada em 14 out 2026 (páginas, DOM e respostas da API GraphQL interna, só leitura) e a ajuda pública do Jobber. Este ficheiro descreve o que o Jobber faz e como o Job To Go o reproduz.
 
 ## Jobs
 
@@ -40,7 +40,7 @@ Fonte: conta Jobber da Moving London observada em 14 out 2026 (páginas, DOM e r
 
 **Detalhe**: estado, valor, cliente, Transaction date, Method, Reference number, Details, Applied to. More: Download PDF, Delete. Botão Send Receipt.
 
-## Como o Opero modela
+## Como o Job To Go modela
 
 - `jobs.status` mantém `scheduled`/`in_progress`/`done`/`cancelled`, que o Schedule e Clients já leem. `done` significa fechado e preenche `closed_at`. O estado da lista é calculado em `lib/jobs/status.ts`.
 - `invoices.status`: `draft`, `sent`, `overdue`, `paid`, `bad_debt`, `cancelled` (Voided). Awaiting payment e Past due são calculados pelo `due_on` em `lib/invoices/status.ts`.

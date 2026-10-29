@@ -12,6 +12,19 @@ function normalize(raw: string) {
   return `${digits.slice(0, 2)}:${digits.slice(2)}`;
 }
 
+// Older records keep times as "10:30 AM"; turn them into the 24h "HH:MM" this field edits.
+export function toTime24(raw: string | null | undefined): string {
+  const text = raw?.trim() ?? "";
+  const match = text.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/i);
+  if (!match) return text;
+  let hour = Number(match[1]);
+  const period = match[3]?.toUpperCase();
+  if (period === "PM" && hour < 12) hour += 12;
+  if (period === "AM" && hour === 12) hour = 0;
+  if (hour > 23) return text;
+  return `${String(hour).padStart(2, "0")}:${match[2] ?? "00"}`;
+}
+
 // 24h "HH:MM" field: type it, or open the clock to pick hour then minute.
 export function TimeField({
   value,
@@ -76,8 +89,9 @@ export function TimeField({
         value={value}
         disabled={disabled}
         suppressHydrationWarning
+        onClick={() => setOpen(true)}
         onChange={(event) => onChange(normalize(event.target.value))}
-        className={`${className} pr-10`}
+        className={`${className} cursor-pointer pr-10`}
       />
       <button
         type="button"

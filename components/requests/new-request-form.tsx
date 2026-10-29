@@ -11,6 +11,7 @@ import {
 } from "@/lib/requests/actions";
 import { ClientSelect, type RichClient } from "@/components/funnel/client-select";
 import { StickySaveBar } from "@/components/forms/sticky-save-bar";
+import { TimeField, toTime24 } from "@/components/time-field";
 
 const ink = "text-[#042b3c]";
 const line = "border-[#d5dde1]";
@@ -136,13 +137,6 @@ function parkingToYesNo(raw: string | null | undefined): boolean | null {
   return null;
 }
 
-function parseStoredMoveTime(raw: string | null | undefined): { text: string; period: "AM" | "PM" } {
-  if (!raw?.trim()) return { text: "", period: "AM" };
-  const match = raw.trim().match(/^(.+?)\s*(AM|PM)$/i);
-  if (match) return { text: match[1].trim(), period: match[2].toUpperCase() as "AM" | "PM" };
-  return { text: raw.trim(), period: "AM" };
-}
-
 export function NewRequestForm({
   services,
   clients,
@@ -177,7 +171,6 @@ export function NewRequestForm({
     inventory: string;
   };
 }) {
-  const storedTime = parseStoredMoveTime(initial?.moveTime);
   const [title, setTitle] = useState("");
   const [clientId, setClientId] = useState(initial?.clientId ?? "");
   const [error, setError] = useState("");
@@ -194,8 +187,7 @@ export function NewRequestForm({
   const [moveDateIso, setMoveDateIso] = useState(initial?.moveDate ?? "");
   const [moveDateText, setMoveDateText] = useState(isoToDisplay(initial?.moveDate ?? ""));
   const [moveDateError, setMoveDateError] = useState("");
-  const [moveTimeText, setMoveTimeText] = useState(storedTime.text);
-  const [movePeriod, setMovePeriod] = useState<"AM" | "PM">(storedTime.period);
+  const [moveTime, setMoveTime] = useState(toTime24(initial?.moveTime));
   const [pickup, setPickup] = useState({
     address: initial?.pickupAddress ?? "",
     postcode: initial?.pickupPostcode ?? "",
@@ -310,9 +302,6 @@ export function NewRequestForm({
           const iso = moveDateText.trim()
             ? displayToIso(moveDateText)
             : moveDateIso;
-          const moveTime = moveTimeText.trim()
-            ? `${moveTimeText.trim()} ${movePeriod}`
-            : "";
           const payload = {
             clientId,
             title,
@@ -502,32 +491,7 @@ export function NewRequestForm({
               </p>
             ) : null}
           </div>
-          <div className="grid grid-cols-[minmax(0,1fr)_88px] gap-2">
-            <input
-              aria-label="Moving time"
-              placeholder="Moving time (e.g. 10:30)"
-              value={moveTimeText}
-              onChange={(e) => {
-                const next = e.target.value;
-                setMoveTimeText(next);
-                const hour = Number((next.trim().match(/^(\d{1,2})/) ?? [])[1]);
-                if (Number.isInteger(hour)) {
-                  if (hour >= 12 && hour <= 24) setMovePeriod("PM");
-                  else if (hour >= 1 && hour < 12) setMovePeriod("AM");
-                }
-              }}
-              className={field}
-            />
-            <select
-              aria-label="AM or PM"
-              value={movePeriod}
-              onChange={(e) => setMovePeriod(e.target.value as "AM" | "PM")}
-              className={`${field} appearance-none text-center`}
-            >
-              <option value="AM">AM</option>
-              <option value="PM">PM</option>
-            </select>
-          </div>
+          <TimeField ariaLabel="Moving time" value={moveTime} onChange={setMoveTime} className={field} />
         </div>
       </section>
 

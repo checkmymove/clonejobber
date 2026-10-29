@@ -1,5 +1,6 @@
 "use client";
 
+import { openPicker } from "@/components/date-field";
 import { useMemo, useState } from "react";
 import { createInvoice, saveInvoiceAndEmail, saveInvoiceAndMarkSent, updateInvoice } from "@/lib/invoices/actions";
 import { ClientSelect } from "@/components/funnel/client-select";
@@ -197,6 +198,7 @@ export function NewInvoiceForm({
             <span className="text-sm text-[#5d6f78]">Issued date</span>
             <input
               type="date"
+              onClick={openPicker}
               aria-label="Issued date"
               value={issuedOn}
               onChange={(event) => setIssuedOn(event.target.value)}

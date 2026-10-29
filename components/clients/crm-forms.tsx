@@ -1,5 +1,6 @@
 "use client";
 
+import { openPicker } from "@/components/date-field";
 import { useActionState } from "react";
 import {
   APPOINTMENT_KINDS,
@@ -330,12 +331,12 @@ export function AppointmentForm({ action }: { action: Action }) {
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block text-sm font-semibold text-ink">
           Starts at *
-          <input name="startsAt" type="datetime-local" className={inputCls} />
+          <input name="startsAt" type="datetime-local" onClick={openPicker} className={inputCls} />
           <Err msg={e.startsAt} />
         </label>
         <label className="block text-sm font-semibold text-ink">
           Ends at
-          <input name="endsAt" type="datetime-local" className={inputCls} />
+          <input name="endsAt" type="datetime-local" onClick={openPicker} className={inputCls} />
           <Err msg={e.endsAt} />
         </label>
       </div>

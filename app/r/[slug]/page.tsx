@@ -75,7 +75,7 @@ function PublicShell({
       </main>
       <footer className="mx-auto max-w-2xl px-4 pb-10 text-center text-xs text-ink-mute">
         <p>
-          {companyName} · Powered by Opero · Protected against spam
+          {companyName} · Powered by Job To Go · Protected against spam
         </p>
       </footer>
     </div>

@@ -20,7 +20,7 @@ export function buildRescheduleMessage(input: {
   const next = describeVisitSlot(input.next);
   const job = input.jobNumber.trim() || "your job";
   return {
-    subject: `Your ${input.companyName.trim() || "Opero"} visit has been rescheduled`,
+    subject: `Your ${input.companyName.trim() || "Job To Go"} visit has been rescheduled`,
     message: [
       `Hi ${first},`,
       "",

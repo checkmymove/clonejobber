@@ -1,6 +1,7 @@
 "use client";
 
-import { TimeField } from "@/components/time-field";
+import { openPicker } from "@/components/date-field";
+import { TimeField, toTime24 } from "@/components/time-field";
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { formatGBP, formatDateLondon } from "@/lib/format";
@@ -75,7 +76,7 @@ function toQuoteInput(
 export function QuoteSummaryCard({ snapshot }: { snapshot: QuoteEditSnapshot }) {
   const [title, setTitle] = useState(snapshot.title);
   const [validUntil, setValidUntil] = useState(snapshot.validUntil);
-  const [moveTime, setMoveTime] = useState(snapshot.moveTime);
+  const [moveTime, setMoveTime] = useState(toTime24(snapshot.moveTime));
   const [discount, setDiscount] = useState(snapshot.discount);
   const [tax, setTax] = useState(snapshot.tax);
   const [deposit, setDeposit] = useState(snapshot.deposit);
@@ -84,7 +85,7 @@ export function QuoteSummaryCard({ snapshot }: { snapshot: QuoteEditSnapshot }) 
   useEffect(() => {
     setTitle(snapshot.title);
     setValidUntil(snapshot.validUntil);
-    setMoveTime(snapshot.moveTime);
+    setMoveTime(toTime24(snapshot.moveTime));
     setDiscount(snapshot.discount);
     setTax(snapshot.tax);
     setDeposit(snapshot.deposit);
@@ -97,7 +98,7 @@ export function QuoteSummaryCard({ snapshot }: { snapshot: QuoteEditSnapshot }) 
       onCancel={() => {
         setTitle(snapshot.title);
         setValidUntil(snapshot.validUntil);
-        setMoveTime(snapshot.moveTime);
+        setMoveTime(toTime24(snapshot.moveTime));
         setDiscount(snapshot.discount);
         setTax(snapshot.tax);
         setDeposit(snapshot.deposit);
@@ -139,7 +140,7 @@ export function QuoteSummaryCard({ snapshot }: { snapshot: QuoteEditSnapshot }) 
       </Field>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Moving date">
-          <input type="date" className={inlineField} value={validUntil} onChange={(e) => setValidUntil(e.target.value)} />
+          <input type="date" onClick={openPicker} className={inlineField} value={validUntil} onChange={(e) => setValidUntil(e.target.value)} />
         </Field>
         <Field label="Moving time">
           <TimeField ariaLabel="Moving time" className={inlineField} value={moveTime} onChange={setMoveTime} />

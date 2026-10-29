@@ -1,5 +1,6 @@
 "use client";
 
+import { openPicker } from "@/components/date-field";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Mail, Trash2 } from "lucide-react";
@@ -92,6 +93,7 @@ export function PaymentDetailsCard({
         <Field label="Transaction date">
           <input
             type="date"
+            onClick={openPicker}
             className={inlineField}
             value={draft.paidOn}
             onChange={(e) => setDraft({ ...draft, paidOn: e.target.value })}

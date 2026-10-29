@@ -1,4 +1,4 @@
-# Tarefas da auditoria Opero
+# Tarefas da auditoria Job To Go
 
 Relatório visual: canvas `security-audit` (27 set 2026).
 

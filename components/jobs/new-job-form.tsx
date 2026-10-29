@@ -1,5 +1,6 @@
 "use client";
 
+import { openPicker } from "@/components/date-field";
 import { TimeField } from "@/components/time-field";
 import { useMemo, useState } from "react";
 import { createJob, saveJobAndConvert, updateJob } from "@/lib/jobs/actions";
@@ -391,6 +392,7 @@ export function NewJobForm({
                         <input
                           aria-label="Visit date"
                           type="date"
+                          onClick={openPicker}
                           value={visit.date}
                           disabled={visit.later}
                           suppressHydrationWarning

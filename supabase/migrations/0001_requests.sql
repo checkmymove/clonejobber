@@ -12,7 +12,7 @@ create table if not exists companies (
   id uuid primary key default gen_random_uuid(),
   slug text not null unique,
   name text not null,
-  brand_name text not null default 'Opero',
+  brand_name text not null default 'Job To Go',
   logo_url text,
   primary_color text not null default '#123035',
   terms_url text,
