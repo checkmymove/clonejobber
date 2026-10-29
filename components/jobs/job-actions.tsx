@@ -29,12 +29,15 @@ export function JobHeaderActions({
   quoteId,
   closed,
   invoiceCount,
+  sent = false,
 }: {
   jobId: string;
   clientId: string;
   quoteId: string | null;
   closed: boolean;
   invoiceCount: number;
+  /** Booking confirmation already emailed: offer to send it again. */
+  sent?: boolean;
 }) {
   const router = useRouter();
   const sender = useSendDialog();
@@ -89,7 +92,7 @@ export function JobHeaderActions({
           { kind: "link", label: "Edit Job", icon: <Pencil size={18} />, href: `/servicos/${jobId}/editar` },
           {
             kind: "action",
-            label: "Send email & text",
+            label: sent ? "Resend Email and Text" : "Send email & text",
             icon: <Mail size={18} />,
             run: () => sender.open("job", jobId),
           },

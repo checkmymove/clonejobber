@@ -4,6 +4,7 @@ import { COMPANY_SLUG } from "@/lib/company";
 import { penceToInput, toDateInput, todayLondonInput } from "@/lib/format";
 import { getJobDetail } from "@/lib/jobs/queries";
 import { NewJobForm } from "@/components/jobs/new-job-form";
+import { listTeam } from "@/lib/team/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -16,13 +17,14 @@ export default async function EditServicoPage({
   const j = await getJobDetail(id);
   if (!j) notFound();
 
-  const clients = await listClientsForSelect(COMPANY_SLUG);
+  const [clients, team] = await Promise.all([listClientsForSelect(COMPANY_SLUG), listTeam(COMPANY_SLUG)]);
 
   return (
     <div className="min-h-[calc(100dvh-6.5rem)] rounded-2xl bg-white px-6 py-8 sm:px-10">
       <div className="mx-auto max-w-[860px]">
         <NewJobForm
           clients={clients}
+          team={team}
           jobId={j.id}
           quoteId={j.quote_id ?? undefined}
           requestId={j.request_id ?? undefined}

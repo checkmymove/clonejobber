@@ -102,3 +102,8 @@ export function requestSnapshotFromDetail(r: {
     inventory: r.inventory_description,
   };
 }
+
+/** Whether the request has a removal service or hours to show (Removal Service card). */
+export function hasRemovalService(snapshot: RequestEditSnapshot): boolean {
+  return snapshot.serviceIds.length > 0 || Boolean(snapshot.hours);
+}

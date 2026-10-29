@@ -20,8 +20,8 @@ import {
   PackingServiceCard,
   RemovalServiceCard,
   RequestLocationCard,
-  hasRemovalService,
 } from "@/components/requests/request-inline-cards";
+import { hasRemovalService } from "@/lib/requests/edit-snapshot";
 import { loadRequestEditSnapshot } from "@/lib/requests/actions";
 import type { RequestEditSnapshot } from "@/lib/requests/edit-snapshot";
 import { formatPounds, padMoney } from "@/lib/format";

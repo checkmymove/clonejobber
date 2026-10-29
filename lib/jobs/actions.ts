@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/auth/session";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { sql } from "@/lib/db";
+import { syncVisitMembersFromText } from "@/lib/team/sync";
 import { getCompanyId } from "@/lib/company";
 import {
   changeJobStatus,
@@ -33,6 +34,7 @@ async function saveJobRecord(
 
   try {
     const created = await sql.begin(async (tx) => persistJob(tx, companyId, input));
+    if (created.ok && created.id) await syncVisitMembersFromText(created.id);
     if (created.ok) {
       revalidatePath("/servicos");
       revalidatePath("/cotacoes");
@@ -92,6 +94,7 @@ async function writeJob(jobId: string, input: JobInput): Promise<ActionResult> {
   if (!companyId) return { ok: false, message: "Company not found." };
 
   const saved = await sql.begin(async (tx) => updateJobDocument(tx, companyId, jobId, input));
+  if (saved.ok) await syncVisitMembersFromText(jobId);
   if (saved.ok) {
     revalidatePath("/servicos");
     revalidatePath(`/servicos/${jobId}`);

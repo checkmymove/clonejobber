@@ -12,8 +12,8 @@ import {
   RequestContactCard,
   RequestInventoryCard,
   RequestLocationCard,
-  hasRemovalService,
 } from "@/components/requests/request-inline-cards";
+import { hasRemovalService } from "@/lib/requests/edit-snapshot";
 import { FunnelHistoryCard } from "@/components/funnel/funnel-history-card";
 import { RequestMoreMenu } from "@/components/requests/request-actions";
 import { SentCard } from "@/components/funnel/sent-card";

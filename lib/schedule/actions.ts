@@ -6,7 +6,8 @@ import { getCompanyId } from "@/lib/company";
 import { sql } from "@/lib/db";
 import { sendGmailMessage } from "@/lib/email/gmail";
 import { getValidAccessToken } from "@/lib/email/google";
-import { plainToEmailHtml } from "@/lib/email/templates";
+import { documentEmailHtml } from "@/lib/email/templates";
+import { clientJobUrl } from "@/lib/email/config";
 import { toDateInput } from "@/lib/format";
 import { isValidMobile, normalizePhone } from "@/lib/sms/phone";
 import {
@@ -425,7 +426,14 @@ export async function sendVisitRescheduleEmail(input: {
   const token = await getValidAccessToken(companyId);
   if (!token) return { ok: false, message: "Connect Gmail in Settings before sending." };
 
-  const html = plainToEmailHtml(message);
+  // Same look as the booking confirmation, with the View Job button at the end.
+  const html = documentEmailHtml({
+    companyName: visit.company_name,
+    heading: "Appointment update",
+    buttonLabel: "View Job",
+    buttonUrl: clientJobUrl(visit.job_id),
+    message,
+  });
   try {
     await sendGmailMessage({
       accessToken: token.access_token,

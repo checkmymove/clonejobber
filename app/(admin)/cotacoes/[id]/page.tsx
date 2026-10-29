@@ -18,8 +18,8 @@ import {
   PackingServiceCard,
   RemovalServiceCard,
   RequestLocationCard,
-  hasRemovalService,
 } from "@/components/requests/request-inline-cards";
+import { hasRemovalService } from "@/lib/requests/edit-snapshot";
 import { depositTotalRows, type TotalRow } from "@/components/funnel/document-cards";
 import { FunnelHistoryCard } from "@/components/funnel/funnel-history-card";
 import { getClientContact } from "@/lib/clients/queries";

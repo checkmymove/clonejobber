@@ -10,9 +10,17 @@ import { getQuoteDeposits } from "@/lib/payments/queries";
 import { getRequestDetail } from "@/lib/requests/queries";
 import { requestSnapshotFromDetail } from "@/lib/requests/edit-snapshot";
 import {
+  PackingServiceCard,
+  RemovalServiceCard,
   RequestInventoryCard,
   RequestLocationCard,
 } from "@/components/requests/request-inline-cards";
+import { hasRemovalService } from "@/lib/requests/edit-snapshot";
+import { ClientContactCard } from "@/components/funnel/client-contact-card";
+import { FunnelHistoryCard } from "@/components/funnel/funnel-history-card";
+import { getClientContact } from "@/lib/clients/queries";
+import { getActiveServices } from "@/lib/requests/company";
+import { listDeliveries } from "@/lib/email/send";
 import { JobHeaderActions, VisitDoneToggle } from "@/components/jobs/job-actions";
 import { NotesCard } from "@/components/funnel/notes-card";
 import { SentCard } from "@/components/funnel/sent-card";
@@ -20,8 +28,6 @@ import { StatusDot, StatusPill } from "@/components/funnel/list-kit";
 import {
   AddressCard,
   CardTitle,
-  ClientBox,
-  DetailRows,
   LineItemsCard,
   dateOrDash,
   depositTotalRows,
@@ -29,7 +35,7 @@ import {
 } from "@/components/funnel/document-cards";
 import { Card, PageHeader } from "@/components/ui";
 import { LabourCard } from "@/components/team/labour-card";
-import { COMPANY_SLUG } from "@/lib/company";
+import { COMPANY_SLUG, getCompanyId } from "@/lib/company";
 import { getJobLabour, getVisitMembers, listTeam } from "@/lib/team/queries";
 
 export const dynamic = "force-dynamic";
@@ -55,17 +61,21 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
   if (!j) notFound();
 
   const today = todayLondonInput();
-  const [request, deposits, labour, team, visitMembers] = await Promise.all([
+  const [request, deposits, labour, team, visitMembers, client, companyId, emails] = await Promise.all([
     j.linked_request_id ? getRequestDetail(j.linked_request_id) : null,
     j.quote_id ? getQuoteDeposits(j.quote_id) : null,
     getJobLabour(j.id),
     listTeam(COMPANY_SLUG),
     getVisitMembers(j.visits.map((v) => v.id)),
+    getClientContact(j.client_id),
+    getCompanyId(),
+    listDeliveries("job", j.id).catch(() => []),
   ]);
+  if (!client) notFound();
+  const services = companyId ? await getActiveServices(companyId) : [];
   const snapshot = request ? requestSnapshotFromDetail(request) : null;
   const meta = JOB_STATUS_META[j.list_status];
   const closed = j.status === "done" || j.status === "cancelled";
-  const dated = j.visits.filter((v) => v.visit_date && !v.later).map((v) => v.visit_date as string).sort();
 
   const totals: TotalRow[] = [
     { label: "Subtotal", value: formatGBP(j.subtotal), muted: true },
@@ -96,6 +106,7 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
               quoteId={j.quote_id}
               closed={closed}
               invoiceCount={j.invoice_count}
+              sent={emails.some((e) => e.status === "sent")}
             />
           </div>
         }
@@ -106,52 +117,21 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
       </div>
 
       <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
-        <ClientBox
+        <ClientContactCard client={client} address={j.pickup_address || j.client_address} />
+        <FunnelHistoryCard
           clientId={j.client_id}
-          name={j.client_name}
-          address={j.pickup_address || j.client_address}
-          phone={j.client_phone}
-          email={j.client_email}
-        />
-        <DetailRows
-          title="Job details"
-          rows={[
-            ["Job #", j.number],
-            ["Job type", "One-off job"],
-            ["Started on", dateOrDash(dated[0])],
-            ["Ends on", dateOrDash(dated[dated.length - 1])],
-            ["Billing frequency", "Upon job completion"],
-            ["Invoice reminder", j.remind_invoice ? "When the job is marked closed" : "Off"],
-            ...(j.closed_at ? ([["Marked closed", dateOrDash(j.closed_at)]] as [string, string][]) : []),
-            [
-              "From quote",
-              j.quote_id ? (
-                <Link href={`/cotacoes/${j.quote_id}`} className="text-accent underline">
-                  {j.quote_number}
-                </Link>
-              ) : (
-                "—"
-              ),
-            ],
-            [
-              "From request",
-              j.linked_request_id ? (
-                <Link href={`/solicitacoes/${j.linked_request_id}`} className="text-accent underline">
-                  {j.request_number}
-                  {j.request_submitted_at ? ` · ${formatDateNumericLondon(j.request_submitted_at)}` : ""}
-                </Link>
-              ) : (
-                "—"
-              ),
-            ],
-          ]}
+          requestId={j.linked_request_id}
+          quoteId={j.quote_id}
+          jobId={j.id}
+          currentId={j.id}
         />
 
         {snapshot && request ? (
           <>
             <RequestLocationCard title="Collection Information" snapshot={snapshot} kind="pickup" />
             <RequestLocationCard title="Delivery Information" snapshot={snapshot} kind="delivery" />
-            <RequestInventoryCard snapshot={snapshot} files={request.files} />
+            <PackingServiceCard snapshot={snapshot} />
+            {hasRemovalService(snapshot) ? <RemovalServiceCard snapshot={snapshot} services={services} /> : null}
           </>
         ) : (
           <>
@@ -174,19 +154,21 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
           }
         />
 
+        {snapshot && request ? <RequestInventoryCard snapshot={snapshot} files={request.files} /> : null}
+
         <Card className="h-fit p-5 xl:col-span-2">
           <CardTitle
             action={
               <Link
                 href={`/servicos/${j.id}/editar`}
-                aria-label="Add or edit visits"
+                aria-label="Edit schedule"
                 className="grid h-7 w-7 place-items-center rounded-lg border border-line text-ink-soft hover:bg-cream hover:text-ink"
               >
                 <Plus size={14} />
               </Link>
             }
           >
-            Visits
+            Schedule
           </CardTitle>
           {j.visits.length === 0 ? (
             <p className="text-sm text-ink-mute">No visits. Add one to put this job on the schedule.</p>

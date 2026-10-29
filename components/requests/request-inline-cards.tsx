@@ -193,11 +193,6 @@ export function PackingServiceCard({ snapshot, onSaved }: { snapshot: RequestEdi
   );
 }
 
-/** Whether the request has a removal service or hours to show. */
-export function hasRemovalService(snapshot: RequestEditSnapshot): boolean {
-  return snapshot.serviceIds.length > 0 || Boolean(snapshot.hours);
-}
-
 /** The service and hours the client asked for in the request form. */
 export function RemovalServiceCard({
   snapshot,

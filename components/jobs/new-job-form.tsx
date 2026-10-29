@@ -9,15 +9,16 @@ import { SendDialog, useSendDialog } from "@/components/funnel/send-dialog";
 import { ClientSelect } from "@/components/funnel/client-select";
 import { StickySaveBar } from "@/components/forms/sticky-save-bar";
 import { formatPounds, padMoney } from "@/lib/format";
+import { addMinutesToClock } from "@/lib/schedule/dates";
 import {
+  Banknote,
   Calendar,
+  Check,
   ChevronDown,
   FileText,
   Flag,
   Mail,
   MoreHorizontal,
-  Plus,
-  X,
 } from "lucide-react";
 
 const ink = "text-[#042b3c]";
@@ -57,50 +58,12 @@ const MONTHS = [
   "December",
 ];
 
-const emptyVisit = (date: string): Visit => ({
-  id: `visit-${Date.now()}`,
-  title: "",
-  date,
-  later: false,
-  start: "",
-  end: "",
-  anytime: false,
-  assignee: "",
-  instructions: "",
-});
-
 function monthDay(iso: string) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
   if (!match) return { month: "—", day: "—" };
   const month = MONTHS[Number(match[2]) - 1];
   if (!month) return { month: "—", day: "—" };
   return { month, day: String(Number(match[3])) };
-}
-
-function GreenCheck({ checked }: { checked: boolean }) {
-  return (
-    <span
-      aria-hidden
-      className="grid h-[18px] w-[18px] shrink-0 place-items-center rounded-[4px] border"
-      style={
-        checked
-          ? { background: green, borderColor: green }
-          : { background: "#fff", borderColor: "#c5ced3" }
-      }
-    >
-      {checked ? (
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-          <path
-            d="M2.2 6.2 4.7 8.7 9.8 3.4"
-            stroke="#fff"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      ) : null}
-    </span>
-  );
 }
 
 function SectionCard({
@@ -133,6 +96,7 @@ export function NewJobForm({
   initialDiscount,
   initialTax,
   today,
+  team = [],
 }: {
   clients: { id: string; first_name: string; last_name: string; email: string }[];
   quoteId?: string;
@@ -148,14 +112,15 @@ export function NewJobForm({
   initialDiscount?: string;
   initialTax?: string;
   today: string;
+  /** People from Team, offered in each visit's Assign list. */
+  team?: { id: string; name: string }[];
 }) {
-  const [title, setTitle] = useState(initialTitle ?? "");
+  const [title] = useState(initialTitle ?? "");
   const [clientId, setClientId] = useState(initialClientId ?? "");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const [jobNumber, setJobNumber] = useState(initialJobNumber ?? "682");
   const [salesperson, setSalesperson] = useState("");
-  const [schedule, setSchedule] = useState<"once" | "repeat">("once");
   const [visits, setVisits] = useState<Visit[]>(
     initialVisits?.length
       ? initialVisits
@@ -173,10 +138,9 @@ export function NewJobForm({
           },
         ],
   );
-  const [checklist, setChecklist] = useState(true);
-  const [remindInvoice, setRemindInvoice] = useState(initialRemindInvoice ?? true);
-  const [splitInvoices, setSplitInvoices] = useState(false);
-  const [notes, setNotes] = useState(initialNotes ?? "");
+  // Billing and Notes boxes are gone from this form; their values are kept as they were.
+  const remindInvoice = initialRemindInvoice ?? true;
+  const notes = initialNotes ?? "";
   const [discount, setDiscount] = useState(Number(initialDiscount) ? initialDiscount! : "");
   const [tax, setTax] = useState(Number(initialTax) ? initialTax! : "");
   const [discountOpen, setDiscountOpen] = useState(Boolean(Number(initialDiscount)));
@@ -226,10 +190,11 @@ export function NewJobForm({
         id: v.id,
         title: v.title,
         date: v.date,
-        later: v.later,
+        // "Schedule later" and "Anytime" boxes were removed: a visit without a start time is Anytime.
+        later: false,
         start: v.start,
         end: v.end,
-        anytime: v.anytime,
+        anytime: !v.start.trim(),
         assignee: v.assignee,
         instructions: v.instructions,
       })),
@@ -280,16 +245,21 @@ export function NewJobForm({
         </h1>
       </div>
 
-      <input
-        aria-label="Title"
-        placeholder="Title"
-        value={title}
-        onChange={(event) => setTitle(event.target.value)}
-        className={field}
-      />
-
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
-        <ClientSelect clients={clients} value={clientId} onChange={setClientId} />
+        {initialClientId ? (
+          // The client comes from the quote or the saved job and can't be swapped here.
+          <div className={`rounded-lg border ${line} bg-white p-4`}>
+            <p className="text-[13px] text-[#5d6f78]">Client</p>
+            <p className={`mt-0.5 text-[17px] font-bold ${ink}`}>
+              {(() => {
+                const c = clients.find((x) => x.id === clientId);
+                return c ? `${c.first_name} ${c.last_name}`.trim() : "—";
+              })()}
+            </p>
+          </div>
+        ) : (
+          <ClientSelect clients={clients} value={clientId} onChange={setClientId} />
+        )}
         <div className="space-y-3">
           <div className="grid grid-cols-[88px_1fr] items-center gap-3">
             <span className="text-sm text-[#5d6f78]">Job #</span>
@@ -328,54 +298,10 @@ export function NewJobForm({
         </div>
       </div>
 
-      <SectionCard title="Visits">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="text-[11px] font-bold tracking-wide text-[#8aa0a8]">SCHEDULE</span>
-            <div className="inline-flex rounded-lg border border-[#d5dde1] p-0.5">
-              <button
-                type="button"
-                onClick={() => setSchedule("once")}
-                className="h-8 rounded-md px-3 text-sm font-semibold"
-                style={
-                  schedule === "once"
-                    ? { border: `1px solid ${green}`, color: green }
-                    : { color: "#5d6f78" }
-                }
-              >
-                One-off
-              </button>
-              <button
-                type="button"
-                onClick={() => setSchedule("repeat")}
-                className="h-8 rounded-md px-3 text-sm font-semibold"
-                style={
-                  schedule === "repeat"
-                    ? { border: `1px solid ${green}`, color: green }
-                    : { color: "#5d6f78" }
-                }
-              >
-                Recurring
-              </button>
-            </div>
-            <span className="text-sm text-[#5d6f78]">
-              {visits.length} {visits.length === 1 ? "visit" : "visits"}
-            </span>
-          </div>
-          <button
-            type="button"
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-white"
-            style={{ background: green }}
-          >
-            <Plus size={15} />
-            Create visits
-          </button>
-        </div>
-
-        <div className="mt-4 space-y-4">
+      <SectionCard title="Schedule">
+        <div className="space-y-4">
           {visits.map((visit) => {
             const when = monthDay(visit.date);
-            const timesOff = visit.later || visit.anytime;
             return (
               <div key={visit.id} className={`rounded-lg border ${line} p-4`}>
                 <div className="flex gap-4">
@@ -414,7 +340,6 @@ export function NewJobForm({
                           type="date"
                           onClick={openPicker}
                           value={visit.date}
-                          disabled={visit.later}
                           suppressHydrationWarning
                           onChange={(event) => patchVisit(visit.id, { date: event.target.value })}
                           className={`${field} ${picker} pr-10`}
@@ -422,24 +347,19 @@ export function NewJobForm({
                         <Calendar size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#5d6f78]" />
                       </span>
                     </label>
-                    <label className={`flex cursor-pointer items-center gap-2 text-sm ${ink}`}>
-                      <input
-                        type="checkbox"
-                        className="sr-only"
-                        checked={visit.later}
-                        onChange={(event) => patchVisit(visit.id, { later: event.target.checked })}
-                      />
-                      <GreenCheck checked={visit.later} />
-                      Schedule mais tarde
-                    </label>
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <label className="relative block">
                         <span className="mb-1 block text-[13px] text-[#5d6f78]">Start time</span>
                         <TimeField
                           ariaLabel="Start time"
                           value={visit.start}
-                          disabled={timesOff}
-                          onChange={(value) => patchVisit(visit.id, { start: value })}
+                          onChange={(value) =>
+                            // Moves are booked in 3-hour slots: the end follows the start.
+                            patchVisit(visit.id, {
+                              start: value,
+                              end: /^\d{2}:\d{2}$/.test(value) ? addMinutesToClock(value, 180) : visit.end,
+                            })
+                          }
                           className={field}
                         />
                       </label>
@@ -448,33 +368,16 @@ export function NewJobForm({
                         <TimeField
                           ariaLabel="End time"
                           value={visit.end}
-                          disabled={timesOff}
                           onChange={(value) => patchVisit(visit.id, { end: value })}
                           className={field}
                         />
                       </label>
                     </div>
-                    <label className={`flex cursor-pointer items-center gap-2 text-sm ${ink}`}>
-                      <input
-                        type="checkbox"
-                        className="sr-only"
-                        checked={visit.anytime}
-                        onChange={(event) => patchVisit(visit.id, { anytime: event.target.checked })}
-                      />
-                      <GreenCheck checked={visit.anytime} />
-                      A qualquer momento
-                    </label>
-                    <label className="relative block">
-                      <select
-                        aria-label="Assign"
-                        value={visit.assignee}
-                        onChange={(event) => patchVisit(visit.id, { assignee: event.target.value })}
-                        className={`${field} appearance-none pr-9 ${visit.assignee ? "" : "text-[#667880]"}`}
-                      >
-                        <option value="">Assign</option>
-                      </select>
-                      <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
-                    </label>
+                    <AssignPicker
+                      team={team}
+                      value={visit.assignee}
+                      onChange={(assignee) => patchVisit(visit.id, { assignee })}
+                    />
                     <textarea
                       aria-label="Access instructions"
                       placeholder="Access instructions"
@@ -489,75 +392,16 @@ export function NewJobForm({
           })}
         </div>
 
-        <div className="mt-4">
-          <p className="mb-1.5 text-[13px] text-[#5d6f78]">Checklist lines</p>
-          <div className={`flex min-h-11 items-center justify-between rounded-lg border ${line} px-3`}>
-            {checklist ? (
-              <span className="inline-flex items-center gap-1 rounded-md bg-[#eef1f2] px-2 py-1 text-sm text-[#1c3d46]">
-                Removals service
-                <button type="button" aria-label="Remove checklist line" onClick={() => setChecklist(false)}>
-                  <X size={14} />
-                </button>
-              </span>
-            ) : (
-              <span className="text-sm text-[#8aa0a8]">Add checklist line</span>
-            )}
-            <ChevronDown size={16} className="text-[#5d6f78]" />
-          </div>
-        </div>
-
-        <div className="mt-4 flex items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={() => setVisits((rows) => [...rows, emptyVisit(today)])}
-            className={`h-9 rounded-lg border ${line} bg-white px-3 text-sm font-semibold ${ink}`}
-          >
-            Add a visit
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              setVisits((rows) => (rows.length > 1 ? rows.slice(0, -1) : rows))
-            }
-            className={`h-9 rounded-lg border ${line} bg-white px-3 text-sm font-semibold ${ink}`}
-          >
-            Remove
-          </button>
-        </div>
-      </SectionCard>
-
-      <SectionCard title="Billing">
-        <div className="space-y-3">
-          <label className={`flex cursor-pointer items-center gap-2 text-sm ${ink}`}>
-            <input
-              type="checkbox"
-              className="sr-only"
-              checked={remindInvoice}
-              onChange={(event) => setRemindInvoice(event.target.checked)}
-            />
-            <GreenCheck checked={remindInvoice} />
-            Remind me to send the invoice when I complete the job.
-          </label>
-          <label className={`flex cursor-pointer items-center gap-2 border-t ${line} pt-3 text-sm ${ink}`}>
-            <input
-              type="checkbox"
-              className="sr-only"
-              checked={splitInvoices}
-              onChange={(event) => setSplitInvoices(event.target.checked)}
-            />
-            <GreenCheck checked={splitInvoices} />
-            Split into several invoices with a payment schedule
-          </label>
-        </div>
       </SectionCard>
 
       <SectionCard title="Product / Service">
         <div className="space-y-3">
-          {lines.map((line) => {
+          {lines.map((line, index) => {
             const qty = Number(line.qty.replace(",", ".")) || 0;
             const price = Number(line.price.replace(",", ".")) || 0;
             return (
-              <div key={line.id} className="space-y-2">
+              // A rule between items, so Packing Service sits apart from Driver + Helper.
+              <div key={line.id} className={`space-y-2 ${index > 0 ? "border-t border-[#d5dde1] pt-4" : ""}`}>
                 <div className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[1fr_110px_150px_110px_auto]">
                   <input
                     aria-label="Name"
@@ -701,17 +545,6 @@ export function NewJobForm({
         </div>
       </SectionCard>
 
-      <section className="space-y-3">
-        <h2 className={`text-[17px] font-bold ${ink}`}>Notes</h2>
-        <textarea
-          aria-label="Notes"
-          placeholder="Leave an internal note for yourself or a team member."
-          value={notes}
-          onChange={(event) => setNotes(event.target.value)}
-          className={`min-h-[150px] w-full resize-y rounded-lg border ${line} bg-white px-3 py-3 text-[15px] ${ink} outline-none ${ph}`}
-        />
-      </section>
-
       <StickySaveBar
         cancelHref={savedJobId ? `/servicos/${savedJobId}` : quoteId ? `/cotacoes/${quoteId}` : "/servicos"}
         error={error}
@@ -723,6 +556,23 @@ export function NewJobForm({
             icon: <Mail size={18} />,
             onClick: () => void submit("send"),
           },
+          ...(quoteId && clientId
+            ? [
+                {
+                  label: "Collect Deposit",
+                  icon: <Banknote size={18} />,
+                  onClick: () =>
+                    router.push(
+                      `/pagamentos/novo?${new URLSearchParams({
+                        clientId,
+                        quoteId,
+                        kind: "deposit",
+                        returnTo: savedJobId ? `/servicos/${savedJobId}` : `/servicos/novo?quoteId=${quoteId}`,
+                      })}`,
+                    ),
+                },
+              ]
+            : []),
           {
             label: "Convert to Invoice",
             icon: <FileText size={18} style={{ color: green }} />,
@@ -739,5 +589,56 @@ export function NewJobForm({
       />
     ) : null}
     </>
+  );
+}
+
+/** Assign: the people from Team, several per visit. Stored as "Name, Name" and synced to Team on save. */
+function AssignPicker({
+  team,
+  value,
+  onChange,
+}: {
+  team: { id: string; name: string }[];
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const chosen = value.split(",").map((n) => n.trim()).filter(Boolean);
+  const toggle = (name: string) =>
+    onChange((chosen.includes(name) ? chosen.filter((n) => n !== name) : [...chosen, name]).join(", "));
+  if (team.length === 0) {
+    return (
+      <p className="text-[13px] text-[#7b8e96]">
+        Assign: add people in{" "}
+        <a href="/equipa" className="font-semibold underline" style={{ color: green }}>
+          Team
+        </a>{" "}
+        to assign them here.
+      </p>
+    );
+  }
+  return (
+    <div>
+      <p className="mb-1.5 text-[13px] text-[#5d6f78]">Assign</p>
+      <div className="flex flex-wrap gap-2">
+        {team.map((m) => {
+          const on = chosen.includes(m.name);
+          return (
+            <button
+              key={m.id}
+              type="button"
+              aria-pressed={on}
+              onClick={() => toggle(m.name)}
+              className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-sm font-semibold ${
+                on ? "text-white" : `${line} bg-white ${ink}`
+              }`}
+              style={on ? { background: green, borderColor: green } : undefined}
+            >
+              {on ? <Check size={14} /> : null}
+              {m.name}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
