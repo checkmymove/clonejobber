@@ -71,3 +71,23 @@ Fonte: conta Jobber da Moving London, via Chrome com porta de debug (fluxo REA d
 - Rascunhos em `lib/send/drafts.ts` com os textos acima; entrega em `lib/send/deliver.ts` (Gmail com PDF e logo inline; registo em `email_deliveries`, `sms_deliveries`, `communications` e `activity_log`).
 - PDFs em `lib/pdf/document.ts` (pdf-lib, layout acima) para quote, job e invoice; rotas `/api/{quotes,jobs,invoices}/<id>/pdf` e, para o cliente, `/q|/j|/i/<id>/pdf`.
 - Preview as Client: `/i/<id>` (invoice) e `/j/<id>` (job), no estilo do Client Hub.
+
+## Home: Today's appointments e Timesheets (observado em 29 out 2026)
+
+Fonte: conta Jobber da Moving London, no Chrome do utilizador via CDP (REA `list-browser-targets`/`inspect-web-page` e captura das respostas GraphQL ao recarregar a Home), só leitura. Nenhuma entrada de tempo foi gravada.
+
+**Today's appointments**: totais em £ (Total, Active, Completed, Overdue, Remaining), botão View Schedule e dois separadores.
+- **Visit**: grupos `N OVERDUE`, `N ACTIVE`, `N REMAINING`, `N COMPLETED` (vazio: "No scheduled events"). Cada cartão tem barra de cor pelo tipo, título, janela ("9:00 AM – 3:00 PM" ou "Anytime"), avatares da equipa e valor.
+- **Employee**: um bloco por utilizador ativo (avatar, nome, relógio `00:00:00` do tempo registado hoje) com as visitas dele por baixo, e um bloco "Unassigned".
+
+**API**: `TodaysAppointmentsHomeInit` devolve `revenue.revenueByStatus` (ACTIVE, COMPLETED, OVERDUE, REMAINING), `revenueByVisit`, `revenueTotal`, `users` (com status ACTIVATED/DEACTIVATED) e `timeSheetEntries` do dia. `TodaysAppointmentsByStatus(appointmentStatus)` devolve `scheduledItems` (`Event` ou `Visit`). Uma `Visit` traz `title`, `startAt`, `endAt`, `allDay`, `isComplete`, `visitClient`, `job`, `assignedUsers` (vários) e `timeSheetEntries`.
+
+**Timesheets** (`/timesheets`): Day/Week, um bloco por pessoa com Clock in e Add entry. "Create Timesheet Entry": Employee, alvo (jobs, assessments ou categoria, por omissão "General"), Start Date, Start Time, End Time, Hours, Minutes, Notes. Formato de duração da conta: horas e minutos.
+
+### Como o Job To Go modela
+
+- `team_members` (equipa, ativa/desativada), `job_visit_members` (várias pessoas por visita) e `time_entries` (pessoa, job, visita, início, fim nulo enquanto o relógio corre, notas; um relógio a correr por pessoa). Migração `0022_team_time.sql`.
+- O Dashboard junta os dois separadores numa lista: os grupos e valores do Visit, e em cada visita a equipa, o tempo de cada pessoa nessa visita, Clock in/out, Assign, Time e "Unassigned". Por cima, uma faixa com o relógio do dia de cada pessoa (o cabeçalho do Employee).
+- Estados (`lib/team/time.ts`): Completed se marcada feita; Active com alguém a trabalhar ou dentro da janela; Overdue depois da hora de fim; senão Remaining. Anytime nunca fica Overdue no próprio dia.
+- Valor da visita: total do job dividido pelas visitas do job, para não contar o job duas vezes.
+- Página do job: secção Labour com todas as entradas, total do job e total por pessoa. Equipa gerida em `/equipa`.

@@ -59,26 +59,6 @@ export async function getDashboard(companySlug: string) {
   const invoices = tally(invoiceRows, (i) => i.list_status, (i) => i.balance);
 
   const liveJobs = jobRows.filter((j) => j.status !== "cancelled");
-  const todayJobs = liveJobs
-    .filter((j) => j.visits.some((v) => !v.later && v.date === today && v.status !== "cancelled"))
-    .map((j) => {
-      const visits = j.visits.filter((v) => !v.later && v.date === today && v.status !== "cancelled");
-      return {
-        id: j.id,
-        number: j.number,
-        title: j.title,
-        window: j.anytime
-          ? "Anytime"
-          : j.window_start && j.window_end
-            ? `${j.window_start} – ${j.window_end}`
-            : "—",
-        total: j.total,
-        done: visits.every((v) => v.status === "done"),
-        client_name: j.client_name,
-      };
-    })
-    .sort((a, b) => a.window.localeCompare(b.window));
-
   const upcomingJobs = liveJobs
     .filter((j) =>
       j.visits.some(
@@ -103,7 +83,6 @@ export async function getDashboard(companySlug: string) {
     quotes,
     jobs,
     invoices,
-    todayJobs,
     debtors: allDebtors.slice(0, 5),
     debtorCount: allDebtors.length,
     receivable: allDebtors.reduce((s, d) => s + d.balance, 0),

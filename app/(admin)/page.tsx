@@ -5,6 +5,8 @@ import { JOB_STATUS_META } from "@/lib/jobs/status";
 import { INVOICE_STATUS_META } from "@/lib/invoices/status";
 import { COMPANY_SLUG } from "@/lib/company";
 import { Card } from "@/components/ui";
+import { TodaysAppointments } from "@/components/dashboard/todays-appointments";
+import { getTodaysAppointments } from "@/lib/team/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -28,10 +30,7 @@ function row(rows: StatusTally, label: string, status: string) {
 }
 
 export default async function DashboardPage() {
-  const d = await getDashboard(COMPANY_SLUG);
-  const scheduledToday = d.todayJobs.filter((j) => !j.done);
-  const doneToday = d.todayJobs.filter((j) => j.done);
-  const totalToday = d.todayJobs.reduce((s, j) => s + j.total, 0);
+  const [d, today] = await Promise.all([getDashboard(COMPANY_SLUG), getTodaysAppointments(COMPANY_SLUG)]);
 
   const funnel = [
     {
@@ -123,55 +122,9 @@ export default async function DashboardPage() {
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-[1fr_320px]">
-        <section>
-          <h2 className="mb-3 text-lg font-extrabold text-ink">Today’s jobs</h2>
-          <Card className="p-4 sm:p-5">
-            <div className="flex flex-wrap gap-x-8 gap-y-3">
-              <div>
-                <p className="text-xs text-ink-mute">Total</p>
-                <p className="text-2xl font-extrabold text-ink">{formatGBP(totalToday)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-ink-mute">Scheduled</p>
-                <p className="text-2xl font-extrabold text-ink">{scheduledToday.length}</p>
-              </div>
-              <div>
-                <p className="text-xs text-ink-mute">Completed</p>
-                <p className="text-2xl font-extrabold text-ink">{doneToday.length}</p>
-              </div>
-              <Link
-                href="/servicos"
-                className="ml-auto self-center rounded-xl border border-line px-3 py-2 text-sm font-bold text-accent hover:bg-accent-soft"
-              >
-                View schedule
-              </Link>
-            </div>
-
-            {d.todayJobs.length === 0 ? (
-              <p className="mt-6 text-sm text-ink-mute">No jobs for today.</p>
-            ) : (
-              <div className="mt-6 space-y-2">
-                {d.todayJobs.map((j) => (
-                  <Link
-                    key={j.id}
-                    href={`/servicos/${j.id}`}
-                    className="flex items-center gap-3 rounded-xl border border-line p-3"
-                  >
-                    <span className="h-10 w-1.5 rounded-full bg-accent" />
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-ink">
-                        {j.client_name} — {j.title || "Job"}
-                      </p>
-                      <p className="text-xs text-ink-soft">
-                        {j.window} · {j.number}
-                      </p>
-                    </div>
-                    <span className="ml-auto text-sm font-bold text-ink">{formatGBP(j.total)}</span>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </Card>
+        <section className="min-w-0">
+          <h2 className="mb-3 text-lg font-extrabold text-ink">Today’s appointments</h2>
+          <TodaysAppointments data={today} />
         </section>
 
         <section>

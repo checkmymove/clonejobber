@@ -28,6 +28,9 @@ import {
   type TotalRow,
 } from "@/components/funnel/document-cards";
 import { Card, PageHeader } from "@/components/ui";
+import { LabourCard } from "@/components/team/labour-card";
+import { COMPANY_SLUG } from "@/lib/company";
+import { getJobLabour, getVisitMembers, listTeam } from "@/lib/team/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -52,9 +55,12 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
   if (!j) notFound();
 
   const today = todayLondonInput();
-  const [request, deposits] = await Promise.all([
+  const [request, deposits, labour, team, visitMembers] = await Promise.all([
     j.linked_request_id ? getRequestDetail(j.linked_request_id) : null,
     j.quote_id ? getQuoteDeposits(j.quote_id) : null,
+    getJobLabour(j.id),
+    listTeam(COMPANY_SLUG),
+    getVisitMembers(j.visits.map((v) => v.id)),
   ]);
   const snapshot = request ? requestSnapshotFromDetail(request) : null;
   const meta = JOB_STATUS_META[j.list_status];
@@ -221,7 +227,9 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
                         <td className="py-3 pr-4">
                           <StatusDot dot={state.dot} label={state.label} />
                         </td>
-                        <td data-label="Assigned" className="py-3 text-ink-soft">{v.assignee || "Unassigned"}</td>
+                        <td data-label="Assigned" className="py-3 text-ink-soft">
+                          {visitMembers.get(v.id)?.map((m) => m.name).join(", ") || v.assignee || "Unassigned"}
+                        </td>
                       </tr>
                     );
                   })}
@@ -230,6 +238,17 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
             </div>
           )}
         </Card>
+
+        <LabourCard
+          jobId={j.id}
+          labour={labour}
+          team={team}
+          visits={j.visits
+            .filter((v) => v.status !== "cancelled")
+            .map((v) => ({ id: v.id, label: visitTime(v) }))}
+          today={today}
+          serverNow={new Date().toISOString()}
+        />
 
         <Card className="h-fit p-5 xl:col-span-2">
           <CardTitle
