@@ -14,6 +14,7 @@ export interface AdminRequestRow {
   client_phone: string;
   pickup_address: string | null;
   pickup_postcode: string | null;
+  has_quote: boolean;
 }
 
 export async function listRequests(
@@ -27,7 +28,8 @@ export async function listRequests(
       (select count(*)::int from request_attachments ra where ra.request_id = r.id) as images_count,
       trim(c.first_name || ' ' || c.last_name) as client_name,
       c.email as client_email, c.phone as client_phone,
-      pl.address as pickup_address, pl.postcode as pickup_postcode
+      pl.address as pickup_address, pl.postcode as pickup_postcode,
+      exists (select 1 from quotes q where q.request_id = r.id) as has_quote
     from requests r
     join companies co on co.id = r.company_id
     join clients c on c.id = r.client_id

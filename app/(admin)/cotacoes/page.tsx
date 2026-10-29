@@ -11,6 +11,7 @@ import {
 import { COMPANY_SLUG } from "@/lib/company";
 import { Card, EmptyState } from "@/components/ui";
 import { ListSearch } from "@/components/funnel/list-search";
+import { ConvertedToggle } from "@/components/funnel/list-kit";
 
 export const dynamic = "force-dynamic";
 
@@ -83,13 +84,17 @@ function MetricCard({
 export default async function CotacoesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; view?: string }>;
 }) {
-  const { q = "" } = await searchParams;
-  const [visible, all] = await Promise.all([
+  const params = await searchParams;
+  const { q = "" } = params;
+  const [listed, all] = await Promise.all([
     listQuotes(COMPANY_SLUG, q),
     listQuotes(COMPANY_SLUG, q.trim() ? "" : q, { includeArchived: true }),
   ]);
+  // A quote that became a job leaves the list; ?view=all shows it again.
+  const waiting = listed.filter((quote) => !quote.converted_at);
+  const visible = params.view === "all" ? listed : waiting;
   const stats = quoteWindowStats(all);
 
   return (
@@ -147,18 +152,23 @@ export default async function CotacoesPage({
         />
       </div>
 
-      <h2 className="mt-6 mb-3 text-base font-bold text-ink">
-        All quotes{" "}
-        <span className="font-medium text-ink-mute">({visible.length} results)</span>
-      </h2>
+      <div className="mt-6 mb-3 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-base font-bold text-ink">
+          {params.view === "all" ? "All quotes" : "Awaiting a job"}{" "}
+          <span className="font-medium text-ink-mute">({visible.length} results)</span>
+        </h2>
+        <ConvertedToggle base="/cotacoes" params={params} hidden={listed.length - waiting.length} />
+      </div>
 
       <Card className="p-4">
-        <ListSearch defaultValue={q} placeholder="Search quotes..." />
+        <ListSearch defaultValue={q} placeholder="Search quotes..." keep={{ view: params.view }} />
         {visible.length === 0 ? (
           <EmptyState>
             {q.trim()
               ? "No quotes match that search."
-              : "No quotes yet. Create one from a request, or add one directly."}
+              : listed.length > 0
+                ? "No quotes waiting to become a job."
+                : "No quotes yet. Create one from a request, or add one directly."}
           </EmptyState>
         ) : (
           <div className="-mx-4 overflow-x-auto">

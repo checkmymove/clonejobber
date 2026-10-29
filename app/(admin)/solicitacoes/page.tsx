@@ -4,6 +4,7 @@ import { formatDateLondon } from "@/lib/format";
 import { listRequests } from "@/lib/requests/queries";
 import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
 import { ListSearch } from "@/components/funnel/list-search";
+import { ConvertedToggle } from "@/components/funnel/list-kit";
 
 export const dynamic = "force-dynamic";
 
@@ -19,11 +20,15 @@ const COMPANY_SLUG = "moving-london";
 export default async function SolicitacoesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; view?: string }>;
 }) {
-  const { q = "" } = await searchParams;
-  const rows = await listRequests(COMPANY_SLUG, q);
-  const countBy = (s: string) => rows.filter((r) => r.status === s).length;
+  const params = await searchParams;
+  const { q = "" } = params;
+  const all = await listRequests(COMPANY_SLUG, q);
+  const countBy = (s: string) => all.filter((r) => r.status === s).length;
+  // Only requests still waiting to become a quote; converted and archived ones leave the list.
+  const waiting = all.filter((r) => !r.has_quote && r.status !== "quoted" && r.status !== "archived");
+  const rows = params.view === "all" ? all : waiting;
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
   const publicUrl = `${appUrl}/r/${COMPANY_SLUG}`;
 
@@ -31,7 +36,7 @@ export default async function SolicitacoesPage({
     <div>
       <PageHeader
         title="Requests"
-        subtitle={`${rows.length} requests · live data`}
+        subtitle={`${waiting.length} awaiting a quote · live data`}
         action={
           <div className="flex gap-2">
             <a
@@ -74,13 +79,26 @@ export default async function SolicitacoesPage({
         ))}
       </div>
 
-      <Card className="mt-4 p-4">
-        <ListSearch defaultValue={q} placeholder="Search by client, number or postcode" />
+      <div className="mt-6 mb-3 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-base font-bold text-ink">
+          {params.view === "all" ? "All requests" : "Awaiting a quote"}{" "}
+          <span className="font-medium text-ink-mute">({rows.length} results)</span>
+        </h2>
+        <ConvertedToggle base="/solicitacoes" params={params} hidden={all.length - waiting.length} />
+      </div>
+      <Card className="p-4">
+        <ListSearch defaultValue={q} placeholder="Search by client, number or postcode" keep={{ view: params.view }} />
         {rows.length === 0 ? (
           <div className="mt-3">
             <EmptyState>
-              No requests yet. Share the public form:{" "}
-              <span className="font-mono font-bold">{publicUrl}</span>
+              {all.length > 0 ? (
+                "No requests waiting for a quote."
+              ) : (
+                <>
+                  No requests yet. Share the public form:{" "}
+                  <span className="font-mono font-bold">{publicUrl}</span>
+                </>
+              )}
             </EmptyState>
           </div>
         ) : (

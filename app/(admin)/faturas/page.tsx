@@ -10,6 +10,7 @@ import {
 import { COMPANY_SLUG } from "@/lib/company";
 import { EmptyState } from "@/components/ui";
 import {
+  ConvertedToggle,
   FilterBar,
   KpiCard,
   OverviewCard,
@@ -21,7 +22,7 @@ import { rangeBounds } from "@/lib/payments/queries";
 
 export const dynamic = "force-dynamic";
 
-type Params = { q?: string; status?: string; due?: string; sort?: string; dir?: string };
+type Params = { q?: string; status?: string; due?: string; sort?: string; dir?: string; view?: string };
 
 function sortInvoices(rows: InvoiceRow[], sort: string | undefined, dir: string | undefined): InvoiceRow[] {
   const sign = dir === "desc" ? -1 : 1;
@@ -39,6 +40,8 @@ function sortInvoices(rows: InvoiceRow[], sort: string | undefined, dir: string 
   return [...rows].sort((a, b) => sign * cmp(a, b));
 }
 
+const CLOSED_INVOICE: InvoiceListStatus[] = ["paid", "bad_debt", "voided"];
+
 export default async function FaturasPage({ searchParams }: { searchParams: Promise<Params> }) {
   const params = await searchParams;
   const all = await listInvoices(COMPANY_SLUG, params.q ?? "");
@@ -46,8 +49,12 @@ export default async function FaturasPage({ searchParams }: { searchParams: Prom
   const counts = Object.fromEntries(
     INVOICE_STATUS_ORDER.map((s) => [s, all.filter((i) => i.list_status === s).length]),
   ) as Record<InvoiceListStatus, number>;
+  // Paid (became a payment), bad-debt and voided invoices leave the list unless asked for.
+  const closed = (i: InvoiceRow) => CLOSED_INVOICE.includes(i.list_status);
+  const waiting = all.filter((i) => !closed(i));
+  const listed = params.view === "all" || (params.status && CLOSED_INVOICE.includes(params.status as InvoiceListStatus)) ? all : waiting;
   const bounds = rangeBounds(params.due);
-  const filtered = all.filter(
+  const filtered = listed.filter(
     (i) =>
       (!params.status || i.list_status === params.status) &&
       (!bounds || (i.due_on >= bounds[0] && i.due_on <= bounds[1])),
@@ -103,9 +110,10 @@ export default async function FaturasPage({ searchParams }: { searchParams: Prom
 
       <div className="mt-6 mb-3 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-base font-bold text-ink">
-          {filtering ? "Filtered invoices" : "All invoices"}{" "}
+          {filtering ? "Filtered invoices" : params.view === "all" ? "All invoices" : "Awaiting payment"}{" "}
           <span className="font-medium text-ink-mute">({rows.length} results)</span>
         </h2>
+        <ConvertedToggle base="/faturas" params={params} hidden={all.length - waiting.length} />
       </div>
       <FilterBar
         params={params}

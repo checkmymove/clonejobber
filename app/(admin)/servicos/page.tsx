@@ -7,6 +7,7 @@ import { COMPANY_SLUG } from "@/lib/company";
 import { Card, EmptyState } from "@/components/ui";
 import { ListSearch } from "@/components/funnel/list-search";
 import {
+  ConvertedToggle,
   KpiCard,
   OverviewCard,
   SortTh,
@@ -16,7 +17,7 @@ import {
 
 export const dynamic = "force-dynamic";
 
-type Params = { q?: string; status?: string; sort?: string; dir?: string };
+type Params = { q?: string; status?: string; sort?: string; dir?: string; view?: string };
 
 const OVERVIEW: JobListStatus[] = [
   "late",
@@ -50,7 +51,10 @@ function sortJobs(rows: JobRow[], sort: string | undefined, dir: string | undefi
 
 export default async function ServicosPage({ searchParams }: { searchParams: Promise<Params> }) {
   const params = await searchParams;
-  const [all, kpis] = await Promise.all([listJobs(COMPANY_SLUG, params.q ?? ""), getJobKpis(COMPANY_SLUG)]);
+  const [listed, kpis] = await Promise.all([listJobs(COMPANY_SLUG, params.q ?? ""), getJobKpis(COMPANY_SLUG)]);
+  // A job that already has an invoice (or is closed) leaves the list unless asked for.
+  const waiting = listed.filter((j) => j.invoice_count === 0 && j.list_status !== "archived");
+  const all = params.view === "all" || params.status === "archived" ? listed : waiting;
   const counts = Object.fromEntries(
     JOB_STATUS_ORDER.map((s) => [s, all.filter((j) => j.list_status === s).length]),
   ) as Record<JobListStatus, number>;
@@ -99,9 +103,10 @@ export default async function ServicosPage({ searchParams }: { searchParams: Pro
 
       <div className="mt-6 mb-3 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-base font-bold text-ink">
-          {filtering ? "Filtered jobs" : "All jobs"}{" "}
+          {filtering ? "Filtered jobs" : params.view === "all" ? "All jobs" : "Awaiting an invoice"}{" "}
           <span className="font-medium text-ink-mute">({rows.length} results)</span>
         </h2>
+        <ConvertedToggle base="/servicos" params={params} hidden={listed.length - waiting.length} />
         {params.status ? (
           <Link
             href={listHref("/servicos", params, { status: undefined })}
@@ -115,7 +120,7 @@ export default async function ServicosPage({ searchParams }: { searchParams: Pro
         <ListSearch
           defaultValue={params.q}
           placeholder="Search jobs..."
-          keep={{ status: params.status, sort: params.sort, dir: params.dir }}
+          keep={{ status: params.status, sort: params.sort, dir: params.dir, view: params.view }}
         />
         {rows.length === 0 ? (
           <EmptyState>

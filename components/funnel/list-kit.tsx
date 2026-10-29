@@ -215,3 +215,37 @@ export function FilterBar({
     </form>
   );
 }
+
+/**
+ * Funnel lists show only what still waits for the next stage. `?view=all` brings back
+ * the converted / closed rows.
+ */
+export function ConvertedToggle({
+  base,
+  params,
+  hidden,
+}: {
+  base: string;
+  params: Record<string, string | undefined>;
+  hidden: number;
+}) {
+  if (params.view === "all") {
+    return (
+      <Link
+        href={listHref(base, params, { view: undefined })}
+        className="text-sm font-semibold text-accent hover:underline"
+      >
+        Hide converted
+      </Link>
+    );
+  }
+  if (hidden === 0) return null;
+  return (
+    <Link
+      href={listHref(base, params, { view: "all" })}
+      className="text-sm font-semibold text-accent hover:underline"
+    >
+      Show converted ({hidden})
+    </Link>
+  );
+}
