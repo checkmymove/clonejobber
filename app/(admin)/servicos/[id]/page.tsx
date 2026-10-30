@@ -35,6 +35,7 @@ import {
 } from "@/components/funnel/document-cards";
 import { Card, PageHeader } from "@/components/ui";
 import { LabourCard } from "@/components/team/labour-card";
+import { JobDateTimeCard } from "@/components/jobs/job-date-time-card";
 import { COMPANY_SLUG, getCompanyId } from "@/lib/company";
 import { getJobLabour, getVisitMembers, listTeam } from "@/lib/team/queries";
 
@@ -130,13 +131,15 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
           <>
             <RequestLocationCard title="Collection Information" snapshot={snapshot} kind="pickup" />
             <RequestLocationCard title="Delivery Information" snapshot={snapshot} kind="delivery" />
-            <PackingServiceCard snapshot={snapshot} />
+            <PackingServiceCard snapshot={snapshot} half />
+            <JobDateTimeCard jobId={j.id} visits={j.visits} stateOf={(v) => visitState(v, today)} />
             {hasRemovalService(snapshot) ? <RemovalServiceCard snapshot={snapshot} services={services} /> : null}
           </>
         ) : (
           <>
             <AddressCard title="Collection Information" address={j.pickup_address} />
             <AddressCard title="Delivery Information" address={j.delivery_address} />
+            <JobDateTimeCard jobId={j.id} visits={j.visits} stateOf={(v) => visitState(v, today)} wide />
           </>
         )}
 

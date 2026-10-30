@@ -172,12 +172,21 @@ async function saveThen(work: Promise<Saved>, onSaved?: () => void): Promise<Sav
   return result;
 }
 
-export function PackingServiceCard({ snapshot, onSaved }: { snapshot: RequestEditSnapshot; onSaved?: () => void }) {
+export function PackingServiceCard({
+  snapshot,
+  onSaved,
+  half = false,
+}: {
+  snapshot: RequestEditSnapshot;
+  onSaved?: () => void;
+  /** One column instead of the full row (job page, beside Date & time). */
+  half?: boolean;
+}) {
   const [draft, setDraft] = useState(snapshot);
   useEffect(() => setDraft(snapshot), [snapshot]);
   return (
     <InlineEditCard
-      className="h-fit p-5 xl:col-span-2"
+      className={half ? "h-fit p-5" : "h-fit p-5 xl:col-span-2"}
       title="Packing Service"
       onCancel={() => setDraft(snapshot)}
       onSave={() => saveThen(saveRequestInPlace(snapshot.id, toAdminRequestInput(draft)), onSaved)}

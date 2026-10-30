@@ -32,6 +32,33 @@ export function entrySeconds(startedAt: string | Date, endedAt: string | Date | 
   return Math.max(0, Math.floor((end - start) / 1000));
 }
 
+/** What one entry paid, in pence: hourly rate (pounds) × hours worked, to the penny. */
+export function entryPrice(seconds: number, hourlyRate: number): number {
+  if (!Number.isFinite(hourlyRate) || hourlyRate <= 0 || seconds <= 0) return 0;
+  return Math.round((hourlyRate * 100 * seconds) / 3600);
+}
+
+/** Drops the loose minutes of a duration: 7h05 → 7h00. Under an hour stays as it is. */
+export function roundDownToHour(minutes: number): number {
+  return minutes >= 60 ? Math.floor(minutes / 60) * 60 : minutes;
+}
+
+/** Admin's edit of a finished entry's duration, in whole minutes (1 minute to 24 hours). */
+export function parseDuration(
+  hours: string,
+  minutes: string,
+): { ok: true; minutes: number } | { ok: false; message: string } {
+  const h = hours.trim() ? Number(hours) : 0;
+  const m = minutes.trim() ? Number(minutes) : 0;
+  if (!Number.isInteger(h) || !Number.isInteger(m) || h < 0 || m < 0 || m > 59 || h > 24) {
+    return { ok: false, message: "Enter hours (0–24) and minutes (0–59)." };
+  }
+  const total = h * 60 + m;
+  if (total < 1) return { ok: false, message: "A duration must be at least 1 minute." };
+  if (total > 24 * 60) return { ok: false, message: "An entry can't be longer than 24 hours." };
+  return { ok: true, minutes: total };
+}
+
 /**
  * Jobber's appointment buckets for today:
  * completed when marked done; active while someone is clocked in on it or the

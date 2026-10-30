@@ -82,6 +82,12 @@ export function compareIso(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
+/** A visit's window as the schedule shows it: "8:15 AM – 9:15 AM", or "Anytime". */
+export function visitWindowLabel(start: string, end: string, anytime: boolean): string {
+  if (anytime || !start.trim()) return "Anytime";
+  return end.trim() ? `${formatClock12(start)} – ${formatClock12(end)}` : formatClock12(start);
+}
+
 export function formatClock12(hhmm: string): string {
   const raw = hhmm.trim();
   if (!raw) return "";

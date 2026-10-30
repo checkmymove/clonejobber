@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { ActionButton, MoreMenu } from "@/components/funnel/more-menu";
 import { SendDialog, useSendDialog } from "@/components/funnel/send-dialog";
+import { CompleteVisitDialog } from "@/components/jobs/complete-visit-dialog";
 import {
   closeJobAction,
   deleteJobAction,
@@ -141,22 +142,32 @@ export function JobHeaderActions({
   );
 }
 
+/** Ticking opens the complete-visit dialog (invoice, close job); unticking reopens the visit. */
 export function VisitDoneToggle({ visitId, done }: { visitId: string; done: boolean }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
+  const [completing, setCompleting] = useState(false);
   return (
-    <input
-      type="checkbox"
-      aria-label={done ? "Mark visit incomplete" : "Mark visit complete"}
-      checked={done}
-      disabled={pending}
-      onChange={async (event) => {
-        setPending(true);
-        const result = await setVisitDoneAction(visitId, event.target.checked);
-        setPending(false);
-        if (result.ok) router.refresh();
-      }}
-      className="size-4 cursor-pointer accent-[#388623]"
-    />
+    <>
+      <input
+        type="checkbox"
+        aria-label={done ? "Mark visit incomplete" : "Mark visit complete"}
+        aria-haspopup={done ? undefined : "dialog"}
+        checked={done}
+        disabled={pending}
+        onChange={async (event) => {
+          if (event.target.checked) {
+            setCompleting(true);
+            return;
+          }
+          setPending(true);
+          const result = await setVisitDoneAction(visitId, false);
+          setPending(false);
+          if (result.ok) router.refresh();
+        }}
+        className="size-4 cursor-pointer accent-[#388623]"
+      />
+      {completing ? <CompleteVisitDialog visitId={visitId} onClose={() => setCompleting(false)} /> : null}
+    </>
   );
 }

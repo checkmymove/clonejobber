@@ -3,7 +3,7 @@ import { sql } from "@/lib/db";
 import { toDateInput, todayLondonInput } from "@/lib/format";
 import { getScheduleBundle } from "@/lib/schedule/queries";
 import { KIND_META, type ScheduleKind } from "@/lib/schedule/types";
-import { appointmentStatus, entrySeconds, visitShare, type AppointmentStatus } from "./time";
+import { appointmentStatus, entryPrice, entrySeconds, visitShare, type AppointmentStatus } from "./time";
 import { normaliseHours, type PermissionPreset, type TeamRole, type WorkingHours } from "./member";
 
 export type TeamMemberDetail = {
@@ -20,6 +20,8 @@ export type TeamMemberDetail = {
   postcode: string;
   country: string;
   workingHours: WorkingHours;
+  /** Pounds per hour. */
+  hourlyRate: number;
   lastActive: string | null;
 };
 
@@ -27,7 +29,7 @@ export type TeamMemberDetail = {
 export async function getTeamMember(companySlug: string, id: string): Promise<TeamMemberDetail | null> {
   const rows = await sql<(Omit<TeamMemberDetail, "workingHours"> & { working_hours: unknown })[]>`
     select m.id, m.name, m.active, m.role, m.permission, m.email, m.phone, m.street, m.city,
-           m.province, m.postcode, m.country, m.working_hours,
+           m.province, m.postcode, m.country, m.working_hours, m.hourly_rate::float as "hourlyRate",
            (select max(coalesce(t.ended_at, t.started_at)) from time_entries t where t.member_id = m.id) as "lastActive"
     from team_members m
     join companies co on co.id = m.company_id
@@ -261,40 +263,83 @@ export async function getTodaysAppointments(companySlug: string): Promise<Todays
   };
 }
 
-export type JobLabour = {
-  entries: (TimeEntry & { seconds: number; visit_date: string | null })[];
+type LabourEntry = TimeEntry & {
+  visit_date: string | null;
   seconds: number;
-  byMember: { id: string; name: string; seconds: number }[];
+  /** Pounds per hour the entry is paid at. */
+  hourly_rate: number;
+  /** Pence. */
+  price: number;
 };
 
-/** Jobber job page "Labour": every time entry logged on the job. */
+export type LabourPerson = { id: string; name: string; seconds: number; price: number };
+
+export type JobLabour = {
+  entries: LabourEntry[];
+  seconds: number;
+  /** Pence: what the team earned on these entries. */
+  price: number;
+  byMember: LabourPerson[];
+};
+
+type LabourRow = TimeEntry & { visit_date: string | Date | null; hourly_rate: number };
+
+function summariseLabour(rows: LabourRow[], now: Date): JobLabour {
+  const entries = rows.map((r) => {
+    const seconds = entrySeconds(r.started_at, r.ended_at, now);
+    return {
+      ...r,
+      visit_date: toDateInput(r.visit_date) || null,
+      seconds,
+      price: entryPrice(seconds, r.hourly_rate),
+    };
+  });
+  const byMember = new Map<string, LabourPerson>();
+  for (const e of entries) {
+    const m = byMember.get(e.member_id) ?? { id: e.member_id, name: e.member_name, seconds: 0, price: 0 };
+    m.seconds += e.seconds;
+    m.price += e.price;
+    byMember.set(e.member_id, m);
+  }
+  return {
+    entries,
+    seconds: entries.reduce((s, e) => s + e.seconds, 0),
+    price: entries.reduce((s, e) => s + e.price, 0),
+    byMember: [...byMember.values()].sort((a, b) => b.seconds - a.seconds),
+  };
+}
+
+/**
+ * Jobber job page "Labour": every time entry logged on the job. An entry without a
+ * stored rate (logged before the person had one) is paid at their current rate.
+ */
 export async function getJobLabour(jobId: string): Promise<JobLabour> {
-  const now = new Date();
-  const rows = await sql<(TimeEntry & { visit_date: string | Date | null })[]>`
+  const rows = await sql<LabourRow[]>`
     select t.id, t.member_id, m.name as member_name, t.job_id, t.visit_id,
-           t.started_at, t.ended_at, t.notes, v.visit_date
+           t.started_at, t.ended_at, t.notes, v.visit_date,
+           coalesce(t.hourly_rate, m.hourly_rate)::float as hourly_rate
     from time_entries t
     join team_members m on m.id = t.member_id
     left join job_visits v on v.id = t.visit_id
     where t.job_id = ${jobId}
     order by t.started_at desc
   `;
-  const entries = rows.map((r) => ({
-    ...r,
-    visit_date: toDateInput(r.visit_date) || null,
-    seconds: entrySeconds(r.started_at, r.ended_at, now),
-  }));
-  const byMember = new Map<string, { id: string; name: string; seconds: number }>();
-  for (const e of entries) {
-    const m = byMember.get(e.member_id) ?? { id: e.member_id, name: e.member_name, seconds: 0 };
-    m.seconds += e.seconds;
-    byMember.set(e.member_id, m);
-  }
-  return {
-    entries,
-    seconds: entries.reduce((s, e) => s + e.seconds, 0),
-    byMember: [...byMember.values()].sort((a, b) => b.seconds - a.seconds),
-  };
+  return summariseLabour(rows, new Date());
+}
+
+/** Time logged on one visit, as the complete-visit dialog shows it. */
+export async function getVisitLabour(visitId: string): Promise<JobLabour> {
+  const rows = await sql<LabourRow[]>`
+    select t.id, t.member_id, m.name as member_name, t.job_id, t.visit_id,
+           t.started_at, t.ended_at, t.notes, v.visit_date,
+           coalesce(t.hourly_rate, m.hourly_rate)::float as hourly_rate
+    from time_entries t
+    join team_members m on m.id = t.member_id
+    left join job_visits v on v.id = t.visit_id
+    where t.visit_id = ${visitId}
+    order by t.started_at desc
+  `;
+  return summariseLabour(rows, new Date());
 }
 
 /** Assigned people per visit of a job (job page Visits table and assignment picker). */

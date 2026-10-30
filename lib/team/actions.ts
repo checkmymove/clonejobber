@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/session";
 import { getCompanyId } from "@/lib/company";
 import { sql } from "@/lib/db";
-import { parseManualEntry, type ManualEntryInput } from "./time";
-import { validateMember, type MemberInput } from "./member";
+import { parseDuration, parseManualEntry, type ManualEntryInput } from "./time";
+import { parseHourlyRate, validateMember, type MemberInput } from "./member";
 
 type Db = any;
 
@@ -89,9 +89,11 @@ export async function clockInAction(memberId: string, visitId: string): Promise<
       update time_entries set ended_at = now(), updated_at = now()
       where member_id = ${memberId} and ended_at is null
     `;
+    // The rate is kept on the entry so a later raise does not change what was earned.
     await tx`
-      insert into time_entries (company_id, member_id, job_id, visit_id, started_at)
-      values (${companyId}, ${memberId}, ${jobId}, ${visitId}, now())
+      insert into time_entries (company_id, member_id, job_id, visit_id, started_at, hourly_rate)
+      select ${companyId}, ${memberId}, ${jobId}, ${visitId}, now(), nullif(m.hourly_rate, 0)
+      from team_members m where m.id = ${memberId}
     `;
     // Working on a visit means being on it.
     await tx`
@@ -131,12 +133,42 @@ export async function addTimeEntryAction(
     return { ok: false, message: "Visit not found." };
   }
   await sql`
-    insert into time_entries (company_id, member_id, job_id, visit_id, started_at, ended_at, notes)
+    insert into time_entries (company_id, member_id, job_id, visit_id, started_at, ended_at, notes, hourly_rate)
     select ${companyId}, ${input.memberId}, ${input.jobId}, ${input.visitId},
-           s.at, s.at + make_interval(mins => ${parsed.minutes}::int), ${input.notes.trim()}
+           s.at, s.at + make_interval(mins => ${parsed.minutes}::int), ${input.notes.trim()},
+           (select nullif(m.hourly_rate, 0) from team_members m where m.id = ${input.memberId})
     from (select (${parsed.date}::date + ${parsed.start}::time) at time zone 'Europe/London' as at) s
   `;
   refresh(input.jobId);
+  return { ok: true };
+}
+
+/**
+ * Admin trims a finished entry, e.g. 7h05 → 7h00: the start stays and the end moves.
+ * Totals per visit, job and dashboard are derived from start and end, so they follow.
+ */
+export async function updateTimeEntryDurationAction(
+  entryId: string,
+  hours: string,
+  minutes: string,
+): Promise<TeamActionResult> {
+  const companyId = await companyOrFail();
+  if (!companyId) return { ok: false, message: "Company not found." };
+  const parsed = parseDuration(hours, minutes);
+  if (!parsed.ok) return parsed;
+  const current = await sql<{ ended_at: string | null }[]>`
+    select ended_at from time_entries where id = ${entryId} and company_id = ${companyId}
+  `;
+  if (!current[0]) return { ok: false, message: "Entry not found." };
+  if (!current[0].ended_at) return { ok: false, message: "Clock out before editing a running entry." };
+  const rows = await sql<{ job_id: string | null }[]>`
+    update time_entries
+    set ended_at = started_at + make_interval(mins => ${parsed.minutes}::int), updated_at = now()
+    where id = ${entryId} and company_id = ${companyId} and ended_at is not null
+    returning job_id
+  `;
+  if (!rows[0]) return { ok: false, message: "Entry not found." };
+  refresh(rows[0].job_id);
   return { ok: true };
 }
 
@@ -235,6 +267,8 @@ export async function saveTeamMemberAction(
   // The owner stays the owner; others switch between Admin and User with "Make administrator".
   const role = current[0].role === "owner" ? "owner" : input.admin ? "admin" : "user";
   const name = input.name.trim().replace(/\s+/g, " ");
+  const rate = parseHourlyRate(input.hourlyRate);
+  const hourlyRate = rate.ok ? rate.rate : 0;
   try {
     await sql.begin(async (tx) => {
       await tx`
@@ -250,6 +284,7 @@ export async function saveTeamMemberAction(
           role = ${role},
           permission = ${input.permission},
           working_hours = ${sql.json(input.workingHours)},
+          hourly_rate = ${hourlyRate},
           updated_at = now()
         where id = ${memberId} and company_id = ${companyId}
       `;

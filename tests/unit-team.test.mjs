@@ -2,14 +2,17 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   appointmentStatus,
+  entryPrice,
   entrySeconds,
   formatClock,
   formatHoursMinutes,
   initials,
+  parseDuration,
   parseManualEntry,
+  roundDownToHour,
   visitShare,
 } from "../.testbuild/team/time.js";
-import { DEFAULT_WORKING_HOURS, hoursLabel, normaliseHours, validateMember } from "../.testbuild/team/member.js";
+import { DEFAULT_WORKING_HOURS, hoursLabel, normaliseHours, parseHourlyRate, validateMember } from "../.testbuild/team/member.js";
 
 const visit = (patch = {}) => ({
   done: false,
@@ -106,6 +109,40 @@ describe("manual time entry", () => {
   });
 });
 
+describe("labour price and duration edits", () => {
+  it("prices an entry from its duration and hourly rate, in pence", () => {
+    assert.equal(entryPrice(7 * 3600, 15), 10500);
+    assert.equal(entryPrice(7 * 3600 + 5 * 60, 15), 10625);
+    assert.equal(entryPrice(20 * 60, 12.5), 417);
+    assert.equal(entryPrice(3600, 0), 0);
+    assert.equal(entryPrice(0, 20), 0);
+    assert.equal(entryPrice(3600, Number.NaN), 0);
+  });
+
+  it("rounds a duration down to full hours", () => {
+    assert.equal(roundDownToHour(7 * 60 + 5), 7 * 60);
+    assert.equal(roundDownToHour(7 * 60), 7 * 60);
+    assert.equal(roundDownToHour(59), 59);
+  });
+
+  it("accepts an edited duration between 1 minute and 24 hours", () => {
+    assert.deepEqual(parseDuration("7", "0"), { ok: true, minutes: 420 });
+    assert.deepEqual(parseDuration("", "45"), { ok: true, minutes: 45 });
+    assert.equal(parseDuration("0", "0").ok, false);
+    assert.equal(parseDuration("24", "1").ok, false);
+    assert.equal(parseDuration("2", "60").ok, false);
+    assert.equal(parseDuration("1.5", "0").ok, false);
+  });
+
+  it("reads an hourly rate in pounds", () => {
+    assert.deepEqual(parseHourlyRate(""), { ok: true, rate: 0 });
+    assert.deepEqual(parseHourlyRate("£15.50"), { ok: true, rate: 15.5 });
+    assert.deepEqual(parseHourlyRate("18"), { ok: true, rate: 18 });
+    assert.equal(parseHourlyRate("-1").ok, false);
+    assert.equal(parseHourlyRate("12.345").ok, false);
+    assert.equal(parseHourlyRate("abc").ok, false);
+  });
+});
 
 describe("team member (Jobber Manage team)", () => {
   const base = {
@@ -120,6 +157,7 @@ describe("team member (Jobber Manage team)", () => {
     admin: false,
     permission: "field_crew",
     workingHours: DEFAULT_WORKING_HOURS,
+    hourlyRate: "",
   };
 
   it("accepts a member with only a name", () => {

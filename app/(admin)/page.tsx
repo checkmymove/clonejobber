@@ -89,16 +89,16 @@ export default async function DashboardPage() {
   ];
 
   return (
-    <div>
+    <div className="min-w-0">
       <p suppressHydrationWarning className="text-sm font-semibold capitalize text-ink-soft">
         {weekday}
       </p>
       <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-ink">Good evening, Fabiano</h1>
 
       <h2 className="mb-3 mt-7 text-lg font-extrabold text-ink">Workflow</h2>
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {funnel.map((f) => (
-          <Link key={f.key} href={f.href} className="block h-full">
+          <Link key={f.key} href={f.href} className="block h-full min-w-0">
             <Card accent={f.accent} className="h-full p-4 hover:bg-cream/60">
               <p className="text-xs font-bold uppercase tracking-wide text-ink-soft">{f.label}</p>
               <p className="mt-2 text-3xl font-extrabold text-ink">
@@ -110,8 +110,8 @@ export default async function DashboardPage() {
               <p className="mt-1 text-sm font-bold text-ink">{f.headline}</p>
               <div className="mt-3 space-y-1.5 border-t border-line pt-3">
                 {f.rows.map((r) => (
-                  <p key={r.label} className="flex items-center justify-between text-[13px] text-ink-soft">
-                    {r.label}
+                  <p key={r.label} className="flex items-center justify-between gap-2 text-[13px] text-ink-soft">
+                    <span className="min-w-0">{r.label}</span>
                     {"value" in r && r.value ? <span className="font-semibold text-ink">{r.value}</span> : null}
                   </p>
                 ))}
@@ -121,13 +121,13 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-[1fr_320px]">
+      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_clamp(300px,26vw,400px)]">
         <section className="min-w-0">
           <h2 className="mb-3 text-lg font-extrabold text-ink">Today’s appointments</h2>
           <TodaysAppointments data={today} />
         </section>
 
-        <section>
+        <section className="min-w-0">
           <h2 className="mb-3 text-lg font-extrabold text-ink">Business performance</h2>
           <Card className="divide-y divide-line p-5">
             <div className="pb-4">
@@ -141,8 +141,8 @@ export default async function DashboardPage() {
               <p className="mt-1 text-2xl font-extrabold text-ink">{formatGBP(d.receivable)}</p>
               <div className="mt-3 space-y-1.5">
                 {d.debtors.map((r) => (
-                  <div key={r.name} className="flex items-center justify-between text-[13px]">
-                    <span className="text-ink-soft">{r.name}</span>
+                  <div key={r.name} className="flex items-center justify-between gap-2 text-[13px]">
+                    <span className="min-w-0 truncate text-ink-soft">{r.name}</span>
                     <span className="font-semibold text-ink">{formatGBP(r.balance)}</span>
                   </div>
                 ))}

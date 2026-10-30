@@ -96,7 +96,19 @@ export type MemberInput = {
   admin: boolean;
   permission: PermissionPreset;
   workingHours: WorkingHours;
+  /** Pounds per hour as typed; empty means no rate. */
+  hourlyRate: string;
 };
+
+/** "£15.50" → 15.5. Pounds and pence, up to £10,000 an hour. */
+export function parseHourlyRate(raw: string): { ok: true; rate: number } | { ok: false; message: string } {
+  const clean = raw.trim().replace(/^£/, "").replace(/,/g, "");
+  if (!clean) return { ok: true, rate: 0 };
+  if (!/^\d{1,5}(\.\d{1,2})?$/.test(clean)) return { ok: false, message: "Enter an hourly rate in pounds, e.g. 15.50" };
+  const rate = Number(clean);
+  if (rate > 10000) return { ok: false, message: "Hourly rate is too high" };
+  return { ok: true, rate };
+}
 
 const CLOCK = /^([01]\d|2[0-3]):[0-5]\d$/;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -108,6 +120,8 @@ export function validateMember(input: MemberInput): Record<string, string> {
   if (input.email.trim() && !EMAIL.test(input.email.trim())) errors.email = "Enter a valid email address";
   if (input.phone.trim() && !/^[+\d][\d\s()-]{6,}$/.test(input.phone.trim())) errors.phone = "Enter a valid phone number";
   if (!PERMISSION_PRESETS.some((p) => p.key === input.permission)) errors.permission = "Choose a permission level";
+  const rate = parseHourlyRate(input.hourlyRate ?? "");
+  if ("message" in rate) errors.hourlyRate = rate.message;
   for (const day of WEEKDAYS) {
     const hours = input.workingHours[day.key];
     if (hours === null) continue;

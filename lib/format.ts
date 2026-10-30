@@ -37,6 +37,17 @@ export function formatDateNumericLondon(iso: string | Date): string {
   }).format(date);
 }
 
+/** "2026-10-30" → "Friday 30 October 2026" (a calendar date, shown as London sees it). */
+export function formatLongDateLondon(isoDate: string): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "Europe/London",
+  }).format(new Date(`${isoDate.slice(0, 10)}T12:00:00Z`));
+}
+
 export function toDateInput(value: string | Date | null | undefined): string {
   if (!value) return "";
   const s = value instanceof Date ? value.toISOString() : String(value);

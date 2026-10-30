@@ -42,6 +42,7 @@ export function MemberForm({ member }: { member: TeamMemberDetail }) {
     admin: member.role !== "user",
     permission: member.permission,
     workingHours: member.workingHours,
+    hourlyRate: member.hourlyRate > 0 ? member.hourlyRate.toFixed(2) : "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -100,6 +101,20 @@ export function MemberForm({ member }: { member: TeamMemberDetail }) {
           </Label>
           <Label text="Country">
             <input className={field} value={draft.country} onChange={(e) => set({ country: e.target.value })} />
+          </Label>
+          <Label text="Hourly rate (£)">
+            <input
+              className={field}
+              inputMode="decimal"
+              placeholder="0.00"
+              value={draft.hourlyRate}
+              onChange={(e) => set({ hourlyRate: e.target.value })}
+            />
+            {errors.hourlyRate ? (
+              <span className="mt-1 block text-rose-700">{errors.hourlyRate}</span>
+            ) : (
+              <span className="mt-1 block font-normal">Labour on each job shows what this person earned.</span>
+            )}
           </Label>
         </div>
       </Card>

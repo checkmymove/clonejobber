@@ -63,6 +63,8 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const isSchedule = pathname.startsWith("/agenda");
+  // Schedule and the dashboard use the whole width; other pages keep a readable column.
+  const fullWidth = isSchedule || pathname === "/";
   const [createOpen, setCreateOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -191,7 +193,7 @@ export function AppShell({
           {sidebar}
         </aside>
         <main className={cn("min-w-0 flex-1", isSchedule ? "pb-0" : "pb-16")}>
-          {isSchedule ? children : <div className="mx-auto max-w-[1200px]">{children}</div>}
+          {fullWidth ? children : <div className="mx-auto max-w-[1200px]">{children}</div>}
         </main>
       </div>
 

@@ -342,3 +342,54 @@ export async function getJobPrefillFromQuote(quoteId: string): Promise<JobPrefil
     })),
   };
 }
+
+/** What the complete-visit dialog shows: the visit, its job, the invoice and the open visits left. */
+export type VisitCompletion = {
+  visitId: string;
+  jobId: string;
+  jobNumber: string;
+  jobTitle: string;
+  clientName: string;
+  visitDate: string | null;
+  start: string;
+  end: string;
+  anytime: boolean;
+  jobClosed: boolean;
+  /** Other visits of the job still to do. */
+  openVisits: number;
+  invoice: { id: string; number: string } | null;
+};
+
+export async function getVisitCompletion(companyId: string, visitId: string): Promise<VisitCompletion | null> {
+  const rows = await sql<(Omit<VisitCompletion, "invoice" | "visitDate"> & {
+    visitDate: string | Date | null;
+    invoiceId: string | null;
+    invoiceNumber: string | null;
+  })[]>`
+    select v.id as "visitId", j.id as "jobId", j.number as "jobNumber", coalesce(j.title, '') as "jobTitle",
+           trim(c.first_name || ' ' || c.last_name) as "clientName",
+           v.visit_date as "visitDate", coalesce(v.start_time, '') as start, coalesce(v.end_time, '') as "end",
+           v.anytime, j.status in ('done', 'cancelled') as "jobClosed",
+           (select count(*)::int from job_visits o
+             where o.job_id = j.id and o.id <> v.id and o.status = 'scheduled') as "openVisits",
+           i.id as "invoiceId", i.number as "invoiceNumber"
+    from job_visits v
+    join jobs j on j.id = v.job_id
+    join clients c on c.id = j.client_id
+    left join lateral (
+      select id, number from invoices
+      where job_id = j.id and status <> 'cancelled'
+      order by created_at limit 1
+    ) i on true
+    where v.id = ${visitId} and j.company_id = ${companyId}
+    limit 1
+  `;
+  const r = rows[0];
+  if (!r) return null;
+  const { invoiceId, invoiceNumber, visitDate, ...rest } = r;
+  return {
+    ...rest,
+    visitDate: toDateInput(visitDate) || null,
+    invoice: invoiceId ? { id: invoiceId, number: invoiceNumber ?? "" } : null,
+  };
+}

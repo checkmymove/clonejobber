@@ -10,6 +10,7 @@ import { getCompanyId } from "@/lib/company";
 import {
   changeJobStatus,
   convertApprovedQuoteToJob,
+  convertCompletedJobToInvoice,
   isUniqueViolation,
   persistJob,
   updateJobDocument,
@@ -17,6 +18,8 @@ import {
 } from "@/lib/funnel/engine";
 import type { JobInput } from "@/lib/funnel/validation";
 import { closeJob, deleteJob, reopenJob, setVisitDone } from "@/lib/jobs/lifecycle";
+import { getVisitCompletion, type VisitCompletion } from "@/lib/jobs/queries";
+import { getVisitLabour, type JobLabour } from "@/lib/team/queries";
 import { buildSendDraft } from "@/lib/send/drafts";
 import type { SendDraft } from "@/lib/send/types";
 
@@ -208,4 +211,81 @@ export async function saveJobNotes(jobId: string, notes: string): Promise<Action
   if (!rows[0]) return { ok: false, message: "Job not found" };
   revalidatePath(`/servicos/${jobId}`);
   return { ok: true, id: jobId };
+}
+
+/** Data for the dialog that opens when a visit's checkbox is ticked. */
+export async function getVisitCompletionAction(
+  visitId: string,
+): Promise<{ ok: boolean; message?: string; visit?: VisitCompletion; labour?: JobLabour }> {
+  await requireAdmin();
+  const companyId = await getCompanyId();
+  if (!companyId) return { ok: false, message: "Company not found." };
+  const visit = await getVisitCompletion(companyId, visitId);
+  if (!visit) return { ok: false, message: "Visit not found." };
+  const labour = await getVisitLabour(visitId);
+  return { ok: true, visit, labour };
+}
+
+class CompletionAborted extends Error {}
+
+/**
+ * Ticking a visit done, as one transaction: mark the visit done, clock out anyone
+ * still on it, create the job's invoice if asked, and close the job once no visit is
+ * left open ("close" closes it now, finishing any other open visits).
+ */
+export async function completeVisitAction(
+  visitId: string,
+  mode: "done" | "invoice" | "close",
+): Promise<{ ok: boolean; message?: string; jobId?: string; invoiceId?: string; jobClosed?: boolean }> {
+  await requireAdmin();
+  const companyId = await getCompanyId();
+  if (!companyId) return { ok: false, message: "Company not found." };
+
+  let outcome: { jobId: string; invoiceId?: string; jobClosed: boolean };
+  try {
+    outcome = await sql.begin(async (tx) => {
+      const done = await setVisitDone(tx, companyId, visitId, true);
+      if (!done.ok || !done.id) throw new CompletionAborted(done.message ?? "Visit not found.");
+      const jobId = done.id;
+
+      await tx`
+        update time_entries set ended_at = now(), updated_at = now()
+        where visit_id = ${visitId} and company_id = ${companyId} and ended_at is null
+      `;
+
+      let invoiceId: string | undefined;
+      if (mode === "invoice") {
+        const invoice = await convertCompletedJobToInvoice(tx, companyId, jobId);
+        if (!invoice.ok || !invoice.id) {
+          const reason = invoice.message ?? Object.values(invoice.errors ?? {})[0] ?? "Could not create the invoice.";
+          throw new CompletionAborted(reason);
+        }
+        invoiceId = invoice.id;
+      }
+
+      const open = await tx<{ n: number }[]>`
+        select count(*)::int as n from job_visits where job_id = ${jobId} and status = 'scheduled'
+      `;
+      const jobClosed = mode === "close" || open[0].n === 0;
+      if (jobClosed) {
+        await tx`
+          update time_entries set ended_at = now(), updated_at = now()
+          where job_id = ${jobId} and company_id = ${companyId} and ended_at is null
+        `;
+        const closed = await closeJob(tx, companyId, jobId);
+        if (!closed.ok) throw new CompletionAborted(closed.message ?? "Could not close the job.");
+      }
+      return { jobId, invoiceId, jobClosed };
+    });
+  } catch (error) {
+    if (error instanceof CompletionAborted) return { ok: false, message: error.message };
+    throw error;
+  }
+
+  refreshJob(outcome.jobId);
+  if (outcome.invoiceId) {
+    revalidatePath("/faturas");
+    revalidatePath(`/faturas/${outcome.invoiceId}`);
+  }
+  return { ok: true, ...outcome };
 }
