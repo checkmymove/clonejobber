@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -15,6 +15,30 @@ import { visitWindowLabel } from "@/lib/schedule/dates";
 import { formatHoursMinutes } from "@/lib/team/time";
 
 type Mode = "done" | "invoice" | "close";
+
+// The visit being completed lives outside the checkbox: on the dashboard a completed
+// visit's card moves to another group and remounts, which would drop the dialog and
+// the send step that follows it.
+let openVisitId: string | null = null;
+const listeners = new Set<() => void>();
+
+export function openCompleteVisit(visitId: string | null) {
+  openVisitId = visitId;
+  listeners.forEach((listener) => listener());
+}
+
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+/** Mounted once in the app shell, so the dialog survives the page refreshing under it. */
+export function CompleteVisitHost() {
+  const visitId = useSyncExternalStore(subscribe, () => openVisitId, () => null);
+  return visitId ? <CompleteVisitDialog key={visitId} visitId={visitId} onClose={() => openCompleteVisit(null)} /> : null;
+}
 type Busy = Mode | "send" | null;
 
 /**

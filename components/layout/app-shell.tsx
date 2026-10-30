@@ -21,6 +21,7 @@ import {
   X,
 } from "lucide-react";
 import { signOut } from "@/lib/auth/actions";
+import { CompleteVisitHost } from "@/components/jobs/complete-visit-dialog";
 import { cn } from "@/lib/cn";
 
 const NAV: {
@@ -196,6 +197,8 @@ export function AppShell({
           {fullWidth ? children : <div className="mx-auto max-w-[1200px]">{children}</div>}
         </main>
       </div>
+
+      <CompleteVisitHost />
 
       {/* Mobile drawer */}
       {mobileOpen ? (
