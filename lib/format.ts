@@ -39,13 +39,15 @@ export function formatDateNumericLondon(iso: string | Date): string {
 
 /** "2026-10-30" → "Friday 30 October 2026" (a calendar date, shown as London sees it). */
 export function formatLongDateLondon(isoDate: string): string {
-  return new Intl.DateTimeFormat("en-GB", {
+  const parts = new Intl.DateTimeFormat("en-GB", {
     weekday: "long",
     day: "numeric",
     month: "long",
     year: "numeric",
     timeZone: "Europe/London",
-  }).format(new Date(`${isoDate.slice(0, 10)}T12:00:00Z`));
+  }).formatToParts(new Date(`${isoDate.slice(0, 10)}T12:00:00Z`));
+  const part = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${part("weekday")} ${part("day")} ${part("month")} ${part("year")}`;
 }
 
 export function toDateInput(value: string | Date | null | undefined): string {
