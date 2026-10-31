@@ -20,7 +20,7 @@ export function StickySaveBar({
   pending = false,
   saveLabel,
   menuItems,
-  maxWidthClass = "max-w-[860px]",
+  maxWidthClass = "max-w-none",
 }: {
   cancelHref: string;
   error?: string;

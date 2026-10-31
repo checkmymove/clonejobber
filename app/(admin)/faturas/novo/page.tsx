@@ -23,7 +23,7 @@ export default async function NovaInvoicePage({
     if (!prefill) notFound();
     return (
       <div className="min-h-[calc(100dvh-6.5rem)] rounded-2xl bg-white px-6 py-8 sm:px-10">
-        <div className="mx-auto max-w-[860px]">
+        <div>
           <NewInvoiceForm
             clients={clients}
             jobId={prefill.jobId}
@@ -43,7 +43,7 @@ export default async function NovaInvoicePage({
 
   return (
     <div className="min-h-[calc(100dvh-6.5rem)] rounded-2xl bg-white px-6 py-8 sm:px-10">
-      <div className="mx-auto max-w-[860px]">
+      <div>
         <NewInvoiceForm clients={clients} />
       </div>
     </div>

@@ -46,7 +46,7 @@ export default async function EmailSettingsPage({
       ) : null}
 
       <h2 className="mb-2 text-lg font-extrabold text-ink">Email account</h2>
-      <Card className="max-w-xl p-5">
+      <Card className="p-5">
         {connection ? (
           <p className="text-sm text-ink">
             Connected as <span className="font-bold">{connection.email}</span>

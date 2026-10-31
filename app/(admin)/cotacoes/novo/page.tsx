@@ -65,7 +65,7 @@ export default async function NovaCotacaoPage({
 
   return (
     <div className="min-h-[calc(100dvh-6.5rem)] rounded-2xl bg-white px-6 py-8 sm:px-10">
-      <div className="mx-auto max-w-[860px]">
+      <div>
         <NewQuoteForm
           clients={clients}
           requestServices={requestServices}

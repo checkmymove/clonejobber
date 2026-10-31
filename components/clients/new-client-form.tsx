@@ -636,7 +636,6 @@ export function NewClientForm({
         error={message ?? undefined}
         pending={saving}
         saveLabel="Save client"
-        maxWidthClass="max-w-[960px]"
         menuItems={[
           {
             label: "Save and Create Another",

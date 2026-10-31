@@ -784,7 +784,6 @@ export function NewRequestForm({
         error={error}
         pending={pending}
         saveLabel={requestId ? "Update request" : "Save request"}
-        maxWidthClass="max-w-[760px]"
         menuItems={[
           {
             label: "Convert to Quote",

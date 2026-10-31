@@ -14,7 +14,7 @@ export default async function MembroPage({ params }: { params: Promise<{ id: str
   const member = await getTeamMember(COMPANY_SLUG, id);
   if (!member) notFound();
   return (
-    <div className="max-w-4xl">
+    <div>
       <PageHeader
         title={member.name}
         subtitle="Manage team"

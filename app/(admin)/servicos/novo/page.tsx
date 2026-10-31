@@ -26,7 +26,7 @@ export default async function NovoServicoPage({
     if (!prefill) notFound();
     return (
       <div className="min-h-[calc(100dvh-6.5rem)] rounded-2xl bg-white px-6 py-8 sm:px-10">
-        <div className="mx-auto max-w-[860px]">
+        <div>
           <NewJobForm
             clients={clients}
             team={team}
@@ -48,7 +48,7 @@ export default async function NovoServicoPage({
 
   return (
     <div className="min-h-[calc(100dvh-6.5rem)] rounded-2xl bg-white px-6 py-8 sm:px-10">
-      <div className="mx-auto max-w-[860px]">
+      <div>
         <NewJobForm clients={clients} team={team} today={visitDay} />
       </div>
     </div>
