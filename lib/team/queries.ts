@@ -1,9 +1,12 @@
 import "server-only";
 import { sql } from "@/lib/db";
 import { toDateInput, todayLondonInput } from "@/lib/format";
+import { geocodePostcodes, type LatLng } from "@/lib/geo/geocode";
+import { extractPostcode } from "@/lib/geo/postcode";
+import { isIsoDate, weekDays } from "@/lib/schedule/dates";
 import { getScheduleBundle } from "@/lib/schedule/queries";
 import { KIND_META, type ScheduleKind } from "@/lib/schedule/types";
-import { appointmentStatus, entryPrice, entrySeconds, visitShare, type AppointmentStatus } from "./time";
+import { appointmentStatusOn, entryPrice, entrySeconds, visitShare, type AppointmentStatus } from "./time";
 import { normaliseHours, type PermissionPreset, type TeamRole, type WorkingHours } from "./member";
 
 export type TeamMemberDetail = {
@@ -86,6 +89,12 @@ export type Appointment = {
   id: string;
   kind: ScheduleKind;
   title: string;
+  clientName: string;
+  /** The work: "Removal Service", or the kind of item for non-visits. */
+  service: string;
+  address: string;
+  /** Where the visit is, from the address postcode, for the team map. */
+  location: LatLng | null;
   window: { anytime: boolean; start: string; end: string };
   status: AppointmentStatus;
   value: number;
@@ -110,6 +119,8 @@ export type EmployeeDay = {
 
 export type TodaysAppointments = {
   today: string;
+  /** The day shown: today unless the date picker moved it. */
+  day: string;
   now: string;
   appointments: Appointment[];
   employees: EmployeeDay[];
@@ -131,13 +142,14 @@ function londonClock(now: Date): string {
  * Dashboard "Today's appointments": Jobber's Visit tab (buckets and value) merged
  * with its Employee tab (who is on each visit and how long they worked).
  */
-export async function getTodaysAppointments(companySlug: string): Promise<TodaysAppointments> {
+export async function getTodaysAppointments(companySlug: string, requestedDay?: string): Promise<TodaysAppointments> {
   const now = new Date();
   const today = todayLondonInput(now);
+  const day = requestedDay && isIsoDate(requestedDay) ? requestedDay : today;
   const nowClock = londonClock(now);
 
   const [bundle, team, todayEntries] = await Promise.all([
-    getScheduleBundle(companySlug, today, today),
+    getScheduleBundle(companySlug, day, day),
     listTeam(companySlug),
     sql<TimeEntry[]>`
       select t.id, t.member_id, m.name as member_name, t.job_id, t.visit_id,
@@ -147,15 +159,15 @@ export async function getTodaysAppointments(companySlug: string): Promise<Todays
       join companies co on co.id = t.company_id
       where co.slug = ${companySlug}
         and (
-          t.ended_at is null
-          or (t.started_at at time zone 'Europe/London')::date = ${today}::date
-          or (t.ended_at at time zone 'Europe/London')::date = ${today}::date
+          (t.ended_at is null and ${day}::date = ${today}::date)
+          or (t.started_at at time zone 'Europe/London')::date = ${day}::date
+          or (t.ended_at at time zone 'Europe/London')::date = ${day}::date
         )
     `,
   ]);
 
   const items = bundle.items.filter(
-    (i) => i.date === today && i.status !== "cancelled" && i.kind !== "quote_reminder" && i.kind !== "invoice_reminder",
+    (i) => i.date === day && i.status !== "cancelled" && i.kind !== "quote_reminder" && i.kind !== "invoice_reminder",
   );
   const visitIds = items.filter((i) => i.kind === "visit").map((i) => i.id);
   const jobIds = [...new Set(items.map((i) => i.jobId).filter((id): id is string => Boolean(id)))];
@@ -190,6 +202,8 @@ export async function getTodaysAppointments(companySlug: string): Promise<Todays
   ]);
 
   const jobValue = new Map(jobs.map((j) => [j.id, visitShare(j.total, j.visits)]));
+  const postcodes = new Map(items.map((i) => [i.id, extractPostcode(i.address)]));
+  const places = await geocodePostcodes([...postcodes.values()].filter((p): p is string => Boolean(p)));
 
   const appointments: Appointment[] = items.map((item) => {
     const trackable = item.kind === "visit";
@@ -212,10 +226,16 @@ export async function getTodaysAppointments(companySlug: string): Promise<Todays
       id: item.id,
       kind: item.kind,
       title: item.kind === "visit" ? item.title : item.detailLabel || item.title,
+      clientName: item.clientName,
+      service: item.kind === "visit" ? item.service || "Visit" : KIND_META[item.kind].label,
+      address: item.address,
+      location: places.get(postcodes.get(item.id) ?? "") ?? null,
       window: { anytime: item.anytime || !item.start, start: item.start, end: item.end },
-      status: appointmentStatus(
+      status: appointmentStatusOn(
         { done, anytime: item.anytime || !item.start, start: item.start, end: item.end, running },
         nowClock,
+        day,
+        today,
       ),
       value: item.jobId ? jobValue.get(item.jobId) ?? 0 : 0,
       href: item.href,
@@ -254,6 +274,7 @@ export async function getTodaysAppointments(companySlug: string): Promise<Todays
 
   return {
     today,
+    day,
     now: now.toISOString(),
     appointments,
     employees,
@@ -342,6 +363,41 @@ export async function getVisitLabour(visitId: string): Promise<JobLabour> {
   return summariseLabour(rows, new Date());
 }
 
+export type WeeklyTimesheets = {
+  /** Monday to Sunday of the week holding the dashboard's day. */
+  days: string[];
+  rows: { id: string; name: string; seconds: number[]; total: number; running: boolean }[];
+};
+
+/** Dashboard "Weekly timesheets": hours each active person logged per day of the week. */
+export async function getWeeklyTimesheets(companySlug: string, day: string): Promise<WeeklyTimesheets> {
+  const now = new Date();
+  const days = weekDays(day);
+  const [team, entries] = await Promise.all([
+    listTeam(companySlug),
+    sql<{ member_id: string; day: string | Date; started_at: string; ended_at: string | null }[]>`
+      select t.member_id, (t.started_at at time zone 'Europe/London')::date as day, t.started_at, t.ended_at
+      from time_entries t
+      join companies co on co.id = t.company_id
+      where co.slug = ${companySlug}
+        and (t.started_at at time zone 'Europe/London')::date between ${days[0]}::date and ${days[6]}::date
+    `,
+  ]);
+  const rows = team.map((m) => {
+    const seconds = days.map(() => 0);
+    let running = false;
+    for (const e of entries) {
+      if (e.member_id !== m.id) continue;
+      const index = days.indexOf(toDateInput(e.day));
+      if (index < 0) continue;
+      seconds[index] += entrySeconds(e.started_at, e.ended_at, now);
+      if (!e.ended_at) running = true;
+    }
+    return { id: m.id, name: m.name, seconds, total: seconds.reduce((s, n) => s + n, 0), running };
+  });
+  return { days, rows };
+}
+
 /** Assigned people per visit of a job (job page Visits table and assignment picker). */
 export async function getVisitMembers(visitIds: string[]): Promise<Map<string, TeamMember[]>> {
   const out = new Map<string, TeamMember[]>();
@@ -359,4 +415,51 @@ export async function getVisitMembers(visitIds: string[]): Promise<Map<string, T
     out.set(r.visit_id, list);
   }
   return out;
+}
+
+export type TimesheetEntry = {
+  id: string;
+  member_id: string;
+  member_name: string;
+  job_id: string | null;
+  job_number: string | null;
+  job_client: string | null;
+  day: string;
+  started_at: string;
+  ended_at: string | null;
+  seconds: number;
+  hourly_rate: number;
+  /** Pence. */
+  price: number;
+};
+
+/** Timesheets page: every entry in the week holding `day`, with what each one paid. */
+export async function getTimesheetWeek(
+  companySlug: string,
+  day: string,
+): Promise<{ days: string[]; entries: TimesheetEntry[]; team: TeamMember[] }> {
+  const now = new Date();
+  const days = weekDays(day);
+  const [team, rows] = await Promise.all([
+    listTeam(companySlug),
+    sql<(Omit<TimesheetEntry, "seconds" | "price" | "day"> & { day: string | Date })[]>`
+      select t.id, t.member_id, m.name as member_name, t.job_id, j.number as job_number,
+             nullif(trim(coalesce(c.first_name, '') || ' ' || coalesce(c.last_name, '')), '') as job_client,
+             (t.started_at at time zone 'Europe/London')::date as day, t.started_at, t.ended_at,
+             coalesce(t.hourly_rate, m.hourly_rate)::float as hourly_rate
+      from time_entries t
+      join team_members m on m.id = t.member_id
+      join companies co on co.id = t.company_id
+      left join jobs j on j.id = t.job_id
+      left join clients c on c.id = j.client_id
+      where co.slug = ${companySlug}
+        and (t.started_at at time zone 'Europe/London')::date between ${days[0]}::date and ${days[6]}::date
+      order by t.started_at desc
+    `,
+  ]);
+  const entries = rows.map((r) => {
+    const seconds = entrySeconds(r.started_at, r.ended_at, now);
+    return { ...r, day: toDateInput(r.day), seconds, price: entryPrice(seconds, r.hourly_rate) };
+  });
+  return { days, entries, team };
 }

@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowLeft, Clock, FileText } from "lucide-react";
+import { CARD_TITLE, CardIcon } from "@/components/card-icon";
 import { formatDateLondon } from "@/lib/format";
 import { COMPANY_SLUG, getCompanyId } from "@/lib/company";
 import { sql } from "@/lib/db";
@@ -19,7 +21,7 @@ import { hasRemovalService } from "@/lib/requests/edit-snapshot";
 import { FunnelHistoryCard } from "@/components/funnel/funnel-history-card";
 import { RequestMoreMenu } from "@/components/requests/request-actions";
 import { SentCard } from "@/components/funnel/sent-card";
-import { Badge, Card, PageHeader } from "@/components/ui";
+import { Badge, Card, PageHeader, buttonDark, buttonOutline } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -49,28 +51,26 @@ export default async function SolicitacaoDetailPage({
     <div>
       <PageHeader
         title={`${r.number} · ${r.client_name}`}
-        subtitle={`Received on ${formatDateLondon(r.submitted_at)}${r.move_date ? ` · move on ${formatDateLondon(r.move_date)}${r.move_time ? ` at ${r.move_time}` : ""}` : " · no date set"}`}
+        subtitle={`Received on ${formatDateLondon(r.submitted_at)}${r.move_date ? ` · Move on ${formatDateLondon(r.move_date)}${r.move_time ? ` at ${r.move_time}` : ""}` : " · No date set"}`}
         action={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <RequestMoreMenu requestId={r.id} clientId={r.client_id} quoteId={requestQuote[0]?.id ?? null} />
-            <Link
-              href={`/cotacoes/novo?requestId=${r.id}`}
-              className="inline-flex h-10 items-center rounded-xl bg-ink px-4 text-sm font-bold text-white hover:opacity-90"
-            >
+            <Link href={`/cotacoes/novo?requestId=${r.id}`} className={buttonDark}>
+              <FileText size={17} aria-hidden />
               Convert to Quote
             </Link>
-            <Link
-              href="/solicitacoes"
-              className="inline-flex h-10 items-center rounded-xl border border-line bg-card px-4 text-sm font-bold text-ink hover:bg-cream"
-            >
-              ← Voltar
+            <Link href="/solicitacoes" className={buttonOutline}>
+              <ArrowLeft size={17} aria-hidden />
+              Back
             </Link>
           </div>
         }
       />
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <Badge tone={r.status}>{STATUS_LABEL[r.status] ?? r.status}</Badge>
+      <div className="mb-5 flex flex-wrap items-center gap-3">
+        <Badge tone={r.status} size="lg">
+          {STATUS_LABEL[r.status] ?? r.status}
+        </Badge>
         <StatusChanger id={r.id} current={r.status} />
       </div>
 
@@ -91,25 +91,34 @@ export default async function SolicitacaoDetailPage({
         <RequestLocationCard title="Collection Information" snapshot={snapshot} kind="pickup" />
         <RequestLocationCard title="Delivery Information" snapshot={snapshot} kind="delivery" />
         <RequestMovingCard snapshot={snapshot} />
-        <PackingServiceCard snapshot={snapshot} />
-        {hasRemovalService(snapshot) ? <RemovalServiceCard snapshot={snapshot} services={services} /> : null}
+        {hasRemovalService(snapshot) ? (
+          <>
+            <RemovalServiceCard snapshot={snapshot} services={services} half />
+            <PackingServiceCard snapshot={snapshot} half />
+          </>
+        ) : (
+          <PackingServiceCard snapshot={snapshot} />
+        )}
         <RequestInventoryCard snapshot={snapshot} files={r.files} />
         <SentCard kind="request" id={r.id} />
 
         <Card className="h-fit p-5 xl:col-span-2">
-          <h2 className="mb-2 text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">
-            Timeline
-          </h2>
-          <div className="space-y-2 text-sm">
-            {r.timeline.map((t, i) => (
-              <p key={i} className="flex justify-between gap-4">
-                <span className="text-ink">{t.summary}</span>
-                <span className="shrink-0 text-xs text-ink-mute">
-                  {formatDateLondon(t.created_at)}
-                </span>
-              </p>
-            ))}
+          <div className="flex items-center gap-3">
+            <CardIcon icon={Clock} tone="violet" boxed />
+            <h2 className={CARD_TITLE}>Timeline</h2>
           </div>
+          <ol className="mt-4 pl-4">
+            {r.timeline.map((t, i) => (
+              <li key={i} className="relative flex justify-between gap-4 pb-4 pl-6 text-sm last:pb-0">
+                {i < r.timeline.length - 1 ? (
+                  <span aria-hidden className="absolute left-[5px] top-4 h-full w-px bg-line" />
+                ) : null}
+                <span aria-hidden className="absolute left-0 top-1.5 h-[11px] w-[11px] rounded-full bg-blue-600" />
+                <span className="text-ink">{t.summary}</span>
+                <span className="shrink-0 text-ink-soft">{formatDateLondon(t.created_at)}</span>
+              </li>
+            ))}
+          </ol>
         </Card>
       </div>
     </div>
@@ -129,7 +138,7 @@ function StatusChanger({ id, current }: { id: string; current: string }) {
       <select
         name="status"
         defaultValue={current}
-        className="h-9 rounded-xl border border-line bg-white px-2 text-sm font-semibold text-ink"
+        className="h-10 min-w-[160px] rounded-xl border border-line bg-white px-3 text-sm text-ink outline-none focus:border-[#1d4ed8]"
         aria-label="Change status"
       >
         {Object.entries(STATUS_LABEL).map(([v, l]) => (
@@ -138,10 +147,7 @@ function StatusChanger({ id, current }: { id: string; current: string }) {
           </option>
         ))}
       </select>
-      <button
-        type="submit"
-        className="h-9 rounded-xl bg-ink px-3 text-sm font-bold text-white hover:opacity-90"
-      >
+      <button type="submit" className={buttonDark}>
         Save status
       </button>
     </form>

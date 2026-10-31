@@ -88,3 +88,14 @@ describe("padMoney", async () => {
     assert.equal(padMoney("1.234"), "1.234");
   });
 });
+
+describe("line items edited in place", async () => {
+  const { linesTotals } = await import("../.testbuild/funnel/money.js");
+  it("keeps discount and tax and recomputes the total", () => {
+    assert.deepEqual(linesTotals(76000, 0, 0), { ok: true, total: 76000 });
+    assert.deepEqual(linesTotals(76000, 1000, 500), { ok: true, total: 75500 });
+  });
+  it("refuses a discount bigger than the new subtotal", () => {
+    assert.equal(linesTotals(5000, 6000, 0).ok, false);
+  });
+});

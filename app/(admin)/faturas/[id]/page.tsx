@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Pencil } from "lucide-react";
-import { formatDateNumericLondon, formatGBP } from "@/lib/format";
+import { formatDateNumericLondon, formatGBP, penceToInput } from "@/lib/format";
 import { getInvoiceDetail } from "@/lib/invoices/queries";
 import { INVOICE_STATUS_META, paymentTermsLabel } from "@/lib/invoices/status";
 import { listInvoicePayments } from "@/lib/payments/queries";
@@ -21,6 +20,8 @@ import { ClientContactCard } from "@/components/funnel/client-contact-card";
 import { FunnelHistoryCard } from "@/components/funnel/funnel-history-card";
 import { getClientContact } from "@/lib/clients/queries";
 import { getCompanyId } from "@/lib/company";
+import { listProducts } from "@/lib/products/queries";
+import { LineItemsInlineCard } from "@/components/funnel/line-items-inline-card";
 import { getActiveServices } from "@/lib/requests/company";
 import { InvoiceHeaderActions } from "@/components/invoices/invoice-actions";
 import { NotesCard } from "@/components/funnel/notes-card";
@@ -50,6 +51,14 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
   ]);
   if (!client) notFound();
   const services = companyId ? await getActiveServices(companyId) : [];
+  const catalog = (companyId ? await listProducts(companyId, "", "name", "asc") : []).map((p) => ({
+    id: p.id,
+    type: p.item_type,
+    name: p.name,
+    description: p.description,
+    price: penceToInput(p.unit_price),
+  }));
+
   const snapshot = request ? requestSnapshotFromDetail(request) : null;
   const meta = INVOICE_STATUS_META[inv.list_status];
 
@@ -161,21 +170,11 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
           ]}
         />
 
-        <LineItemsCard
-          lines={inv.lines}
-          totals={totals}
-          action={
-            inv.status !== "cancelled" ? (
-              <Link
-                href={`/faturas/${inv.id}/editar`}
-                aria-label="Edit line items"
-                className="grid h-7 w-7 place-items-center rounded-lg text-ink-soft hover:bg-cream hover:text-ink"
-              >
-                <Pencil size={14} />
-              </Link>
-            ) : null
-          }
-        />
+        {inv.status !== "cancelled" ? (
+          <LineItemsInlineCard kind="invoice" id={inv.id} lines={inv.lines} totals={totals} catalog={catalog} />
+        ) : (
+          <LineItemsCard lines={inv.lines} totals={totals} />
+        )}
 
         {snapshot && request ? <RequestInventoryCard snapshot={snapshot} files={request.files} /> : null}
         <NotesCard kind="invoice" id={inv.id} notes={inv.notes} />

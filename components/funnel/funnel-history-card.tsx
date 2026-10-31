@@ -1,4 +1,5 @@
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, FileText } from "lucide-react";
+import { CARD_TITLE, CardIcon } from "@/components/card-icon";
 import { Card } from "@/components/ui";
 import { formatDateNumericLondon } from "@/lib/format";
 import { getFunnelHistory, type FunnelStage } from "@/lib/funnel/history";
@@ -34,7 +35,10 @@ export async function FunnelHistoryCard({
   const steps = await getFunnelHistory({ clientId, requestId, quoteId, jobId, invoiceId });
   return (
     <Card className="self-stretch p-5">
-      <h2 className="mb-3 text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">Summary</h2>
+      <div className="mb-4 flex items-center gap-3">
+        <CardIcon icon={FileText} tone="violet" />
+        <h2 className={CARD_TITLE}>Summary</h2>
+      </div>
       <ol className="relative space-y-0">
         {steps.map((s, i) => {
           const current = s.id === currentId;
@@ -63,7 +67,7 @@ export async function FunnelHistoryCard({
                       · {s.stage === "client" ? s.detail : s.detail.replace(/_/g, " ")}
                     </span>
                   ) : null}
-                  {current ? <span className="ml-1 rounded bg-cream px-1.5 py-0.5 text-[11px] font-bold text-ink-soft">this page</span> : null}
+                  {current ? <span className="ml-1.5 rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800">This page</span> : null}
                 </p>
                 <span className="shrink-0 text-xs text-ink-mute">{formatDateNumericLondon(s.at)}</span>
               </div>

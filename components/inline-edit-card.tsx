@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ChevronDown, Pencil } from "lucide-react";
 import { Card } from "@/components/ui";
 import { EqualHeightBody } from "@/components/equal-height";
+import { CARD_TITLE } from "@/components/card-icon";
 import { padMoney } from "@/lib/format";
 
 export const inlineField =
@@ -38,8 +39,17 @@ export function InlineEditCard({
   collapsible = false,
   summary,
   fitContent = false,
+  icon,
+  layout = "list",
+  actions,
 }: {
   title: string;
+  /** Buttons beside the pencil; `startEditing` opens the card's edit mode. */
+  actions?: (startEditing: () => void) => ReactNode;
+  /** Coloured icon before the title (see CardIcon). */
+  icon?: ReactNode;
+  /** "stat": icon, small title and one large value side by side (moving date, time). */
+  layout?: "list" | "stat";
   view: ReactNode;
   children: ReactNode;
   onSave: () => Promise<{ ok: boolean; message?: string; errors?: Record<string, string> }>;
@@ -73,17 +83,47 @@ export function InlineEditCard({
     router.refresh();
   }
 
+  const pencil = !editing ? (
+    <button
+      type="button"
+      aria-label={`Edit ${title}`}
+      onClick={() => {
+        setError("");
+        setEditing(true);
+      }}
+      className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-ink-soft hover:bg-cream hover:text-ink"
+    >
+      <Pencil size={16} />
+    </button>
+  ) : null;
+
+  if (layout === "stat" && !editing) {
+    return (
+      <Card className={className ?? "h-fit p-5"} accent={accent}>
+        <div className="flex items-center gap-4">
+          {icon}
+          <div className="min-w-0 flex-1">
+            <h2 className={CARD_TITLE}>{title}</h2>
+            <div className="mt-0.5 text-[19px] leading-snug text-ink">{view}</div>
+          </div>
+          {pencil}
+        </div>
+      </Card>
+    );
+  }
+
   return (
     <Card className={className ?? "h-fit p-5"} accent={accent}>
-      <div className={`flex items-start justify-between gap-2 ${shown ? "mb-2" : ""}`}>
+      <div className={`flex items-center justify-between gap-2 ${shown ? "mb-3" : ""}`}>
         {collapsible ? (
           <button
             type="button"
             aria-expanded={shown}
             onClick={() => !editing && setOpen((v) => !v)}
-            className="flex min-w-0 flex-1 items-center gap-2 text-left"
+            className="flex min-w-0 flex-1 items-center gap-3 text-left"
           >
-            <h2 className="text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">{title}</h2>
+            {icon}
+            <h2 className={CARD_TITLE}>{title}</h2>
             {!shown && summary ? <span className="truncate text-[13px] text-ink-mute">{summary}</span> : null}
             <ChevronDown
               size={18}
@@ -92,21 +132,20 @@ export function InlineEditCard({
             />
           </button>
         ) : (
-          <h2 className="text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">{title}</h2>
+          <div className="flex min-w-0 items-center gap-3">
+            {icon}
+            <h2 className={CARD_TITLE}>{title}</h2>
+          </div>
         )}
-        {!editing ? (
-          <button
-            type="button"
-            aria-label={`Edit ${title}`}
-            onClick={() => {
-              setError("");
-              setEditing(true);
-            }}
-            className="grid h-7 w-7 place-items-center rounded-lg text-ink-soft hover:bg-cream hover:text-ink"
-          >
-            <Pencil size={14} />
-          </button>
-        ) : null}
+        <div className="flex shrink-0 items-center gap-2">
+          {actions && !editing
+            ? actions(() => {
+                setError("");
+                setEditing(true);
+              })
+            : null}
+          {pencil}
+        </div>
       </div>
       {!shown ? null : editing ? (
         // A div, not a form: these cards also sit inside page forms (New quote), and a
@@ -155,13 +194,14 @@ export function InlineEditCard({
   );
 }
 
-export function Dl({ rows }: { rows: [string, string][] }) {
+/** Label and value rows; `divided` puts a line between rows (Packing Service). */
+export function Dl({ rows, divided = false }: { rows: [string, string][]; divided?: boolean }) {
   return (
-    <div className="text-sm">
+    <div className={divided ? "divide-y divide-line text-sm" : "text-sm"}>
       {rows.map(([k, v]) => (
-        <p key={k} className="flex justify-between gap-4 py-0.5">
+        <p key={k} className={`flex justify-between gap-4 ${divided ? "py-3 first:pt-1 last:pb-0" : "py-1"}`}>
           <span className="text-ink-soft">{k}</span>
-          <span className="text-right font-semibold text-ink">{v}</span>
+          <span className={`text-right text-ink ${divided ? "font-semibold" : "font-medium"}`}>{v}</span>
         </p>
       ))}
     </div>

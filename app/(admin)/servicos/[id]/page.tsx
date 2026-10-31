@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Pencil, Plus } from "lucide-react";
+import { ArrowLeft, Box, CalendarDays, MapPin, Plus, ReceiptText, UserRound } from "lucide-react";
+import { CardIcon } from "@/components/card-icon";
+import { CollapsibleSection } from "@/components/collapsible-section";
+import { INFO_ICONS, JobInfoStrip } from "@/components/jobs/job-info-strip";
 import { ClickableRow } from "@/components/clickable-row";
-import { formatDateNumericLondon, formatGBP, todayLondonInput } from "@/lib/format";
+import { formatDateNumericLondon, formatGBP, penceToInput, todayLondonInput } from "@/lib/format";
 import { getJobDetail, type JobVisit } from "@/lib/jobs/queries";
 import { JOB_STATUS_META } from "@/lib/jobs/status";
 import { INVOICE_STATUS_META, deriveInvoiceStatus } from "@/lib/invoices/status";
@@ -33,9 +36,10 @@ import {
   depositTotalRows,
   type TotalRow,
 } from "@/components/funnel/document-cards";
-import { Card, PageHeader } from "@/components/ui";
+import { Card, PageHeader, buttonOutline } from "@/components/ui";
 import { LabourCard } from "@/components/team/labour-card";
-import { JobDateTimeCard } from "@/components/jobs/job-date-time-card";
+import { LineItemsInlineCard } from "@/components/funnel/line-items-inline-card";
+import { listProducts } from "@/lib/products/queries";
 import { COMPANY_SLUG, getCompanyId } from "@/lib/company";
 import { getJobLabour, getVisitMembers, listTeam } from "@/lib/team/queries";
 
@@ -48,6 +52,19 @@ function visitState(v: JobVisit, today: string): { label: string; dot: string } 
   if (v.visit_date < today) return { label: "Overdue", dot: "bg-rose-500" };
   if (v.visit_date === today) return { label: "Today", dot: "bg-emerald-500" };
   return { label: "Scheduled", dot: "bg-sky-500" };
+}
+
+const MONTH = new Intl.DateTimeFormat("en-GB", { month: "short", timeZone: "UTC" });
+
+/** Calendar leaf for a visit row: "Oct" over "30". */
+function DateLeaf({ date }: { date: string | null }) {
+  if (!date) return <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-cream text-xs text-ink-mute">—</span>;
+  return (
+    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-line bg-white leading-none">
+      <span className="text-[11px] font-medium text-ink-soft">{MONTH.format(new Date(`${date}T12:00:00Z`))}</span>
+      <span className="text-lg font-bold text-ink">{Number(date.slice(8, 10))}</span>
+    </span>
+  );
 }
 
 function visitTime(v: JobVisit): string {
@@ -74,6 +91,14 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
   ]);
   if (!client) notFound();
   const services = companyId ? await getActiveServices(companyId) : [];
+  const catalog = (companyId ? await listProducts(companyId, "", "name", "asc") : []).map((p) => ({
+    id: p.id,
+    type: p.item_type,
+    name: p.name,
+    description: p.description,
+    price: penceToInput(p.unit_price),
+  }));
+
   const snapshot = request ? requestSnapshotFromDetail(request) : null;
   const meta = JOB_STATUS_META[j.list_status];
   const closed = j.status === "done" || j.status === "cancelled";
@@ -88,19 +113,31 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
     totals.push(...depositTotalRows(deposits));
   }
 
+  const firstVisit = j.visits.find((v) => v.status !== "cancelled" && !v.later && v.visit_date) ?? null;
+  const moveLabel = firstVisit
+    ? `${formatDateNumericLondon(firstVisit.visit_date as string)}${firstVisit.anytime || !firstVisit.start_time ? " · Anytime" : ` at ${firstVisit.start_time}`}`
+    : "Not scheduled";
+  const pickup = snapshot
+    ? [snapshot.pickupAddress, snapshot.pickupPostcode].filter(Boolean).join(", ")
+    : j.pickup_address;
+  const delivery = snapshot
+    ? [snapshot.deliveryAddress, snapshot.deliveryPostcode].filter(Boolean).join(", ")
+    : j.delivery_address;
+  const subtitle = [
+    j.quote_number ? `From approved quote ${j.quote_number}` : null,
+    j.title || null,
+    firstVisit ? `Move on ${moveLabel}` : null,
+  ]
+    .filter(Boolean)
+    .join(" • ");
+
   return (
     <div>
       <PageHeader
-        title={`${j.number} · ${j.client_name}`}
-        subtitle={j.title || "Job"}
+        title={`${j.number} • ${j.client_name}`}
+        subtitle={subtitle || "Job"}
         action={
           <div className="flex flex-wrap items-center gap-2">
-            <Link
-              href="/servicos"
-              className="inline-flex h-10 items-center rounded-xl border border-line bg-card px-4 text-sm font-bold text-ink hover:bg-cream"
-            >
-              ← Back
-            </Link>
             <JobHeaderActions
               jobId={j.id}
               clientId={j.client_id}
@@ -109,66 +146,42 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
               invoiceCount={j.invoice_count}
               sent={emails.some((e) => e.status === "sent")}
             />
+            <Link href="/servicos" className={buttonOutline}>
+              <ArrowLeft size={17} aria-hidden />
+              Back
+            </Link>
           </div>
         }
       />
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
+      <div className="mb-5 flex flex-wrap items-center gap-2">
         <StatusPill badge={meta.badge} dot={meta.dot} label={meta.label} />
       </div>
 
       <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
-        <ClientContactCard client={client} address={j.pickup_address || j.client_address} />
-        <FunnelHistoryCard
-          clientId={j.client_id}
-          requestId={j.linked_request_id}
-          quoteId={j.quote_id}
-          jobId={j.id}
-          currentId={j.id}
+        <JobInfoStrip
+          cells={[
+            { label: "Client", value: j.client_name, icon: INFO_ICONS.client },
+            { label: "Phone", value: client.phone, icon: INFO_ICONS.phone },
+            { label: "Email", value: client.email, icon: INFO_ICONS.email },
+            j.quote_number
+              ? { label: "Quote number", value: j.quote_number, icon: INFO_ICONS.quote }
+              : { label: "Job number", value: j.number, icon: INFO_ICONS.quote },
+            { label: "Job value", value: formatGBP(j.total), icon: INFO_ICONS.value },
+            { label: "Move date & time", value: moveLabel, icon: INFO_ICONS.date },
+          ]}
         />
-
-        {snapshot && request ? (
-          <>
-            <RequestLocationCard title="Collection Information" snapshot={snapshot} kind="pickup" />
-            <RequestLocationCard title="Delivery Information" snapshot={snapshot} kind="delivery" />
-            <PackingServiceCard snapshot={snapshot} half />
-            <JobDateTimeCard jobId={j.id} visits={j.visits} stateOf={(v) => visitState(v, today)} />
-            {hasRemovalService(snapshot) ? <RemovalServiceCard snapshot={snapshot} services={services} /> : null}
-          </>
-        ) : (
-          <>
-            <AddressCard title="Collection Information" address={j.pickup_address} />
-            <AddressCard title="Delivery Information" address={j.delivery_address} />
-            <JobDateTimeCard jobId={j.id} visits={j.visits} stateOf={(v) => visitState(v, today)} wide />
-          </>
-        )}
-
-        <LineItemsCard
-          lines={j.lines}
-          totals={totals}
-          action={
-            <Link
-              href={`/servicos/${j.id}/editar`}
-              aria-label="Edit line items"
-              className="grid h-7 w-7 place-items-center rounded-lg text-ink-soft hover:bg-cream hover:text-ink"
-            >
-              <Pencil size={14} />
-            </Link>
-          }
-        />
-
-        {snapshot && request ? <RequestInventoryCard snapshot={snapshot} files={request.files} /> : null}
-        <NotesCard kind="job" id={j.id} notes={j.notes} />
 
         <Card className="h-fit p-5 xl:col-span-2">
           <CardTitle
+            icon={<CardIcon icon={CalendarDays} tone="blue" boxed />}
             action={
               <Link
                 href={`/servicos/${j.id}/editar`}
                 aria-label="Edit schedule"
-                className="grid h-7 w-7 place-items-center rounded-lg border border-line text-ink-soft hover:bg-cream hover:text-ink"
+                className="grid h-8 w-8 place-items-center rounded-lg border border-line text-ink-soft hover:bg-cream hover:text-ink"
               >
-                <Plus size={14} />
+                <Plus size={15} />
               </Link>
             }
           >
@@ -180,27 +193,32 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
             <div className="overflow-x-auto">
               <table className="w-full fit-table text-left text-sm">
                 <thead>
-                  <tr className="border-b border-line text-xs font-semibold text-ink-mute">
+                  <tr className="border-b border-line text-xs font-medium text-ink-soft">
                     <th className="w-10 py-2" />
-                    <th className="py-2 pr-4 font-semibold">Date and time</th>
-                    <th className="py-2 pr-4 font-semibold">Title and instructions</th>
-                    <th className="py-2 pr-4 font-semibold">Status</th>
-                    <th className="py-2 font-semibold">Assigned</th>
+                    <th className="py-2 pr-4 font-medium">Date and time</th>
+                    <th className="py-2 pr-4 font-medium">Title and instructions</th>
+                    <th className="py-2 pr-4 font-medium">Status</th>
+                    <th className="py-2 font-medium">Assigned</th>
                   </tr>
                 </thead>
                 <tbody>
                   {j.visits.map((v) => {
                     const state = visitState(v, today);
                     return (
-                      <tr key={v.id} className="border-b border-line align-top last:border-0">
+                      <tr key={v.id} className="border-b border-line align-middle last:border-0">
                         <td className="py-3">
                           <VisitDoneToggle visitId={v.id} done={v.status === "done"} />
                         </td>
                         <td className="py-3 pr-4 whitespace-nowrap text-ink">
-                          {visitTime(v)}
-                          {v.confirmed_by_client ? (
-                            <span className="block text-xs text-emerald-700">Confirmed by client</span>
-                          ) : null}
+                          <span className="flex items-center gap-3">
+                            <DateLeaf date={v.later ? null : v.visit_date} />
+                            <span>
+                              {visitTime(v)}
+                              {v.confirmed_by_client ? (
+                                <span className="block text-xs text-emerald-700">Confirmed by client</span>
+                              ) : null}
+                            </span>
+                          </span>
                         </td>
                         <td className="py-3 pr-4">
                           <p className="font-semibold text-ink">
@@ -238,10 +256,11 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
 
         <Card className="h-fit p-5 xl:col-span-2">
           <CardTitle
+            icon={<CardIcon icon={ReceiptText} tone="emerald" boxed />}
             action={
               <Link
                 href={`/faturas/novo?jobId=${j.id}`}
-                className="inline-flex h-8 items-center rounded-lg border border-line px-3 text-xs font-bold text-ink hover:bg-cream"
+                className="inline-flex h-9 items-center rounded-lg border border-line px-3 text-sm font-semibold text-ink hover:bg-cream"
               >
                 New invoice
               </Link>
@@ -315,8 +334,82 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
           ) : null}
         </Card>
 
-        <SentCard kind="job" id={j.id} />
+        <CollapsibleSection
+          id="job-customer"
+          title="Customer & Summary"
+          icon={<UserRound size={22} strokeWidth={1.6} className="shrink-0 text-[#1d4ed8]" aria-hidden />}
+          summary={[j.client_name, client.phone, client.email].filter(Boolean).join(" • ")}
+        >
+          <ClientContactCard client={client} address={j.pickup_address || j.client_address} />
+          <FunnelHistoryCard
+            clientId={j.client_id}
+            requestId={j.linked_request_id}
+            quoteId={j.quote_id}
+            jobId={j.id}
+            currentId={j.id}
+          />
+        </CollapsibleSection>
 
+        <CollapsibleSection
+          id="job-addresses"
+          title="Addresses"
+          icon={<MapPin size={22} strokeWidth={1.6} className="shrink-0 text-emerald-600" aria-hidden />}
+          summary={
+            <>
+              {pickup || "—"} <span className="px-1 text-ink">→</span> {delivery || "—"}
+            </>
+          }
+        >
+          {snapshot ? (
+            <>
+              <RequestLocationCard title="Collection Information" snapshot={snapshot} kind="pickup" />
+              <RequestLocationCard title="Delivery Information" snapshot={snapshot} kind="delivery" />
+            </>
+          ) : (
+            <>
+              <AddressCard title="Collection Information" address={j.pickup_address} />
+              <AddressCard title="Delivery Information" address={j.delivery_address} />
+            </>
+          )}
+        </CollapsibleSection>
+
+        <CollapsibleSection
+          id="job-services"
+          title="Services"
+          icon={<Box size={22} strokeWidth={1.6} className="shrink-0 text-[#1d4ed8]" aria-hidden />}
+          summary={[
+            `${j.lines.length} item${j.lines.length === 1 ? "" : "s"}`,
+            ...j.lines.slice(0, 2).map((l) => l.name),
+            formatGBP(j.total),
+          ].join(" • ")}
+        >
+          {snapshot && request ? (
+            hasRemovalService(snapshot) ? (
+              <>
+                <RemovalServiceCard snapshot={snapshot} services={services} half />
+                <PackingServiceCard snapshot={snapshot} half />
+              </>
+            ) : (
+              <PackingServiceCard snapshot={snapshot} />
+            )
+          ) : null}
+          <LineItemsInlineCard
+            kind="job"
+            id={j.id}
+            lines={j.lines}
+            totals={totals}
+            catalog={catalog}
+            note={
+              j.invoices.length
+                ? `This job already has ${j.invoices.map((i) => i.number).join(", ")}. Changing the lines here does not change the invoice; edit it on the invoice page too.`
+                : undefined
+            }
+          />
+        </CollapsibleSection>
+
+        {snapshot && request ? <RequestInventoryCard snapshot={snapshot} files={request.files} /> : null}
+        <NotesCard kind="job" id={j.id} notes={j.notes} />
+        <SentCard kind="job" id={j.id} />
       </div>
     </div>
   );

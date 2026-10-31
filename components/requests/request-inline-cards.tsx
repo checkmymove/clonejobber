@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Box, CalendarDays, Clock, MapPin, Package, Truck, UserRound } from "lucide-react";
+import { CardIcon } from "@/components/card-icon";
 import { openPicker } from "@/components/date-field";
 import { TimeField, toTime24 } from "@/components/time-field";
 import { formatDateLondon } from "@/lib/format";
@@ -122,6 +124,7 @@ export function RequestContactCard({
       fitContent
       className="self-stretch p-5"
       title="Contact Information"
+      icon={<CardIcon icon={UserRound} tone="blue" />}
       view={<Dl rows={rows} />}
       onCancel={() => setDraft(initial)}
       onSave={() => saveRequestContact(clientId, requestId, draft)}
@@ -188,10 +191,12 @@ export function PackingServiceCard({
     <InlineEditCard
       className={half ? "h-fit p-5" : "h-fit p-5 xl:col-span-2"}
       title="Packing Service"
+      icon={<CardIcon icon={Package} tone="orange" />}
       onCancel={() => setDraft(snapshot)}
       onSave={() => saveThen(saveRequestInPlace(snapshot.id, toAdminRequestInput(draft)), onSaved)}
       view={
         <Dl
+          divided
           rows={[
             ["Packing services", snapshot.needsPacking ? "Yes" : "No"],
             ["Packing materials", snapshot.needsBoxes ? "Yes" : "No"],
@@ -214,10 +219,13 @@ export function RemovalServiceCard({
   snapshot,
   services,
   onSaved,
+  half = false,
 }: {
   snapshot: RequestEditSnapshot;
   services: { id: string; name: string }[];
   onSaved?: () => void;
+  /** One column instead of the full row (request page, beside Packing Service). */
+  half?: boolean;
 }) {
   const [draft, setDraft] = useState(snapshot);
   useEffect(() => setDraft(snapshot), [snapshot]);
@@ -225,18 +233,18 @@ export function RemovalServiceCard({
 
   return (
     <InlineEditCard
-      className="h-fit p-5 xl:col-span-2"
+      className={half ? "h-fit p-5" : "h-fit p-5 xl:col-span-2"}
       title="Removal Service"
-      accent="#2f7d3b"
+      icon={<CardIcon icon={Truck} tone="green" />}
       onCancel={() => setDraft(snapshot)}
       onSave={() => saveThen(saveRequestInPlace(snapshot.id, toAdminRequestInput(draft)), onSaved)}
       view={
-        <>
+        <div className="overflow-hidden rounded-xl border border-line">
           {selected.length > 0 ? (
-            <ul className="space-y-2">
+            <ul className="divide-y divide-emerald-100">
               {selected.map((s) => (
-                <li key={s.id} className="flex items-center gap-2.5 text-[15px] font-bold text-ink">
-                  <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-accent text-[11px] font-bold text-white">
+                <li key={s.id} className="flex items-center gap-3 bg-emerald-50/70 px-4 py-3 text-[15px] font-bold text-ink">
+                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-accent text-[12px] font-bold text-white">
                     ✓
                   </span>
                   {s.name}
@@ -244,12 +252,12 @@ export function RemovalServiceCard({
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-ink-soft">No service selected.</p>
+            <p className="px-4 py-3 text-sm text-ink-soft">No service selected.</p>
           )}
-          <p className="mt-3 border-t border-line pt-3 text-sm text-ink-soft">
-            Hours <span className="text-lg font-extrabold text-ink">{snapshot.hours || "—"}</span>
+          <p className="flex items-center justify-between border-t border-line px-4 py-3 text-sm text-ink-soft">
+            Hours <span className="font-semibold text-ink">{snapshot.hours || "—"}</span>
           </p>
-        </>
+        </div>
       }
     >
       <div className="space-y-2">
@@ -313,6 +321,7 @@ export function RequestLocationCard({
   return (
     <InlineEditCard
       title={title}
+      icon={<CardIcon icon={MapPin} tone={kind === "pickup" ? "emerald" : "rose"} />}
       view={<Dl rows={viewRows} />}
       onCancel={() => setDraft(current)}
       onSave={() =>
@@ -344,6 +353,7 @@ export function RequestInventoryCard({
     <InlineEditCard
       className="h-fit p-5 xl:col-span-2"
       title="Inventory List"
+      icon={<CardIcon icon={Box} tone="blue" boxed />}
       collapsible
       summary={inventorySummary(snapshot.inventory, files.length)}
       onCancel={() => setInventory(snapshot.inventory)}
@@ -382,7 +392,16 @@ export function RequestInventoryCard({
   );
 }
 
-/** Moving date and time the client gave, in a full-width box under Collection and Delivery. */
+/** "09:00" or "9am" → "9:00 AM"; free text the client typed is shown as it is. */
+function clockLabel(raw: string): string {
+  const hhmm = toTime24(raw);
+  const match = hhmm.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return raw.trim() || "—";
+  const hour = Number(match[1]);
+  return `${hour % 12 === 0 ? 12 : hour % 12}:${match[2]} ${hour >= 12 ? "PM" : "AM"}`;
+}
+
+/** Moving date and time the client gave: two boxes side by side under Collection and Delivery. */
 export function RequestMovingCard({ snapshot }: { snapshot: RequestEditSnapshot }) {
   const [moveDate, setMoveDate] = useState(snapshot.moveDate);
   const [moveTime, setMoveTime] = useState(toTime24(snapshot.moveTime));
@@ -392,31 +411,31 @@ export function RequestMovingCard({ snapshot }: { snapshot: RequestEditSnapshot 
   }, [snapshot]);
 
   return (
-    <InlineEditCard
-      className="h-fit p-5 xl:col-span-2"
-      title="Moving date & time"
-      onCancel={() => {
-        setMoveDate(snapshot.moveDate);
-        setMoveTime(toTime24(snapshot.moveTime));
-      }}
-      onSave={() => saveRequestInPlace(snapshot.id, toAdminRequestInput({ ...snapshot, moveDate, moveTime }))}
-      view={
-        <Dl
-          rows={[
-            ["Moving date", snapshot.moveDate ? formatDateLondon(snapshot.moveDate) : "Not set"],
-            ["Moving time", snapshot.moveTime.trim() || "—"],
-          ]}
-        />
-      }
-    >
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+    <>
+      <InlineEditCard
+        layout="stat"
+        title="Moving date"
+        icon={<CardIcon icon={CalendarDays} tone="blue" boxed />}
+        onCancel={() => setMoveDate(snapshot.moveDate)}
+        onSave={() => saveRequestInPlace(snapshot.id, toAdminRequestInput({ ...snapshot, moveDate }))}
+        view={snapshot.moveDate ? formatDateLondon(snapshot.moveDate) + " " + snapshot.moveDate.slice(0, 4) : "Not set"}
+      >
         <Field label="Moving date">
           <input type="date" onClick={openPicker} className={inlineField} value={moveDate} onChange={(e) => setMoveDate(e.target.value)} />
         </Field>
+      </InlineEditCard>
+      <InlineEditCard
+        layout="stat"
+        title="Moving time"
+        icon={<CardIcon icon={Clock} tone="violet" boxed />}
+        onCancel={() => setMoveTime(toTime24(snapshot.moveTime))}
+        onSave={() => saveRequestInPlace(snapshot.id, toAdminRequestInput({ ...snapshot, moveTime }))}
+        view={clockLabel(snapshot.moveTime)}
+      >
         <Field label="Moving time">
           <TimeField ariaLabel="Moving time" className={inlineField} value={moveTime} onChange={setMoveTime} />
         </Field>
-      </div>
-    </InlineEditCard>
+      </InlineEditCard>
+    </>
   );
 }

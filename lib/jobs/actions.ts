@@ -11,12 +11,14 @@ import {
   changeJobStatus,
   convertApprovedQuoteToJob,
   convertCompletedJobToInvoice,
+  updateJobLines,
   isUniqueViolation,
   persistJob,
   updateJobDocument,
   type ActionResult,
 } from "@/lib/funnel/engine";
 import type { JobInput } from "@/lib/funnel/validation";
+import type { LineInput } from "@/lib/funnel/money";
 import { closeJob, deleteJob, reopenJob, setVisitDone } from "@/lib/jobs/lifecycle";
 import { getVisitCompletion, type VisitCompletion } from "@/lib/jobs/queries";
 import { getVisitLabour, type JobLabour } from "@/lib/team/queries";
@@ -249,7 +251,7 @@ export async function completeVisitAction(
       const jobId = done.id;
 
       await tx`
-        update time_entries set ended_at = now(), updated_at = now()
+        update time_entries set ended_at = public.clock_out_at(started_at, now()), updated_at = now()
         where visit_id = ${visitId} and company_id = ${companyId} and ended_at is null
       `;
 
@@ -269,7 +271,7 @@ export async function completeVisitAction(
       const jobClosed = mode === "close" || open[0].n === 0;
       if (jobClosed) {
         await tx`
-          update time_entries set ended_at = now(), updated_at = now()
+          update time_entries set ended_at = public.clock_out_at(started_at, now()), updated_at = now()
           where job_id = ${jobId} and company_id = ${companyId} and ended_at is null
         `;
         const closed = await closeJob(tx, companyId, jobId);
@@ -288,4 +290,14 @@ export async function completeVisitAction(
     revalidatePath(`/faturas/${outcome.invoiceId}`);
   }
   return { ok: true, ...outcome };
+}
+
+/** Product / Service pencil on the job page: quantity and price changed in place. */
+export async function saveJobLinesAction(jobId: string, lines: LineInput[]): Promise<ActionResult> {
+  await requireAdmin();
+  const companyId = await getCompanyId();
+  if (!companyId) return { ok: false, message: "Company not found." };
+  const result = await sql.begin((tx) => updateJobLines(tx, companyId, jobId, lines));
+  if (result.ok) refreshJob(jobId);
+  return result;
 }

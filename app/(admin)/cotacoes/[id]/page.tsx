@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { formatGBP, penceToInput, toDateInput } from "@/lib/format";
+import { ArrowLeft } from "lucide-react";
+import { formatDateLondon, formatGBP, penceToInput, toDateInput } from "@/lib/format";
 import { getQuoteDetail } from "@/lib/quotes/queries";
 import { getLatestRequestId, getRequestDetail } from "@/lib/requests/queries";
 import { requestSnapshotFromDetail } from "@/lib/requests/edit-snapshot";
 import { quoteLinesFromPence } from "@/lib/quotes/edit-snapshot";
 import { QuoteRequestSidebar } from "@/components/quotes/quote-request-sidebar";
-import { ConvertToJobButton, QuoteMoreMenu } from "@/components/quotes/quote-more-menu";
+import { QuoteMoreMenu, QuoteNextSteps, SendQuoteButton } from "@/components/quotes/quote-more-menu";
+import { QuoteInfoCard } from "@/components/quotes/quote-info-card";
+import { listProducts } from "@/lib/products/queries";
 import {
   QuoteInventoryCard,
   QuoteMovingCard,
@@ -21,7 +24,6 @@ import {
 } from "@/components/requests/request-inline-cards";
 import { hasRemovalService } from "@/lib/requests/edit-snapshot";
 import { depositTotalRows, type TotalRow } from "@/components/funnel/document-cards";
-import { FunnelHistoryCard } from "@/components/funnel/funnel-history-card";
 import { ClientContactCard } from "@/components/funnel/client-contact-card";
 import { NotesCard } from "@/components/funnel/notes-card";
 import { getClientContact } from "@/lib/clients/queries";
@@ -29,7 +31,7 @@ import { getCompanyId } from "@/lib/company";
 import { getActiveServices } from "@/lib/requests/company";
 import { getQuoteDeposits } from "@/lib/payments/queries";
 import { SentCard } from "@/components/funnel/sent-card";
-import { Badge, PageHeader } from "@/components/ui";
+import { Badge, PageHeader, buttonOutline } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -56,7 +58,16 @@ export default async function CotacaoDetailPage({
     getCompanyId(),
   ]);
   if (!client) notFound();
-  const services = companyId ? await getActiveServices(companyId) : [];
+  const [services, products] = companyId
+    ? await Promise.all([getActiveServices(companyId), listProducts(companyId, "", "name", "asc")])
+    : [[], []];
+  const catalog = products.map((p) => ({
+    id: p.id,
+    type: p.item_type,
+    name: p.name,
+    description: p.description,
+    price: penceToInput(p.unit_price),
+  }));
   const requestId = q.request_id ?? (await getLatestRequestId(q.client_id));
   const request = requestId ? await getRequestDetail(requestId) : null;
   const linkedRequest =
@@ -92,71 +103,90 @@ export default async function CotacaoDetailPage({
     ...depositTotalRows(deposits, true),
   ];
 
+  const moveDate = snapshot.validUntil;
+  const subtitle = [
+    q.number,
+    q.request_number ? `From request ${q.request_number}` : null,
+    request && q.request_id ? `Received ${formatDateLondon(request.submitted_at)}` : null,
+    moveDate ? `Move on ${formatDateLondon(moveDate)} ${moveDate.slice(0, 4)}${snapshot.moveTime ? ` at ${snapshot.moveTime}` : ""}` : null,
+  ]
+    .filter(Boolean)
+    .join(" • ");
+  const archived = Boolean(q.archived_at);
+
   return (
     <div>
       <PageHeader
-        title={`${q.number} · ${q.client_name}`}
-        subtitle={q.title || "Quote"}
+        title={`Quote for ${q.client_name}`}
+        subtitle={subtitle}
         action={
           <div className="flex flex-wrap items-center gap-2">
-            <QuoteMoreMenu
-              quoteId={id}
-              clientId={q.client_id}
-              status={q.status}
-              archived={Boolean(q.archived_at)}
-              jobId={q.job_id}
-            />
-            <Link
-              href="/cotacoes"
-              className="inline-flex h-10 items-center rounded-xl border border-line bg-card px-4 text-sm font-bold text-ink hover:bg-cream"
-            >
-              ← Voltar
+            <Badge tone={q.status} size="lg">
+              {LABELS[q.status] ?? q.status}
+            </Badge>
+            <QuoteMoreMenu quoteId={id} clientId={q.client_id} status={q.status} archived={archived} jobId={q.job_id} />
+            <Link href="/cotacoes" className={buttonOutline}>
+              <ArrowLeft size={17} aria-hidden />
+              Back
             </Link>
-            <ConvertToJobButton
-              quoteId={id}
-              status={q.status}
-              archived={Boolean(q.archived_at)}
-              jobId={q.job_id}
-            />
+            <SendQuoteButton quoteId={id} status={q.status} archived={archived} />
           </div>
         }
       />
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <Badge tone={q.status}>{LABELS[q.status] ?? q.status}</Badge>
-        {q.archived_at ? <Badge tone="archived">Archived</Badge> : null}
-      </div>
-
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-      <div className="grid grid-cols-1 min-w-0 flex-1 items-start gap-4 xl:grid-cols-2">
-        <ClientContactCard
-          client={client}
-          address={linkedRequest ? [linkedRequest.pickupAddress, linkedRequest.pickupPostcode].filter(Boolean).join(", ") : ""}
-        />
-        <FunnelHistoryCard clientId={q.client_id} requestId={q.request_id} quoteId={id} currentId={id} />
-        {linkedRequest ? (
-          <>
-            <RequestLocationCard title="Collection Information" snapshot={linkedRequest} kind="pickup" />
-            <RequestLocationCard title="Delivery Information" snapshot={linkedRequest} kind="delivery" />
-          </>
-        ) : null}
-        <QuoteMovingCard snapshot={snapshot} />
-        {linkedRequest ? (
-          <>
-            <PackingServiceCard snapshot={linkedRequest} />
-            {hasRemovalService(linkedRequest) ? (
-              <RemovalServiceCard snapshot={linkedRequest} services={services} />
-            ) : null}
-          </>
-        ) : null}
-        <QuoteServicesCard snapshot={snapshot} />
-        <QuoteInventoryCard snapshot={snapshot} request={linkedRequest} />
-        <NotesCard kind="quote" id={id} notes={q.notes} />
-        <QuoteTermsCard snapshot={snapshot} />
-        <SentCard kind="quote" id={id} />
-        <QuoteTotalsCard snapshot={snapshot} totals={totals} />
-      </div>
-      <QuoteRequestSidebar request={request} />
+        <div className="grid min-w-0 flex-1 grid-cols-1 items-start gap-4 xl:grid-cols-2">
+          <ClientContactCard
+            title="Client information"
+            client={client}
+            address={linkedRequest ? [linkedRequest.pickupAddress, linkedRequest.pickupPostcode].filter(Boolean).join(", ") : ""}
+          />
+          <QuoteInfoCard
+            number={q.number}
+            status={q.status}
+            statusLabel={LABELS[q.status] ?? q.status}
+            archived={archived}
+            createdAt={q.created_at}
+            requestId={q.request_id}
+            requestNumber={q.request_number}
+            clientId={q.client_id}
+            clientNumber={client.number ?? null}
+            clientName={q.client_name}
+            jobId={q.job_id}
+          />
+          {linkedRequest ? (
+            <>
+              <RequestLocationCard title="Collection address" snapshot={linkedRequest} kind="pickup" />
+              <RequestLocationCard title="Delivery address" snapshot={linkedRequest} kind="delivery" />
+            </>
+          ) : null}
+          <QuoteMovingCard snapshot={snapshot} />
+          {linkedRequest ? (
+            hasRemovalService(linkedRequest) ? (
+              <>
+                <RemovalServiceCard snapshot={linkedRequest} services={services} half />
+                <PackingServiceCard snapshot={linkedRequest} half />
+              </>
+            ) : (
+              <PackingServiceCard snapshot={linkedRequest} />
+            )
+          ) : null}
+          <QuoteServicesCard snapshot={snapshot} catalog={catalog} />
+
+          <div className="grid gap-4 xl:col-span-2 xl:grid-cols-[minmax(0,1fr)_minmax(320px,400px)]">
+            <div className="flex min-w-0 flex-col gap-4">
+              <QuoteInventoryCard snapshot={snapshot} request={linkedRequest} />
+              <QuoteTermsCard snapshot={snapshot} />
+              <NotesCard kind="quote" id={id} notes={q.notes} />
+              <SentCard kind="quote" id={id} />
+            </div>
+            <div className="flex min-w-0 flex-col gap-4">
+              <QuoteTotalsCard snapshot={snapshot} totals={totals} />
+              <QuoteNextSteps quoteId={id} status={q.status} archived={archived} jobId={q.job_id} />
+            </div>
+          </div>
+        </div>
+        <QuoteRequestSidebar request={request} defaultOpen={false} />
       </div>
     </div>
   );

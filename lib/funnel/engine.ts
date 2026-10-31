@@ -9,7 +9,7 @@ import {
   type JobInput,
   type QuoteInput,
 } from "./validation";
-import type { ParsedLine } from "./money";
+import { linesTotals, parseLines, type LineInput, type ParsedLine } from "./money";
 import { applyDepositsToInvoice, recalcInvoice } from "../payments/engine";
 
 export type ActionResult = {
@@ -821,6 +821,77 @@ export async function updateInvoiceDocument(
     insert into activity_log (company_id, actor, action, entity, entity_id, summary)
     values (${companyId}, 'admin', 'invoice.updated', 'invoice', ${invoiceId},
             ${`Invoice ${rows[0].number} updated`})
+  `;
+  await recalcInvoice(db, invoiceId);
+  return { ok: true, id: invoiceId, number: rows[0].number };
+}
+
+type LinesOnly = { ok: false; message?: string; errors?: Record<string, string> } | { ok: true; parsed: ParsedLine[]; subtotal: number; total: number };
+
+function priceLines(lines: LineInput[], discount: number, tax: number): LinesOnly {
+  const { errors, parsed, subtotal } = parseLines(lines);
+  if (Object.keys(errors).length) return { ok: false, errors, message: Object.values(errors)[0] };
+  const totals = linesTotals(subtotal, discount, tax);
+  if ("message" in totals) return { ok: false, message: totals.message };
+  return { ok: true, parsed, subtotal, total: totals.total };
+}
+
+/** Job page Product / Service pencil: replaces the lines only, keeping discount and tax. */
+export async function updateJobLines(db: Db, companyId: string, jobId: string, lines: LineInput[]): Promise<ActionResult> {
+  const rows = await db`
+    select id, number, discount, tax from jobs where id = ${jobId} and company_id = ${companyId} for update
+  `;
+  if (!rows[0]) return { ok: false, message: "Job not found" };
+  const priced = priceLines(lines, rows[0].discount, rows[0].tax);
+  if (!("parsed" in priced)) return { ok: false, message: priced.message, errors: priced.errors };
+  await db`
+    update jobs set subtotal = ${priced.subtotal}, total = ${priced.total}, updated_at = now() where id = ${jobId}
+  `;
+  await db`delete from job_line_items where job_id = ${jobId}`;
+  for (let i = 0; i < priced.parsed.length; i++) {
+    const l = priced.parsed[i];
+    await db`
+      insert into job_line_items (job_id, name, description, quantity, unit_price, total, sort)
+      values (${jobId}, ${l.name}, ${l.description}, ${l.quantity}, ${l.unitPrice}, ${l.total}, ${i})
+    `;
+  }
+  await db`
+    insert into activity_log (company_id, actor, action, entity, entity_id, summary)
+    values (${companyId}, 'admin', 'job.updated', 'job', ${jobId}, ${`Job ${rows[0].number} line items updated`})
+  `;
+  return { ok: true, id: jobId, number: rows[0].number };
+}
+
+/** Invoice page Product / Service pencil: replaces the lines, then balance and status follow. */
+export async function updateInvoiceLines(
+  db: Db,
+  companyId: string,
+  invoiceId: string,
+  lines: LineInput[],
+): Promise<ActionResult> {
+  const rows = await db`
+    select id, number, status, discount, tax from invoices
+    where id = ${invoiceId} and company_id = ${companyId} for update
+  `;
+  if (!rows[0]) return { ok: false, message: "Invoice not found" };
+  if (rows[0].status === "cancelled") return { ok: false, message: "A voided invoice cannot be edited." };
+  const priced = priceLines(lines, rows[0].discount, rows[0].tax);
+  if (!("parsed" in priced)) return { ok: false, message: priced.message, errors: priced.errors };
+  await db`
+    update invoices set subtotal = ${priced.subtotal}, total = ${priced.total}, updated_at = now() where id = ${invoiceId}
+  `;
+  await db`delete from invoice_line_items where invoice_id = ${invoiceId}`;
+  for (let i = 0; i < priced.parsed.length; i++) {
+    const l = priced.parsed[i];
+    await db`
+      insert into invoice_line_items (invoice_id, name, description, quantity, unit_price, total, sort)
+      values (${invoiceId}, ${l.name}, ${l.description}, ${l.quantity}, ${l.unitPrice}, ${l.total}, ${i})
+    `;
+  }
+  await db`
+    insert into activity_log (company_id, actor, action, entity, entity_id, summary)
+    values (${companyId}, 'admin', 'invoice.updated', 'invoice', ${invoiceId},
+            ${`Invoice ${rows[0].number} line items updated`})
   `;
   await recalcInvoice(db, invoiceId);
   return { ok: true, id: invoiceId, number: rows[0].number };

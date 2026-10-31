@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { StickyNote } from "lucide-react";
+import { CardIcon } from "@/components/card-icon";
 import { InlineEditCard, inlineArea } from "@/components/inline-edit-card";
 import { saveInvoiceNotes } from "@/lib/invoices/actions";
 import { saveJobNotes } from "@/lib/jobs/actions";
@@ -21,6 +23,7 @@ export function NotesCard({
   return (
     <InlineEditCard
       title="Internal notes"
+      icon={<CardIcon icon={StickyNote} tone="orange" />}
       className="h-fit p-5 xl:col-span-2"
       onCancel={() => setDraft(notes)}
       onSave={() =>

@@ -14,9 +14,11 @@ import {
   isUniqueViolation,
   persistInvoice,
   updateInvoiceDocument,
+  updateInvoiceLines,
   type ActionResult,
 } from "@/lib/funnel/engine";
 import type { InvoiceInput } from "@/lib/funnel/validation";
+import type { LineInput } from "@/lib/funnel/money";
 import {
   closeInvoiceWithoutPayment,
   deleteInvoice,
@@ -212,4 +214,9 @@ export async function saveInvoiceNotes(invoiceId: string, notes: string): Promis
   if (!rows[0]) return { ok: false, message: "Invoice not found" };
   revalidatePath(`/faturas/${invoiceId}`);
   return { ok: true, id: invoiceId };
+}
+
+/** Product / Service pencil on the invoice page: lines changed in place, balance follows. */
+export async function saveInvoiceLinesAction(invoiceId: string, lines: LineInput[]): Promise<ActionResult> {
+  return runLifecycle(invoiceId, (tx, companyId) => updateInvoiceLines(tx, companyId, invoiceId, lines));
 }

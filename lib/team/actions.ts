@@ -86,7 +86,7 @@ export async function clockInAction(memberId: string, visitId: string): Promise<
   if (!(await memberExists(companyId, memberId))) return { ok: false, message: "Team member not found." };
   await sql.begin(async (tx) => {
     await tx`
-      update time_entries set ended_at = now(), updated_at = now()
+      update time_entries set ended_at = public.clock_out_at(started_at, now()), updated_at = now()
       where member_id = ${memberId} and ended_at is null
     `;
     // The rate is kept on the entry so a later raise does not change what was earned.
@@ -110,7 +110,7 @@ export async function clockOutAction(memberId: string): Promise<TeamActionResult
   const companyId = await companyOrFail();
   if (!companyId) return { ok: false, message: "Company not found." };
   const rows = await sql<{ job_id: string | null }[]>`
-    update time_entries set ended_at = now(), updated_at = now()
+    update time_entries set ended_at = public.clock_out_at(started_at, now()), updated_at = now()
     where member_id = ${memberId} and company_id = ${companyId} and ended_at is null
     returning job_id
   `;
@@ -242,7 +242,7 @@ export async function setTeamMemberActiveAction(memberId: string, active: boolea
     `;
     if (!active) {
       await tx`
-        update time_entries set ended_at = now(), updated_at = now()
+        update time_entries set ended_at = public.clock_out_at(started_at, now()), updated_at = now()
         where member_id = ${memberId} and ended_at is null
       `;
     }

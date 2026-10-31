@@ -354,6 +354,7 @@ export async function getScheduleBundle(
       id: row.id,
       kind: "visit",
       title: visitLabel(row),
+      service: (row.visit_title || row.job_title || "Removal Service").trim(),
       date: unscheduled ? null : date,
       start: row.start_time,
       end: row.end_time,

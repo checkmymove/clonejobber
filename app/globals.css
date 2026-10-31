@@ -1,18 +1,21 @@
 @import "tailwindcss";
 
 @theme {
-  --color-cream: #f3f1ea;
+  --color-cream: #f2f5f9;
   --color-card: #ffffff;
   --color-ink: #123035;
-  --color-ink-soft: #4a5f63;
-  --color-ink-mute: #7d8f93;
-  --color-line: #e5e1d6;
+  --color-ink-soft: #5b6678;
+  --color-ink-mute: #8a94a6;
+  --color-line: #e3e8ef;
   --color-accent: #2f7d3b;
   --color-accent-soft: #e7f2e8;
   --color-req: #c07a1a;
   --color-quote: #a4445c;
   --color-job: #2f7d3b;
   --color-inv: #245d8a;
+  --color-canvas: #f5f7fb;
+  --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
 }
 
 * {
@@ -20,24 +23,25 @@
 }
 
 html {
-  background: var(--color-cream);
+  background: var(--color-canvas);
 }
 
 body {
   margin: 0;
-  background: var(--color-cream);
+  background: var(--color-canvas);
   color: var(--color-ink);
-  font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
-    Arial, sans-serif;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
 
-button,
-input,
-select,
-textarea {
-  font: inherit;
+/* In the base layer so a text-size utility on a control wins over the inherited font. */
+@layer base {
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
 }
 
 ::placeholder {

@@ -5,11 +5,14 @@ import Link from "next/link";
 import {
   Archive,
   Banknote,
+  CalendarCheck,
+  CheckCircle2,
   Eye,
   FileDown,
   Hammer,
   Mail,
   MoreHorizontal,
+  Send,
   ThumbsUp,
   Trash2,
 } from "lucide-react";
@@ -239,5 +242,103 @@ export function ConvertToJobButton({
       <Hammer size={16} />
       Convert to Job
     </Link>
+  );
+}
+
+function useQuoteSender() {
+  const sender = useSendDialog();
+  const router = useRouter();
+  const [error, setError] = useState("");
+  const dialog = sender.draft ? (
+    <SendDialog
+      draft={sender.draft}
+      onClose={sender.close}
+      onDone={() => {
+        sender.close();
+        router.refresh();
+      }}
+    />
+  ) : null;
+  const send = async (quoteId: string) => {
+    setError("");
+    const opened = await sender.open("quote", quoteId);
+    if (!opened.ok) setError(opened.message || "Could not prepare the quote email.");
+  };
+  return { send, dialog, error };
+}
+
+/** Green "Send Quote" in the header: the same send dialog as More › Send email & text. */
+export function SendQuoteButton({ quoteId, status, archived }: { quoteId: string; status: string; archived: boolean }) {
+  const { send, dialog, error } = useQuoteSender();
+  const sendable = !archived && status !== "rejected" && status !== "expired";
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        disabled={!sendable}
+        onClick={() => void send(quoteId)}
+        className="inline-flex h-10 items-center gap-2 rounded-xl bg-accent px-5 text-sm font-semibold text-white shadow-[0_1px_2px_rgba(15,23,42,0.08)] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <Send size={16} aria-hidden />
+        {status === "draft" ? "Send Quote" : "Resend Quote"}
+      </button>
+      {error ? <p className="absolute right-0 top-12 z-20 w-64 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{error}</p> : null}
+      {dialog}
+    </div>
+  );
+}
+
+/** "Next steps" under the totals: send, preview, and move on to the job. */
+export function QuoteNextSteps({
+  quoteId,
+  status,
+  archived,
+  jobId,
+}: {
+  quoteId: string;
+  status: string;
+  archived: boolean;
+  jobId: string | null;
+}) {
+  const { send, dialog, error } = useQuoteSender();
+  const open = !archived && status !== "rejected" && status !== "expired";
+  const step =
+    "inline-flex h-10 items-center gap-2 rounded-xl border border-line bg-white px-3.5 text-sm font-semibold text-ink hover:bg-cream";
+  return (
+    <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+      <p className="mb-3 flex items-center gap-2 text-sm font-bold text-ink">
+        <CheckCircle2 size={18} className="text-accent" aria-hidden />
+        Next steps
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {open ? (
+          <button
+            type="button"
+            onClick={() => void send(quoteId)}
+            className="inline-flex h-10 items-center gap-2 rounded-xl bg-ink px-3.5 text-sm font-semibold text-white hover:opacity-90"
+          >
+            <Send size={15} aria-hidden />
+            {status === "draft" ? "Send Quote" : "Resend Quote"}
+          </button>
+        ) : null}
+        <Link href={`/q/${quoteId}`} className={step}>
+          <Eye size={15} aria-hidden />
+          Preview as client
+        </Link>
+        {jobId ? (
+          <Link href={`/servicos/${jobId}`} className={step}>
+            <Hammer size={15} aria-hidden />
+            View job
+          </Link>
+        ) : open ? (
+          <Link href={`/servicos/novo?quoteId=${quoteId}`} className={step}>
+            <CalendarCheck size={15} aria-hidden />
+            Convert to Job
+          </Link>
+        ) : null}
+      </div>
+      {error ? <p className="mt-2 text-sm font-semibold text-rose-700">{error}</p> : null}
+      {dialog}
+    </div>
   );
 }

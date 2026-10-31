@@ -2,6 +2,8 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   appointmentStatus,
+  appointmentStatusOn,
+  hoursDecimal,
   entryPrice,
   entrySeconds,
   formatClock,
@@ -10,6 +12,7 @@ import {
   parseDuration,
   parseManualEntry,
   roundDownToHour,
+  roundToHalfHour,
   visitShare,
 } from "../.testbuild/team/time.js";
 import { DEFAULT_WORKING_HOURS, hoursLabel, normaliseHours, parseHourlyRate, validateMember } from "../.testbuild/team/member.js";
@@ -73,6 +76,22 @@ describe("today's appointment buckets", () => {
   });
 });
 
+describe("dashboard date picker and weekly timesheets", () => {
+  it("buckets other days by date", () => {
+    assert.equal(appointmentStatusOn(visit(), "10:00", "2026-10-29", "2026-10-30"), "overdue");
+    assert.equal(appointmentStatusOn(visit(), "10:00", "2026-10-31", "2026-10-30"), "remaining");
+    assert.equal(appointmentStatusOn(visit({ done: true }), "10:00", "2026-10-29", "2026-10-30"), "completed");
+    assert.equal(appointmentStatusOn(visit(), "10:00", "2026-10-30", "2026-10-30"), "active");
+  });
+
+  it("shows hours to one decimal", () => {
+    assert.equal(hoursDecimal(7.5 * 3600), "7.5");
+    assert.equal(hoursDecimal(8 * 3600), "8.0");
+    assert.equal(hoursDecimal(7 * 3600 + 5 * 60), "7.1");
+    assert.equal(hoursDecimal(0), "");
+  });
+});
+
 describe("visit value", () => {
   it("splits a job across its visits so a day never counts it twice", () => {
     assert.equal(visitShare(189950, 1), 189950);
@@ -117,6 +136,16 @@ describe("labour price and duration edits", () => {
     assert.equal(entryPrice(3600, 0), 0);
     assert.equal(entryPrice(0, 20), 0);
     assert.equal(entryPrice(3600, Number.NaN), 0);
+  });
+
+  it("rounds a stopped clock to the nearest half hour", () => {
+    const hm = (h, m) => (h * 60 + m) * 60;
+    assert.equal(roundToHalfHour(hm(2, 20)), hm(2, 30));
+    assert.equal(roundToHalfHour(hm(2, 45)), hm(3, 0));
+    assert.equal(roundToHalfHour(hm(2, 14)), hm(2, 0));
+    assert.equal(roundToHalfHour(hm(2, 15)), hm(2, 30));
+    assert.equal(roundToHalfHour(hm(0, 10)), 0);
+    assert.equal(roundToHalfHour(hm(7, 5)), hm(7, 0));
   });
 
   it("rounds a duration down to full hours", () => {
@@ -184,5 +213,16 @@ describe("team member (Jobber Manage team)", () => {
     assert.deepEqual(h.mon, ["09:00", "17:00"]);
     assert.deepEqual(h.tue, ["08:00", "19:00"]);
     assert.equal(h.sun, null);
+  });
+});
+
+describe("postcodes in addresses", async () => {
+  const { extractPostcode } = await import("../.testbuild/geo/postcode.js");
+  it("finds a UK postcode anywhere in the address", () => {
+    assert.equal(extractPostcode("Flat 2 The Clock Tower, Kings Road, GU21 5HU"), "GU21 5HU");
+    assert.equal(extractPostcode("nao sei, e2 8dp"), "E2 8DP");
+    assert.equal(extractPostcode("12 Green Lane, London NW1 6XE"), "NW1 6XE");
+    assert.equal(extractPostcode("SW1A1AA"), "SW1A 1AA");
+    assert.equal(extractPostcode("No postcode here"), null);
   });
 });

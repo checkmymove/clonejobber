@@ -5,8 +5,14 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { formatDateLondon } from "@/lib/format";
 import type { AdminRequestDetail } from "@/lib/requests/queries";
 
-export function QuoteRequestSidebar({ request }: { request: AdminRequestDetail | null }) {
-  const [open, setOpen] = useState(true);
+export function QuoteRequestSidebar({
+  request,
+  defaultOpen = true,
+}: {
+  request: AdminRequestDetail | null;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
 
   return (
     <aside

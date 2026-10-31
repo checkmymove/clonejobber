@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { Card } from "@/components/ui";
 import { EqualHeightBody } from "@/components/equal-height";
+import { CARD_TITLE } from "@/components/card-icon";
 import { formatDateNumericLondon, formatGBP } from "@/lib/format";
 import type { ParsedLine } from "@/lib/funnel/money";
 import { paymentMethodLabel } from "@/lib/payments/constants";
@@ -9,10 +10,13 @@ import type { QuoteDepositSummary } from "@/lib/payments/queries";
 
 /** Read-only cards shared by the Job and Invoice detail pages (Jobber layout). */
 
-export function CardTitle({ children, action }: { children: ReactNode; action?: ReactNode }) {
+export function CardTitle({ children, action, icon }: { children: ReactNode; action?: ReactNode; icon?: ReactNode }) {
   return (
-    <div className="mb-3 flex items-start justify-between gap-2">
-      <h2 className="text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">{children}</h2>
+    <div className="mb-4 flex items-center justify-between gap-2">
+      <div className="flex min-w-0 items-center gap-3">
+        {icon}
+        <h2 className={CARD_TITLE}>{children}</h2>
+      </div>
       {action}
     </div>
   );
@@ -101,6 +105,41 @@ export type TotalRow = {
   highlight?: boolean;
 };
 
+/** The line items table of a job or invoice (read-only view). */
+export function LineItemsTable({ lines }: { lines: ParsedLine[] }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full fit-table text-left text-sm">
+        <thead>
+          <tr className="border-b border-line text-xs font-semibold text-ink-mute">
+            <th className="py-2 pr-4 font-semibold">Line item</th>
+            <th className="w-24 py-2 pr-4 text-right font-semibold">Quantity</th>
+            <th className="w-28 py-2 pr-4 text-right font-semibold">Unit price</th>
+            <th className="w-28 py-2 text-right font-semibold">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {lines.map((line, index) => (
+            <tr key={index} className="border-b border-line align-top last:border-0">
+              <td className="py-3 pr-4">
+                <p className="font-bold text-ink">{line.name}</p>
+                {line.description ? (
+                  <p className="mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap text-ink-soft">
+                    {line.description}
+                  </p>
+                ) : null}
+              </td>
+              <td data-label="Quantity" className="py-3 pr-4 text-right text-ink">{line.quantity}</td>
+              <td data-label="Unit price" className="py-3 pr-4 text-right text-ink">{formatGBP(line.unitPrice)}</td>
+              <td className="py-3 text-right font-semibold text-ink">{formatGBP(line.total)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export function LineItemsCard({
   lines,
   totals,
@@ -113,35 +152,7 @@ export function LineItemsCard({
   return (
     <Card className="h-fit p-5 xl:col-span-2">
       <CardTitle action={action}>Product / Service</CardTitle>
-      <div className="overflow-x-auto">
-        <table className="w-full fit-table text-left text-sm">
-          <thead>
-            <tr className="border-b border-line text-xs font-semibold text-ink-mute">
-              <th className="py-2 pr-4 font-semibold">Line item</th>
-              <th className="w-24 py-2 pr-4 text-right font-semibold">Quantity</th>
-              <th className="w-28 py-2 pr-4 text-right font-semibold">Unit price</th>
-              <th className="w-28 py-2 text-right font-semibold">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {lines.map((line, index) => (
-              <tr key={index} className="border-b border-line align-top last:border-0">
-                <td className="py-3 pr-4">
-                  <p className="font-bold text-ink">{line.name}</p>
-                  {line.description ? (
-                    <p className="mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap text-ink-soft">
-                      {line.description}
-                    </p>
-                  ) : null}
-                </td>
-                <td data-label="Quantity" className="py-3 pr-4 text-right text-ink">{line.quantity}</td>
-                <td data-label="Unit price" className="py-3 pr-4 text-right text-ink">{formatGBP(line.unitPrice)}</td>
-                <td className="py-3 text-right font-semibold text-ink">{formatGBP(line.total)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <LineItemsTable lines={lines} />
       <TotalsList totals={totals} className="mt-4 ml-auto max-w-sm border-t" />
     </Card>
   );

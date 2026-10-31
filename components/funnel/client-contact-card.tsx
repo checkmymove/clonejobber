@@ -2,6 +2,8 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { UserRound } from "lucide-react";
+import { CardIcon } from "@/components/card-icon";
 import { Dl, Field, InlineEditCard, inlineField } from "@/components/inline-edit-card";
 import { saveClientContact } from "@/lib/clients/actions";
 import type { ClientContact } from "@/lib/clients/queries";
@@ -20,7 +22,9 @@ export function ClientContactCard({
   extraFields,
   onSaveExtra,
   onCancelExtra,
+  title = "Client",
 }: {
+  title?: string;
   client: ClientContact;
   address: string;
   addressLabel?: string;
@@ -53,7 +57,8 @@ export function ClientContactCard({
       // Always open, and the Summary next to it stretches to the same height.
       fitContent
       className="self-stretch p-5"
-      title="Client"
+      title={title}
+      icon={<CardIcon icon={UserRound} tone="blue" />}
       onCancel={() => {
         setDraft(initial);
         onCancelExtra?.();

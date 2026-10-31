@@ -37,6 +37,29 @@ export function formatDateNumericLondon(iso: string | Date): string {
   }).format(date);
 }
 
+/** "Good morning" / "Good afternoon" / "Good evening" by the London clock. */
+export function greetingLondon(now = new Date()): string {
+  const hour = Number(
+    new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hour: "2-digit", hourCycle: "h23" }).format(now),
+  );
+  if (hour >= 5 && hour < 12) return "Good morning";
+  if (hour >= 12 && hour < 18) return "Good afternoon";
+  return "Good evening";
+}
+
+/** "2026-10-30" → "Fri 30 Oct 2026" for the dashboard's date picker. */
+export function formatShortDayLondon(isoDate: string): string {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "Europe/London",
+  }).formatToParts(new Date(`${isoDate.slice(0, 10)}T12:00:00Z`));
+  const part = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${part("weekday")} ${part("day")} ${part("month")} ${part("year")}`;
+}
+
 /** "2026-10-30" → "Friday 30 October 2026" (a calendar date, shown as London sees it). */
 export function formatLongDateLondon(isoDate: string): string {
   const parts = new Intl.DateTimeFormat("en-GB", {

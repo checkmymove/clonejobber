@@ -38,6 +38,14 @@ export function entryPrice(seconds: number, hourlyRate: number): number {
   return Math.round((hourlyRate * 100 * seconds) / 3600);
 }
 
+/**
+ * A stopped clock pays to the nearest half hour: 2h20 → 2h30, 2h45 → 3h00 (a tie goes
+ * up), 2h14 → 2h00, under 15 minutes → 0. Same rule as public.clock_out_at in the database.
+ */
+export function roundToHalfHour(seconds: number): number {
+  return Math.round(Math.max(0, seconds) / 1800) * 1800;
+}
+
 /** Drops the loose minutes of a duration: 7h05 → 7h00. Under an hour stays as it is. */
 export function roundDownToHour(minutes: number): number {
   return minutes >= 60 ? Math.floor(minutes / 60) * 60 : minutes;
@@ -79,6 +87,28 @@ export function appointmentStatus(
   if (end != null && end > start && now >= end) return "overdue";
   if (now >= start && (end == null || end <= start || now < end)) return "active";
   return "remaining";
+}
+
+/**
+ * The same buckets for any day of the dashboard's date picker: a past day's open
+ * visits are overdue, a future day's are still to come, and today follows the clock.
+ */
+export function appointmentStatusOn(
+  item: { done: boolean; anytime: boolean; start: string; end: string; running: boolean },
+  nowClock: string,
+  day: string,
+  today: string,
+): AppointmentStatus {
+  if (item.done) return "completed";
+  if (day < today) return "overdue";
+  if (day > today) return "remaining";
+  return appointmentStatus(item, nowClock);
+}
+
+/** Timesheet hours as the weekly grid shows them: 27000 s → "7.5", 0 → "". */
+export function hoursDecimal(seconds: number): string {
+  const hours = Math.round((Math.max(0, seconds) / 3600) * 10) / 10;
+  return hours > 0 ? (Number.isInteger(hours) ? `${hours}.0` : String(hours)) : "";
 }
 
 /** Share of a job's value for one of its visits, in pence, so a day never counts a job twice. */

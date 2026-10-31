@@ -13,7 +13,7 @@ export function Card({
   return (
     <div
       className={cn(
-        "rounded-2xl border border-line bg-card shadow-[0_1px_2px_rgba(18,48,53,0.06)]",
+        "rounded-2xl border border-line bg-card shadow-[0_1px_3px_rgba(15,23,42,0.05)]",
         className,
       )}
       style={accent ? { borderTop: `3px solid ${accent}` } : undefined}
@@ -33,9 +33,9 @@ export function PageHeader({
   action?: ReactNode;
 }) {
   return (
-    <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <h1 className="text-2xl font-extrabold tracking-tight text-ink">
+    <div className="mb-4 flex flex-wrap items-start justify-between gap-3 pt-1">
+      <div className="min-w-0">
+        <h1 className="text-[26px] font-bold leading-tight tracking-tight text-ink sm:text-[28px]">
           {title}
         </h1>
         {subtitle ? (
@@ -67,11 +67,12 @@ const badgeTones: Record<string, string> = {
   cancelled: "bg-stone-200 text-stone-500",
 };
 
-export function Badge({ tone, children }: { tone: string; children: ReactNode }) {
+export function Badge({ tone, children, size = "sm" }: { tone: string; children: ReactNode; size?: "sm" | "lg" }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold",
+        "inline-flex items-center font-semibold",
+        size === "lg" ? "h-10 rounded-xl px-4 text-sm" : "rounded-full px-2.5 py-0.5 text-xs",
         badgeTones[tone] ?? "bg-stone-200 text-stone-700",
       )}
     >
@@ -79,6 +80,12 @@ export function Badge({ tone, children }: { tone: string; children: ReactNode })
     </span>
   );
 }
+
+/** Header buttons of the detail pages: outlined and dark filled. */
+export const buttonOutline =
+  "inline-flex h-10 items-center gap-2 rounded-xl border border-line bg-card px-4 text-sm font-semibold text-ink shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:bg-cream";
+export const buttonDark =
+  "inline-flex h-10 items-center gap-2 rounded-xl bg-ink px-4 text-sm font-semibold text-white shadow-[0_1px_2px_rgba(15,23,42,0.08)] hover:opacity-90";
 
 export function SearchInput({
   placeholder,

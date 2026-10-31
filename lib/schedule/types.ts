@@ -20,6 +20,8 @@ export type ScheduleItem = {
   id: string;
   kind: ScheduleKind;
   title: string;
+  /** Visits: the work itself ("Removal Service"), without the client and clock. */
+  service?: string;
   date: string | null;
   start: string;
   end: string;

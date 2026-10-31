@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Timer, Trash2 } from "lucide-react";
+import { CardIcon } from "@/components/card-icon";
 import { Card } from "@/components/ui";
 import { CardTitle } from "@/components/funnel/document-cards";
 import { Avatar, LiveClock, TimeEntryForm } from "@/components/team/team-ui";
@@ -51,6 +52,7 @@ export function LabourCard({
   return (
     <Card className="h-fit p-5 xl:col-span-2">
       <CardTitle
+        icon={<CardIcon icon={Timer} tone="violet" boxed />}
         action={
           <button
             type="button"

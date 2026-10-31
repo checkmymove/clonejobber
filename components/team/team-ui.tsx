@@ -11,7 +11,7 @@ import { formatClock, initials } from "@/lib/team/time";
 
 const AVATAR_COLORS = ["#2f7d3b", "#245d8a", "#a4445c", "#c07a1a", "#5b4a9e", "#1f7a7a"];
 
-function colorFor(id: string): string {
+export function colorFor(id: string): string {
   let h = 0;
   for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   return AVATAR_COLORS[h % AVATAR_COLORS.length];

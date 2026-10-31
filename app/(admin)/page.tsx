@@ -1,166 +1,140 @@
-import Link from "next/link";
-import { formatGBP } from "@/lib/format";
-import { getDashboard, type StatusTally } from "@/lib/funnel/dashboard";
-import { JOB_STATUS_META } from "@/lib/jobs/status";
-import { INVOICE_STATUS_META } from "@/lib/invoices/status";
+import { getDashboard, getPerformance, type StatusTally } from "@/lib/funnel/dashboard";
+import { isPerformancePeriod } from "@/lib/funnel/periods";
+import { requireAdmin } from "@/lib/auth/session";
 import { COMPANY_SLUG } from "@/lib/company";
-import { Card } from "@/components/ui";
+import { greetingLondon, todayLondonInput } from "@/lib/format";
+import { formatClock12, isIsoDate } from "@/lib/schedule/dates";
+import { getShellProfile } from "@/lib/shell";
+import { getTodaysAppointments, getWeeklyTimesheets } from "@/lib/team/queries";
 import { TodaysAppointments } from "@/components/dashboard/todays-appointments";
-import { getTodaysAppointments } from "@/lib/team/queries";
+import { BusinessPerformance } from "@/components/dashboard/business-performance";
+import { WeeklyTimesheets } from "@/components/dashboard/weekly-timesheets";
+import { LiveMap, type MapPoint } from "@/components/dashboard/live-map";
+import { DateNav } from "@/components/dashboard/date-nav";
+import { Workflow, type WorkflowStage } from "@/components/dashboard/workflow";
 
 export const dynamic = "force-dynamic";
-
-const weekday = new Intl.DateTimeFormat("en-GB", {
-  weekday: "long",
-  day: "numeric",
-  month: "long",
-  timeZone: "Europe/London",
-}).format(new Date());
 
 function count(rows: StatusTally, ...statuses: string[]) {
   return statuses.reduce((s, k) => s + (rows[k]?.n ?? 0), 0);
 }
 
-function sum(rows: StatusTally, ...statuses: string[]) {
-  return statuses.reduce((s, k) => s + (rows[k]?.total ?? 0), 0);
-}
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ date?: string; period?: string }>;
+}) {
+  const sp = await searchParams;
+  const today = todayLondonInput();
+  const day = sp.date && isIsoDate(sp.date) ? sp.date : today;
+  const period = isPerformancePeriod(sp.period) ? sp.period : "month";
+  const user = await requireAdmin();
 
-function row(rows: StatusTally, label: string, status: string) {
-  return { label: `${label} (${count(rows, status)})`, value: formatGBP(sum(rows, status)) };
-}
+  const [d, ops, perf, week, profile] = await Promise.all([
+    getDashboard(COMPANY_SLUG),
+    getTodaysAppointments(COMPANY_SLUG, day),
+    getPerformance(COMPANY_SLUG, period),
+    getWeeklyTimesheets(COMPANY_SLUG, day),
+    getShellProfile(COMPANY_SLUG, user.email ?? ""),
+  ]);
 
-export default async function DashboardPage() {
-  const [d, today] = await Promise.all([getDashboard(COMPANY_SLUG), getTodaysAppointments(COMPANY_SLUG)]);
-
-  const funnel = [
+  const toInvoice = count(d.jobs, "requires_invoicing");
+  const late = count(d.jobs, "late");
+  const pastDue = count(d.invoices, "past_due");
+  const stages: WorkflowStage[] = [
     {
       key: "requests",
       href: "/solicitacoes",
       label: "Requests",
       count: count(d.requests, "new", "review"),
-      amount: 0,
-      headline: "New and in review",
-      rows: [
-        { label: `New (${count(d.requests, "new")})` },
-        { label: `Awaiting review (${count(d.requests, "review")})` },
-      ],
-      accent: "#c07a1a",
+      lines: [{ text: `${count(d.requests, "new")} new` }, { text: `${count(d.requests, "review")} in review` }],
     },
     {
       key: "quotes",
       href: "/cotacoes",
       label: "Quotes",
-      count: count(d.quotes, "approved"),
-      amount: sum(d.quotes, "approved"),
-      headline: "Approved",
-      rows: [
-        row(d.quotes, "Draft", "draft"),
-        row(d.quotes, "Awaiting response", "awaiting"),
-        row(d.quotes, "Changes requested", "changes"),
+      count: count(d.quotes, "draft", "awaiting", "changes", "approved"),
+      lines: [
+        { text: `${count(d.quotes, "awaiting")} awaiting response` },
+        count(d.quotes, "changes")
+          ? { text: `${count(d.quotes, "changes")} changes requested`, tone: "warn" }
+          : { text: `${count(d.quotes, "approved")} approved` },
       ],
-      accent: "#a4445c",
     },
     {
       key: "jobs",
       href: "/servicos",
       label: "Jobs",
-      count: count(d.jobs, "requires_invoicing"),
-      amount: sum(d.jobs, "requires_invoicing"),
-      headline: JOB_STATUS_META.requires_invoicing.label,
-      rows: (["late", "action_required", "unscheduled", "today", "upcoming"] as const).map((s) =>
-        row(d.jobs, JOB_STATUS_META[s].label, s),
-      ),
-      accent: "#2f7d3b",
+      count: count(d.jobs, "late", "requires_invoicing", "action_required", "unscheduled", "today", "upcoming"),
+      lines: [
+        { text: `${count(d.jobs, "today")} today` },
+        toInvoice
+          ? { text: `${toInvoice} to invoice`, tone: "warn" }
+          : late
+            ? { text: `${late} late`, tone: "danger" }
+            : { text: `${count(d.jobs, "upcoming")} upcoming` },
+      ],
     },
     {
       key: "invoices",
       href: "/faturas",
       label: "Invoices",
-      count: count(d.invoices, "past_due", "awaiting_payment"),
-      amount: sum(d.invoices, "past_due", "awaiting_payment"),
-      headline: "Awaiting payment",
-      rows: [
-        row(d.invoices, INVOICE_STATUS_META.past_due.label, "past_due"),
-        row(d.invoices, "Sent but not due", "awaiting_payment"),
-        row(d.invoices, INVOICE_STATUS_META.draft.label, "draft"),
+      count: count(d.invoices, "past_due", "awaiting_payment", "draft"),
+      lines: [
+        { text: `${count(d.invoices, "awaiting_payment")} awaiting payment` },
+        { text: `${pastDue} overdue`, tone: pastDue ? "danger" : undefined },
       ],
-      accent: "#245d8a",
     },
   ];
 
+  const points: MapPoint[] = ops.appointments
+    .filter((a) => a.location)
+    .map((a) => ({
+      id: a.id,
+      lat: a.location!.lat,
+      lng: a.location!.lng,
+      time: a.window.anytime ? "Anytime" : formatClock12(a.window.start),
+      title: a.clientName || a.title,
+      address: a.address,
+      href: a.href,
+      done: a.status === "completed",
+      people: a.people.map((p) => ({ id: p.id, name: p.name, running: Boolean(p.runningSince) })),
+    }));
+  const live = new Set(ops.appointments.flatMap((a) => a.people.filter((p) => p.runningSince).map((p) => p.id))).size;
+
   return (
-    <div className="min-w-0">
-      <p suppressHydrationWarning className="text-sm font-semibold capitalize text-ink-soft">
-        {weekday}
-      </p>
-      <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-ink">Good evening, Fabiano</h1>
-
-      <h2 className="mb-3 mt-7 text-lg font-extrabold text-ink">Workflow</h2>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {funnel.map((f) => (
-          <Link key={f.key} href={f.href} className="block h-full min-w-0">
-            <Card accent={f.accent} className="h-full p-4 hover:bg-cream/60">
-              <p className="text-xs font-bold uppercase tracking-wide text-ink-soft">{f.label}</p>
-              <p className="mt-2 text-3xl font-extrabold text-ink">
-                {f.count}
-                {f.amount > 0 ? (
-                  <span className="ml-2 align-middle text-sm font-bold text-ink-soft">{formatGBP(f.amount)}</span>
-                ) : null}
-              </p>
-              <p className="mt-1 text-sm font-bold text-ink">{f.headline}</p>
-              <div className="mt-3 space-y-1.5 border-t border-line pt-3">
-                {f.rows.map((r) => (
-                  <p key={r.label} className="flex items-center justify-between gap-2 text-[13px] text-ink-soft">
-                    <span className="min-w-0">{r.label}</span>
-                    {"value" in r && r.value ? <span className="font-semibold text-ink">{r.value}</span> : null}
-                  </p>
-                ))}
-              </div>
-            </Card>
-          </Link>
-        ))}
+    <div className="min-w-0 space-y-5 pt-1">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-[28px] font-bold leading-tight tracking-tight text-slate-900 sm:text-[32px]">
+            {greetingLondon()}, {profile.name.split(" ")[0]}
+          </h1>
+          <p className="mt-1 text-[15px] text-slate-500 sm:text-base">Here’s what’s happening with your business today.</p>
+        </div>
+        <DateNav day={day} today={today} />
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_clamp(300px,26vw,400px)]">
-        <section className="min-w-0">
-          <h2 className="mb-3 text-lg font-extrabold text-ink">Today’s appointments</h2>
-          <TodaysAppointments data={today} />
-        </section>
+      <Workflow stages={stages} />
 
-        <section className="min-w-0">
-          <h2 className="mb-3 text-lg font-extrabold text-ink">Business performance</h2>
-          <Card className="divide-y divide-line p-5">
-            <div className="pb-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-extrabold text-ink">Accounts receivable</h3>
-                <Link href="/faturas" className="text-ink-mute hover:text-ink" aria-label="View invoices">
-                  ›
-                </Link>
-              </div>
-              <p className="mt-1 text-xs text-ink-soft">{d.debtorCount} clients have a balance</p>
-              <p className="mt-1 text-2xl font-extrabold text-ink">{formatGBP(d.receivable)}</p>
-              <div className="mt-3 space-y-1.5">
-                {d.debtors.map((r) => (
-                  <div key={r.name} className="flex items-center justify-between gap-2 text-[13px]">
-                    <span className="min-w-0 truncate text-ink-soft">{r.name}</span>
-                    <span className="font-semibold text-ink">{formatGBP(r.balance)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="py-4">
-              <h3 className="font-extrabold text-ink">This month’s revenue</h3>
-              <p className="mt-1 text-xs text-ink-soft">Invoices paid this month</p>
-              <p className="mt-1 text-2xl font-extrabold text-ink">{formatGBP(d.monthRevenue)}</p>
-            </div>
-            <div className="pt-4">
-              <h3 className="font-extrabold text-ink">Upcoming jobs</h3>
-              <p className="mt-1 text-xs text-ink-soft">Next 7 days</p>
-              <p className="mt-1 text-2xl font-extrabold text-ink">{formatGBP(d.upcomingJobs)}</p>
-            </div>
-          </Card>
-        </section>
+      <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_clamp(330px,25vw,390px)]">
+        <TodaysAppointments data={ops} />
+        <div className="grid min-w-0 items-start gap-5 md:grid-cols-2 xl:grid-cols-1">
+          <BusinessPerformance
+            period={period}
+            revenue={perf.revenue}
+            trend={perf.trend}
+            receivable={d.receivable}
+            owingCount={d.owingCount}
+            upcoming={d.upcomingJobs}
+            upcomingCount={d.upcomingCount}
+            paid={perf.paid}
+            paidCount={perf.paidCount}
+          />
+          <WeeklyTimesheets data={week} />
+        </div>
       </div>
+
+      <LiveMap points={points} live={live} />
     </div>
   );
 }

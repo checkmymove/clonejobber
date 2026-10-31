@@ -66,3 +66,18 @@ export function parseLines(lines: LineInput[]): {
   const subtotal = parsed.reduce((s, l) => s + l.total, 0);
   return { errors, parsed, subtotal };
 }
+
+/**
+ * New totals when only the lines change: the document keeps its discount and tax
+ * (pence). A discount bigger than the new subtotal is refused rather than clipped.
+ */
+export function linesTotals(
+  subtotal: number,
+  discount: number,
+  tax: number,
+): { ok: true; total: number } | { ok: false; message: string } {
+  if (discount > subtotal) {
+    return { ok: false, message: "The discount is bigger than the new subtotal. Change the discount first." };
+  }
+  return { ok: true, total: Math.max(0, subtotal - discount + tax) };
+}
