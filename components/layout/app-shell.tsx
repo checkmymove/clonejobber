@@ -254,7 +254,7 @@ export function AppShell({
                   ) : null}
                 </button>
                 {bellOpen ? (
-                  <div className="absolute right-0 top-12 z-40 w-72 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
+                  <div className="absolute right-0 top-12 z-40 w-80 max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
                     <p className="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
                       Needs attention
                     </p>
@@ -268,10 +268,14 @@ export function AppShell({
                           onClick={() => setBellOpen(false)}
                           className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-800 hover:bg-slate-50"
                         >
-                          {a.label}
-                          <span className="rounded-full bg-rose-50 px-2 py-0.5 text-xs font-bold text-rose-700">
-                            {a.count}
-                          </span>
+                          <span className="min-w-0">{a.label}</span>
+                          {a.meta ? (
+                            <span className="shrink-0 text-xs text-slate-400">{a.meta}</span>
+                          ) : (
+                            <span className="rounded-full bg-rose-50 px-2 py-0.5 text-xs font-bold text-rose-700">
+                              {a.count}
+                            </span>
+                          )}
                         </Link>
                       ))
                     )}

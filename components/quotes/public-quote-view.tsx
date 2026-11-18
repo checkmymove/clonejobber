@@ -6,6 +6,8 @@ import type { QuoteDetail } from "@/lib/quotes/queries";
 import type { QuoteStop } from "@/lib/quotes/types";
 import { Card } from "@/components/ui";
 import { PublicQuoteActions } from "@/components/quotes/public-quote-actions";
+import { ClientHubPanel } from "@/components/quotes/client-hub-panel";
+import type { ClientHub } from "@/lib/quotes/client-hub";
 
 function money(pence: number) {
   return formatPounds(pence / 100);
@@ -75,14 +77,16 @@ function Accordion({ title, children }: { title: string; children: ReactNode }) 
   );
 }
 
-export function PublicQuoteView({ quote }: { quote: QuoteDetail }) {
+export function PublicQuoteView({ quote, hub }: { quote: QuoteDetail; hub: ClientHub }) {
   const name = quoteClientGreeting(quote.client_title, quote.client_name);
   const address = addressLines(quote);
   const packing = quote.packing ?? { service: "No", materials: "No" };
 
   return (
     <div className="min-h-dvh bg-cream">
-      <div className="mx-auto max-w-[980px] px-4 py-6 sm:px-6">
+      <div className="mx-auto grid max-w-[1320px] grid-cols-1 items-start gap-5 px-4 py-6 sm:px-6 lg:grid-cols-[290px_minmax(0,1fr)]">
+        <ClientHubPanel hub={hub} name={name} quoteId={quote.id} />
+        <div className="min-w-0">
         <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="text-center text-[10px] font-extrabold leading-tight tracking-wide text-ink">
@@ -220,24 +224,28 @@ export function PublicQuoteView({ quote }: { quote: QuoteDetail }) {
           </Accordion>
         </div>
 
-        <dl className="ml-auto mt-6 w-full max-w-[280px] text-sm">
-          <div className="flex justify-between gap-6 py-2">
-            <dt className="text-ink-soft">Subtotal</dt>
-            <dd className="font-semibold">{money(quote.subtotal)}</dd>
-          </div>
-          <div className="flex justify-between gap-6 py-2">
-            <dt className="text-ink-soft">Discount</dt>
-            <dd className="font-semibold">{quote.discount > 0 ? money(quote.discount) : "—"}</dd>
-          </div>
-          <div className="flex justify-between gap-6 py-2">
-            <dt className="text-ink-soft">Tax</dt>
-            <dd className="font-semibold">{quote.tax > 0 ? money(quote.tax) : "—"}</dd>
-          </div>
-          <div className="flex justify-between gap-6 border-t border-line py-3 text-[15px] font-extrabold text-ink">
-            <dt>Total</dt>
-            <dd>{money(quote.total)}</dd>
-          </div>
-        </dl>
+        <Card className="mt-4 p-5">
+          <h2 className="text-[16px] font-extrabold text-ink">Price</h2>
+          <dl className="mt-3 text-sm">
+            <div className="flex justify-between gap-6 py-2">
+              <dt className="text-ink-soft">Subtotal</dt>
+              <dd className="font-semibold">{money(quote.subtotal)}</dd>
+            </div>
+            <div className="flex justify-between gap-6 py-2">
+              <dt className="text-ink-soft">Discount</dt>
+              <dd className="font-semibold">{quote.discount > 0 ? money(quote.discount) : "—"}</dd>
+            </div>
+            <div className="flex justify-between gap-6 py-2">
+              <dt className="text-ink-soft">Tax</dt>
+              <dd className="font-semibold">{quote.tax > 0 ? money(quote.tax) : "—"}</dd>
+            </div>
+            <div className="flex justify-between gap-6 border-t border-line py-3 text-[15px] font-extrabold text-ink">
+              <dt>Total</dt>
+              <dd>{money(quote.total)}</dd>
+            </div>
+          </dl>
+        </Card>
+        </div>
       </div>
     </div>
   );

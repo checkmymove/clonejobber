@@ -146,8 +146,8 @@ try {
       select id, number from jobs where quote_id = ${quote.id}`;
     check("confirmed quote created a job for the schedule", !!autoJob && String(autoJob.number).startsWith("JOB-"));
     const [visit] = await tx`
-      select confirmed_by_client, visit_date from job_visits where job_id = ${autoJob.id}`;
-    check("job visit is client-confirmed on the schedule", visit?.confirmed_by_client === true);
+      select id from job_visits where job_id = ${autoJob.id}`;
+    check("job from an approved quote waits to be scheduled by hand (no visit)", !visit);
     const [doneReminder] = await tx`
       select status from schedule_reminders where quote_id = ${quote.id}`;
     check("approved quote completes the quote reminder", doneReminder?.status === "done");

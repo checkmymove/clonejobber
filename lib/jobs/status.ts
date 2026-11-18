@@ -56,6 +56,8 @@ export function deriveJobStatus(
   if (job.status === "done") {
     return job.remindInvoice && job.invoiceCount === 0 ? "requires_invoicing" : "archived";
   }
+  // A job starts without a visit: it is scheduled by hand once the client approves it.
+  if (!visits.some((v) => v.status !== "cancelled")) return "unscheduled";
   const open = visits.filter((v) => v.status === "scheduled");
   if (open.some((v) => !v.later && v.date && v.date < today)) return "late";
   if (open.some((v) => !v.later && v.date === today)) return "today";

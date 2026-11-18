@@ -195,7 +195,7 @@ export function InlineEditCard({
 }
 
 /** Label and value rows; `divided` puts a line between rows (Packing Service). */
-export function Dl({ rows, divided = false }: { rows: [string, string][]; divided?: boolean }) {
+export function Dl({ rows, divided = false }: { rows: [string, ReactNode][]; divided?: boolean }) {
   return (
     <div className={divided ? "divide-y divide-line text-sm" : "text-sm"}>
       {rows.map(([k, v]) => (

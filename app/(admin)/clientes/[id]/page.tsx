@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { sql } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { formatDateLondon, formatGBP } from "@/lib/format";
 import {
@@ -114,6 +115,7 @@ export default async function ClientDetailPage({
     notes,
     tags,
     appointments,
+    referrals,
   ] = await Promise.all([
     getProperties(id),
     getContacts(id),
@@ -127,6 +129,10 @@ export default async function ClientDetailPage({
     getNotes(id),
     getTags(id),
     getAppointments(id),
+    // Referrals need migration 0027; before it runs the card is just empty.
+    sql<{ id: string; name: string; contact: string; note: string; created_at: string }[]>`
+      select id, name, contact, note, created_at from referrals where client_id = ${id} order by created_at desc limit 20
+    `.catch(() => []),
   ]);
 
   const fullName = `${c.title ? c.title + " " : ""}${c.first_name} ${c.last_name}`;
@@ -460,7 +466,8 @@ export default async function ClientDetailPage({
                                   : w.kind === "job"
                                     ? "Job "
                                     : "Invoice "}
-                              {w.ref}
+                              {/* "JOB-0004" → "0004": the word before already says what it is. */}
+                              {w.ref.replace(/^[A-Z]+-/i, "")}
                             </Link>
                           </td>
                           <td className="py-2.5 pr-3 text-[13px] text-ink-soft">
@@ -705,6 +712,24 @@ export default async function ClientDetailPage({
               <TagForm action={addTag.bind(null, id)} />
             </div>
           </Card>
+
+          {referrals.length ? (
+            <Card className="p-4">
+              <h2 className="mb-2 text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">
+                Referrals
+              </h2>
+              <ul className="space-y-2">
+                {referrals.map((r) => (
+                  <li key={r.id} className="rounded-xl bg-cream p-2.5 text-sm">
+                    <p className="font-bold text-ink">{r.name}</p>
+                    <p className="text-ink [overflow-wrap:anywhere]">{r.contact}</p>
+                    {r.note ? <p className="mt-1 whitespace-pre-wrap text-ink-soft">{r.note}</p> : null}
+                    <p className="mt-1 text-[11px] text-ink-mute">{formatDateLondon(r.created_at)}</p>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          ) : null}
 
           <Card className="p-4">
             <h2 className="mb-2 text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">

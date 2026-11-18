@@ -309,28 +309,15 @@ export function SendDialog({
                 Send me a copy
               </label>
             </div>
-            <div className="rounded-xl bg-[#f4f6f7] p-3">
+            {/* Stretches to the height of the form beside it. */}
+            <div className="flex min-h-[460px] flex-col rounded-xl bg-[#f4f6f7] p-3">
               <p className="mb-2 text-[12px] font-bold uppercase tracking-wide text-[#5d6f78]">Email preview</p>
               <iframe
                 title="Email preview"
                 srcDoc={html}
                 sandbox=""
-                className="h-[460px] w-full rounded-lg border border-[#d5dde1] bg-white"
+                className="min-h-[460px] w-full flex-1 rounded-lg border border-[#d5dde1] bg-white"
               />
-              <div className="mt-2 flex flex-wrap gap-2">
-                {draft.attachment && attachPdf ? (
-                  <p className="inline-flex items-center gap-2 rounded-md bg-white px-2.5 py-1.5 text-[13px] font-semibold text-[#042b3c]">
-                    <FileText size={14} className="text-rose-700" />
-                    {draft.attachment}
-                  </p>
-                ) : null}
-                {files.map((f) => (
-                  <p key={f.id} className="inline-flex max-w-full items-center gap-2 rounded-md bg-white px-2.5 py-1.5 text-[13px] font-semibold text-[#042b3c]">
-                    <Paperclip size={14} className="shrink-0 text-[#5d6f78]" />
-                    <span className="truncate">{f.name}</span>
-                  </p>
-                ))}
-              </div>
             </div>
           </div>
         ) : (

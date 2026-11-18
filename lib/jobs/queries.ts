@@ -71,6 +71,12 @@ export interface JobDetail extends Omit<JobRow, "visits"> {
   discount: number;
   tax: number;
   quote_deposit: number;
+  quote_status: string | null;
+  /** Moving date and time from the quote (or request), to prefill the schedule. */
+  move_date: string | null;
+  move_time: string;
+  approval_sent_at: string | null;
+  approved_at: string | null;
   client_email: string;
   client_phone: string;
   client_address: string;
@@ -152,6 +158,10 @@ export async function getJobDetail(id: string): Promise<JobDetail | null> {
                      from client_addresses a where a.client_id = c.id
                      order by a.is_primary desc, a.created_at limit 1), '') as client_address,
            q.number as quote_number, coalesce(q.deposit, 0) as quote_deposit,
+           q.status as quote_status,
+           coalesce(q.valid_until, r.move_date) as move_date,
+           coalesce(nullif(q.move_time, ''), r.move_time, '') as move_time,
+           j.approval_sent_at, j.approved_at,
            (select count(*) from invoices i
              where i.job_id = j.id and i.status <> 'cancelled')::int as invoice_count
     from jobs j
@@ -188,6 +198,7 @@ export async function getJobDetail(id: string): Promise<JobDetail | null> {
   return {
     ...row,
     scheduled_date: asDateString(row.scheduled_date),
+    move_date: asDateString(row.move_date),
     lines,
     visits: normalised,
     invoices: invoices.map((i) => ({ ...i, due_on: asDateString(i.due_on) })),

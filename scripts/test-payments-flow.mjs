@@ -93,7 +93,9 @@ try {
     const [job] = await tx`select id, total, discount from jobs where quote_id = ${quote.id}`;
     check("job carries the quote discount", job.discount === 2000 && job.total === 28000);
 
-    const [visit] = await tx`select id from job_visits where job_id = ${job.id}`;
+    // Jobs start without a visit; schedule one as the job page does.
+    const [visit] = await tx`
+      insert into job_visits (job_id, visit_date, anytime) values (${job.id}, '2026-10-20', true) returning id`;
     await setVisitDone(tx, company.id, visit.id, true);
     const edited = await updateJobDocument(tx, company.id, job.id, {
       clientId: client.id,

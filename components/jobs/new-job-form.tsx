@@ -480,7 +480,7 @@ export function NewJobForm({
         >
           Add line item
         </button>
-        <div className={`mt-5 space-y-3 border-t ${line} pt-4 text-sm`}>
+        <div className="mt-5 ml-auto w-fit max-w-full space-y-3 rounded-xl border border-[#d5dde1] bg-[#f9fafa] p-4 text-sm">
           <div className="flex justify-end gap-10 text-[#5d6f78]">
             <span className="w-40">Subtotal</span>
             <span className="w-24 text-right">{formatPounds(subtotal)}</span>

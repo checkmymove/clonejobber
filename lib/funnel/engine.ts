@@ -85,7 +85,8 @@ export async function persistQuote(
   return { ok: true, id: rows[0].id, number: rows[0].number };
 }
 
-function parseMoveClock(raw: string): string {
+/** "9:30 AM" / "2 PM" / "14:00" → "HH:MM" (24h), or "" when unreadable. */
+export function parseMoveClock(raw: string): string {
   const t = raw.trim();
   if (!t) return "";
   const withMinutes = t.match(/^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/i);
@@ -349,11 +350,6 @@ async function quoteToJob(
            unit_price as "unitPrice", total
     from quote_line_items where quote_id = ${quoteId} order by sort
   `) as ParsedLine[];
-  const req = q[0].request_id
-    ? await db`select move_date from requests where id = ${q[0].request_id} limit 1`
-    : [];
-  const moveDate = asDay(q[0].valid_until) || asDay(req[0]?.move_date);
-  const start = parseMoveClock(q[0].move_time || "");
 
   const input: JobInput = {
     clientId: q[0].client_id,
@@ -364,18 +360,8 @@ async function quoteToJob(
     remindInvoice: true,
     discount: (q[0].discount / 100).toFixed(2),
     tax: (q[0].tax / 100).toFixed(2),
-    visits: [
-      {
-        title: "",
-        date: moveDate,
-        later: !moveDate,
-        start,
-        end: "",
-        anytime: !!moveDate && !start,
-        assignee: "",
-        instructions: "",
-      },
-    ],
+    // No visit yet: the schedule is set by hand on the job once the client approves it.
+    visits: [],
     lines: lines.map((l) => ({
       name: l.name,
       description: l.description,

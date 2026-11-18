@@ -3,13 +3,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronRight, Clock, Play, Plus, Square, UserPlus, UserX } from "lucide-react";
+import { ChevronRight, Clock, Play, Plus, Route as RouteIcon, Square, UserPlus, UserX } from "lucide-react";
 import { VisitDoneToggle } from "@/components/jobs/job-actions";
 import { Avatar, LiveClock, TimeEntryForm } from "@/components/team/team-ui";
 import { DashCard, DashTitle } from "@/components/dashboard/kit";
 import { cn } from "@/lib/cn";
 import { formatGBP } from "@/lib/format";
 import { formatClock12 } from "@/lib/schedule/dates";
+import { formatRoute } from "@/lib/geo/route-math";
 import { assignVisitMembersAction, clockInAction, clockOutAction } from "@/lib/team/actions";
 import type { Appointment, TodaysAppointments as Data } from "@/lib/team/queries";
 import { formatHoursMinutes } from "@/lib/team/time";
@@ -156,13 +157,28 @@ function OperationRow({ a, data, isToday }: { a: Appointment; data: Data; isToda
 
         <div className="order-3 col-span-2 min-w-0 @2xl:order-2 @2xl:col-span-1">
           <p className="text-slate-900">
-            <Link href={a.href} className="font-semibold hover:underline">
+            <Link href={a.clientId ? `/clientes/${a.clientId}` : a.href} className="font-semibold hover:underline">
               {a.clientName || a.title}
             </Link>
             {a.clientName ? <span className="text-slate-500"> — </span> : null}
             {a.clientName ? <span className="text-[13px] font-medium text-slate-700">{a.service}</span> : null}
           </p>
-          {a.address ? <p className="mt-0.5 text-[13px] text-slate-500">{a.address}</p> : null}
+          {a.address ? (
+            <p className="mt-0.5 text-[13px] text-slate-500">
+              <span className="font-medium text-slate-600">Collection Address:</span> {a.address}
+            </p>
+          ) : null}
+          {a.deliveryAddress ? (
+            <p className="mt-0.5 text-[13px] text-slate-500">
+              <span className="font-medium text-slate-600">Delivery Address:</span> {a.deliveryAddress}
+            </p>
+          ) : null}
+          {a.route ? (
+            <p className="mt-1 inline-flex items-center gap-1.5 rounded-md bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-800">
+              <RouteIcon size={12} aria-hidden />
+              {formatRoute(a.route)}
+            </p>
+          ) : null}
           {!a.window.anytime && a.window.end ? (
             <p className="mt-0.5 text-xs text-slate-400">until {formatClock12(a.window.end)}</p>
           ) : null}

@@ -542,7 +542,7 @@ export function NewQuoteForm({
       </label>
 
       <div className="flex justify-end">
-        <div className="w-full max-w-[440px]">
+        <div className="w-full max-w-[440px] rounded-xl border border-[#d5dde1] bg-[#f9fafa] p-4">
           <div className="space-y-3 text-sm">
             <div className="flex items-center justify-between text-[#5d6f78]">
               <span>Subtotal</span>

@@ -145,6 +145,12 @@ export async function deliverEmail(
   await record(draft, doc, { to, subject, html, gmailId, error: null }).catch(() => undefined);
   if (draft.kind === "quote" && doc.status === "draft") await changeQuoteStatus(sql, draft.id, "sent");
   if (draft.kind === "invoice" && doc.status === "draft") await changeInvoiceStatus(sql, draft.id, "sent");
+  if (draft.kind === "job") {
+    await sql`
+      update jobs set approval_sent_at = coalesce(approval_sent_at, now())
+      where id = ${draft.id} and approved_at is null
+    `.catch(() => undefined);
+  }
   return { ok: true };
 }
 

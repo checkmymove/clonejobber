@@ -92,8 +92,9 @@ export default async function CotacoesPage({
     listQuotes(COMPANY_SLUG, q),
     listQuotes(COMPANY_SLUG, q.trim() ? "" : q, { includeArchived: true }),
   ]);
-  // A quote that became a job leaves the list; ?view=all shows it again.
-  const waiting = listed.filter((quote) => !quote.converted_at);
+  // Approved quotes stay in the list (their job is created on approval); a quote
+  // converted to a job without the client's approval leaves it, ?view=all shows it again.
+  const waiting = listed.filter((quote) => !quote.converted_at || quote.status === "approved");
   const visible = params.view === "all" ? listed : waiting;
   const stats = quoteWindowStats(all);
 
@@ -154,7 +155,7 @@ export default async function CotacoesPage({
 
       <div className="mt-6 mb-3 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-base font-bold text-ink">
-          {params.view === "all" ? "All quotes" : "Awaiting a job"}{" "}
+          {params.view === "all" ? "All quotes" : "Quotes"}{" "}
           <span className="font-medium text-ink-mute">({visible.length} results)</span>
         </h2>
         <ConvertedToggle base="/cotacoes" params={params} hidden={listed.length - waiting.length} />
@@ -167,7 +168,7 @@ export default async function CotacoesPage({
             {q.trim()
               ? "No quotes match that search."
               : listed.length > 0
-                ? "No quotes waiting to become a job."
+                ? "All quotes were converted to jobs."
                 : "No quotes yet. Create one from a request, or add one directly."}
           </EmptyState>
         ) : (

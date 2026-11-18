@@ -57,6 +57,7 @@ const badgeTones: Record<string, string> = {
   changes_requested: "bg-sky-100 text-sky-900",
   viewed: "bg-sky-100 text-sky-900",
   approved: "bg-emerald-100 text-emerald-900",
+  converted: "bg-violet-100 text-violet-900",
   rejected: "bg-rose-100 text-rose-900",
   expired: "bg-stone-200 text-stone-500",
   scheduled: "bg-sky-100 text-sky-900",

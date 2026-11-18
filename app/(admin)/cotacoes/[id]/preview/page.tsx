@@ -115,7 +115,7 @@ export default async function QuotePreviewPage({
         </section>
 
         <section className="mt-8 flex justify-end border-t border-[#e6ebed] pt-4">
-          <dl className="w-full max-w-[280px] text-sm">
+          <dl className="w-full max-w-[320px] rounded-xl border border-[#d5dde1] bg-[#f9fafa] p-4 text-sm">
             <TotalRow label="Subtotal" value={money(q.subtotal)} />
             {q.discount > 0 ? <TotalRow label="Discount" value={money(q.discount)} /> : null}
             {q.tax > 0 ? <TotalRow label="Tax" value={money(q.tax)} /> : null}

@@ -31,6 +31,7 @@ import { getCompanyId } from "@/lib/company";
 import { getActiveServices } from "@/lib/requests/company";
 import { getQuoteDeposits } from "@/lib/payments/queries";
 import { SentCard } from "@/components/funnel/sent-card";
+import { RouteEstimateCard } from "@/components/funnel/route-estimate-card";
 import { Badge, PageHeader, buttonOutline } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -121,8 +122,8 @@ export default async function CotacaoDetailPage({
         subtitle={subtitle}
         action={
           <div className="flex flex-wrap items-center gap-2">
-            <Badge tone={q.status} size="lg">
-              {LABELS[q.status] ?? q.status}
+            <Badge tone={q.job_id && q.status !== "approved" ? "converted" : q.status} size="lg">
+              {q.job_id && q.status !== "approved" ? "Converted" : (LABELS[q.status] ?? q.status)}
             </Badge>
             <QuoteMoreMenu quoteId={id} clientId={q.client_id} status={q.status} archived={archived} jobId={q.job_id} />
             <Link href="/cotacoes" className={buttonOutline}>
@@ -160,6 +161,18 @@ export default async function CotacaoDetailPage({
               <RequestLocationCard title="Delivery address" snapshot={linkedRequest} kind="delivery" />
             </>
           ) : null}
+          <RouteEstimateCard
+            collection={
+              linkedRequest
+                ? [linkedRequest.pickupAddress, linkedRequest.pickupPostcode].filter(Boolean).join(", ")
+                : q.collection?.address ?? ""
+            }
+            delivery={
+              linkedRequest
+                ? [linkedRequest.deliveryAddress, linkedRequest.deliveryPostcode].filter(Boolean).join(", ")
+                : q.delivery?.address ?? ""
+            }
+          />
           <QuoteMovingCard snapshot={snapshot} />
           {linkedRequest ? (
             hasRemovalService(linkedRequest) ? (

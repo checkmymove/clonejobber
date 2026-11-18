@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Box, CalendarDays, MapPin, Plus, ReceiptText, UserRound } from "lucide-react";
+import { ArrowLeft, Box, MapPin, ReceiptText, UserRound } from "lucide-react";
 import { CardIcon } from "@/components/card-icon";
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { INFO_ICONS, JobInfoStrip } from "@/components/jobs/job-info-strip";
@@ -24,9 +24,10 @@ import { FunnelHistoryCard } from "@/components/funnel/funnel-history-card";
 import { getClientContact } from "@/lib/clients/queries";
 import { getActiveServices } from "@/lib/requests/company";
 import { listDeliveries } from "@/lib/email/send";
-import { JobHeaderActions, VisitDoneToggle } from "@/components/jobs/job-actions";
+import { JobHeaderActions } from "@/components/jobs/job-actions";
 import { NotesCard } from "@/components/funnel/notes-card";
 import { SentCard } from "@/components/funnel/sent-card";
+import { RouteEstimateCard } from "@/components/funnel/route-estimate-card";
 import { StatusDot, StatusPill } from "@/components/funnel/list-kit";
 import {
   AddressCard,
@@ -38,34 +39,15 @@ import {
 } from "@/components/funnel/document-cards";
 import { Card, PageHeader, buttonOutline } from "@/components/ui";
 import { LabourCard } from "@/components/team/labour-card";
+import { JobScheduleCard } from "@/components/jobs/job-schedule-card";
+import { JobSendCard } from "@/components/jobs/job-send-card";
+import { parseMoveClock } from "@/lib/funnel/engine";
 import { LineItemsInlineCard } from "@/components/funnel/line-items-inline-card";
 import { listProducts } from "@/lib/products/queries";
 import { COMPANY_SLUG, getCompanyId } from "@/lib/company";
 import { getJobLabour, getVisitMembers, listTeam } from "@/lib/team/queries";
 
 export const dynamic = "force-dynamic";
-
-function visitState(v: JobVisit, today: string): { label: string; dot: string } {
-  if (v.status === "done") return { label: "Completed", dot: "bg-emerald-500" };
-  if (v.status === "cancelled") return { label: "Cancelled", dot: "bg-stone-400" };
-  if (v.later || !v.visit_date) return { label: "Unscheduled", dot: "bg-amber-400" };
-  if (v.visit_date < today) return { label: "Overdue", dot: "bg-rose-500" };
-  if (v.visit_date === today) return { label: "Today", dot: "bg-emerald-500" };
-  return { label: "Scheduled", dot: "bg-sky-500" };
-}
-
-const MONTH = new Intl.DateTimeFormat("en-GB", { month: "short", timeZone: "UTC" });
-
-/** Calendar leaf for a visit row: "Oct" over "30". */
-function DateLeaf({ date }: { date: string | null }) {
-  if (!date) return <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-cream text-xs text-ink-mute">—</span>;
-  return (
-    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-line bg-white leading-none">
-      <span className="text-[11px] font-medium text-ink-soft">{MONTH.format(new Date(`${date}T12:00:00Z`))}</span>
-      <span className="text-lg font-bold text-ink">{Number(date.slice(8, 10))}</span>
-    </span>
-  );
-}
 
 function visitTime(v: JobVisit): string {
   if (v.later || !v.visit_date) return "Unscheduled";
@@ -100,6 +82,8 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
   }));
 
   const snapshot = request ? requestSnapshotFromDetail(request) : null;
+  // The client approves the job itself (job page link sent by email & text).
+  const approved = Boolean(j.approved_at);
   const meta = JOB_STATUS_META[j.list_status];
   const closed = j.status === "done" || j.status === "cancelled";
 
@@ -161,7 +145,7 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
       <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
         <JobInfoStrip
           cells={[
-            { label: "Client", value: j.client_name, icon: INFO_ICONS.client },
+            { label: "Client", value: j.client_name, icon: INFO_ICONS.client, href: `/clientes/${j.client_id}` },
             { label: "Phone", value: client.phone, icon: INFO_ICONS.phone },
             { label: "Email", value: client.email, icon: INFO_ICONS.email },
             j.quote_number
@@ -172,76 +156,28 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
           ]}
         />
 
-        <Card className="h-fit p-5 xl:col-span-2">
-          <CardTitle
-            icon={<CardIcon icon={CalendarDays} tone="blue" boxed />}
-            action={
-              <Link
-                href={`/servicos/${j.id}/editar`}
-                aria-label="Edit schedule"
-                className="grid h-8 w-8 place-items-center rounded-lg border border-line text-ink-soft hover:bg-cream hover:text-ink"
-              >
-                <Plus size={15} />
-              </Link>
-            }
-          >
-            Schedule
-          </CardTitle>
-          {j.visits.length === 0 ? (
-            <p className="text-sm text-ink-mute">No visits. Add one to put this job on the schedule.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full fit-table text-left text-sm">
-                <thead>
-                  <tr className="border-b border-line text-xs font-medium text-ink-soft">
-                    <th className="w-10 py-2" />
-                    <th className="py-2 pr-4 font-medium">Date and time</th>
-                    <th className="py-2 pr-4 font-medium">Title and instructions</th>
-                    <th className="py-2 pr-4 font-medium">Status</th>
-                    <th className="py-2 font-medium">Assigned</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {j.visits.map((v) => {
-                    const state = visitState(v, today);
-                    return (
-                      <tr key={v.id} className="border-b border-line align-middle last:border-0">
-                        <td className="py-3">
-                          <VisitDoneToggle visitId={v.id} done={v.status === "done"} />
-                        </td>
-                        <td className="py-3 pr-4 whitespace-nowrap text-ink">
-                          <span className="flex items-center gap-3">
-                            <DateLeaf date={v.later ? null : v.visit_date} />
-                            <span>
-                              {visitTime(v)}
-                              {v.confirmed_by_client ? (
-                                <span className="block text-xs text-emerald-700">Confirmed by client</span>
-                              ) : null}
-                            </span>
-                          </span>
-                        </td>
-                        <td className="py-3 pr-4">
-                          <p className="font-semibold text-ink">
-                            {v.title || `${j.client_name} - ${j.title || "Job"}`}
-                          </p>
-                          {v.instructions ? (
-                            <p className="line-clamp-2 whitespace-pre-wrap text-ink-soft">{v.instructions}</p>
-                          ) : null}
-                        </td>
-                        <td className="py-3 pr-4">
-                          <StatusDot dot={state.dot} label={state.label} />
-                        </td>
-                        <td data-label="Assigned" className="py-3 text-ink-soft">
-                          {visitMembers.get(v.id)?.map((m) => m.name).join(", ") || v.assignee || "Unassigned"}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Card>
+        <JobScheduleCard
+          jobId={j.id}
+          jobLabel={`${j.client_name} - ${j.title || "Job"}`}
+          visits={j.visits.map((v) => ({
+            id: v.id,
+            title: v.title,
+            instructions: v.instructions,
+            date: v.visit_date,
+            start: v.start_time,
+            end: v.end_time,
+            anytime: v.anytime,
+            later: v.later,
+            status: v.status,
+            confirmed: v.confirmed_by_client,
+            memberIds: visitMembers.get(v.id)?.map((m) => m.id) ?? [],
+            assigneeText: v.assignee,
+          }))}
+          team={team.filter((m) => m.active).map((m) => ({ id: m.id, name: m.name }))}
+          defaults={{ date: j.move_date ?? today, start: parseMoveClock(j.move_time) }}
+          today={today}
+          approved={approved}
+        />
 
         <LabourCard
           jobId={j.id}
@@ -373,6 +309,8 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
           )}
         </CollapsibleSection>
 
+        <RouteEstimateCard collection={pickup} delivery={delivery} />
+
         <CollapsibleSection
           id="job-services"
           title="Services"
@@ -410,6 +348,7 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
         {snapshot && request ? <RequestInventoryCard snapshot={snapshot} files={request.files} /> : null}
         <NotesCard kind="job" id={j.id} notes={j.notes} />
         <SentCard kind="job" id={j.id} />
+        <JobSendCard jobId={j.id} approved={approved} sentAt={j.approval_sent_at} clientName={j.client_name} />
       </div>
     </div>
   );

@@ -21,6 +21,7 @@ import { hasRemovalService } from "@/lib/requests/edit-snapshot";
 import { FunnelHistoryCard } from "@/components/funnel/funnel-history-card";
 import { RequestMoreMenu } from "@/components/requests/request-actions";
 import { SentCard } from "@/components/funnel/sent-card";
+import { RouteEstimateCard } from "@/components/funnel/route-estimate-card";
 import { Badge, Card, PageHeader, buttonDark, buttonOutline } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -90,6 +91,10 @@ export default async function SolicitacaoDetailPage({
         <FunnelHistoryCard clientId={r.client_id} requestId={r.id} currentId={r.id} />
         <RequestLocationCard title="Collection Information" snapshot={snapshot} kind="pickup" />
         <RequestLocationCard title="Delivery Information" snapshot={snapshot} kind="delivery" />
+        <RouteEstimateCard
+          collection={[snapshot.pickupAddress, snapshot.pickupPostcode].filter(Boolean).join(", ")}
+          delivery={[snapshot.deliveryAddress, snapshot.deliveryPostcode].filter(Boolean).join(", ")}
+        />
         <RequestMovingCard snapshot={snapshot} />
         {hasRemovalService(snapshot) ? (
           <>

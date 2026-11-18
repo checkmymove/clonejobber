@@ -19,7 +19,7 @@ describe("job list status", () => {
   });
   it("action required when no open visit remains", () => {
     assert.equal(deriveJobStatus(open, [{ date: "2026-10-10", later: false, status: "done" }], today), "action_required");
-    assert.equal(deriveJobStatus(open, [], today), "action_required");
+    assert.equal(deriveJobStatus(open, [], today), "unscheduled");
   });
   it("closed job requires invoicing until an invoice exists", () => {
     assert.equal(deriveJobStatus({ ...open, status: "done" }, [], today), "requires_invoicing");

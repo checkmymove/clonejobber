@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -434,7 +435,13 @@ export function ScheduleBoard({
                 .filter((item) => item.address)
                 .map((item) => (
                   <li key={`${item.kind}-${item.id}`} className="rounded-lg border border-line p-2 text-xs">
-                    <p className="font-bold text-ink">{item.clientName || item.title}</p>
+                    {item.clientId ? (
+                      <Link href={`/clientes/${item.clientId}`} className="font-bold text-ink hover:underline">
+                        {item.clientName || item.title}
+                      </Link>
+                    ) : (
+                      <p className="font-bold text-ink">{item.clientName || item.title}</p>
+                    )}
                     <p className="text-ink-soft">{item.address}</p>
                     <p className="text-ink-mute">{item.date}</p>
                   </li>

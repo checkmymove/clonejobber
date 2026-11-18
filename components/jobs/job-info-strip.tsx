@@ -1,8 +1,9 @@
 import { CalendarDays, Coins, FileText, Mail, Phone, UserRound, type LucideIcon } from "lucide-react";
+import Link from "next/link";
 import { Card } from "@/components/ui";
 import { CopyButton } from "@/components/copy-button";
 
-export type InfoCell = { label: string; value: string; icon: LucideIcon };
+export type InfoCell = { label: string; value: string; icon: LucideIcon; href?: string };
 
 /** The job at a glance: who, how to reach them, the quote, the value and when. */
 export function JobInfoStrip({ cells }: { cells: InfoCell[] }) {
@@ -14,9 +15,15 @@ export function JobInfoStrip({ cells }: { cells: InfoCell[] }) {
             <c.icon size={24} strokeWidth={1.6} className="shrink-0 text-[#1d4ed8]" aria-hidden />
             <div className="min-w-0 flex-1">
               <p className="text-[13px] text-ink-soft">{c.label}</p>
-              <p className="truncate text-[15px] font-medium text-ink" title={c.value}>
-                {c.value || "—"}
-              </p>
+              {c.href ? (
+                <Link href={c.href} className="block truncate text-[15px] font-semibold text-accent hover:underline" title={c.value}>
+                  {c.value || "—"}
+                </Link>
+              ) : (
+                <p className="truncate text-[15px] font-medium text-ink" title={c.value}>
+                  {c.value || "—"}
+                </p>
+              )}
             </div>
             <CopyButton text={c.value} label={c.label.toLowerCase()} />
           </div>

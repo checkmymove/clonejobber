@@ -154,7 +154,6 @@ export function validateJobInput(input: JobInput): {
   const errors: Record<string, string> = {};
   if (!isUuid(input.clientId)) errors.clientId = "Select a client";
   if (input.quoteId && !isUuid(input.quoteId)) errors.quoteId = "Invalid quote";
-  if (!input.visits.length) errors.visits = "Add at least one visit";
   const { errors: lineErrors, parsed, subtotal } = parseLines(input.lines);
   Object.assign(errors, lineErrors);
   const { discount, tax, total } = adjustments(subtotal, input.discount, input.tax, errors);

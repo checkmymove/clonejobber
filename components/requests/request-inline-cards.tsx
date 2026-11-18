@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useEffect, useState } from "react";
 import { Box, CalendarDays, Clock, MapPin, Package, Truck, UserRound } from "lucide-react";
 import { CardIcon } from "@/components/card-icon";
@@ -108,8 +110,13 @@ export function RequestContactCard({
   const [draft, setDraft] = useState(initial);
   useEffect(() => setDraft(initial), [firstName, lastName, companyName, email, phone, marketingEmail, marketingSms]);
 
-  const rows: [string, string][] = [
-    ["Name", `${firstName} ${lastName}`.trim() || "—"],
+  const rows: [string, React.ReactNode][] = [
+    [
+      "Name",
+      <Link key="name" href={`/clientes/${clientId}`} className="font-semibold text-accent hover:underline">
+        {`${firstName} ${lastName}`.trim() || "—"}
+      </Link>,
+    ],
     ["Email", email || "—"],
     ["Phone", phone || "—"],
     ["Heard via", leadSource || "—"],

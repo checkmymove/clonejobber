@@ -54,7 +54,11 @@ export async function getDashboard(companySlug: string) {
   const requests = tally(requestRows, (r) => r.status);
   const quotes = tally(
     quoteRows,
-    (q) => quoteListStatus(q.status, q.converted_at, q.archived_at).key,
+    (q) => {
+      // An approved quote already has its job: it counts there, not as an open quote.
+      const key = quoteListStatus(q.status, q.converted_at, q.archived_at).key;
+      return key === "approved" && q.converted_at ? "approved_job" : key;
+    },
     (q) => q.total,
   );
   const jobs = tally(jobRows, (j) => j.list_status, (j) => j.total);

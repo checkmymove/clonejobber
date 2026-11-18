@@ -3,6 +3,8 @@ import { sql } from "@/lib/db";
 import { toDateInput, todayLondonInput } from "@/lib/format";
 import { geocodePostcodes, type LatLng } from "@/lib/geo/geocode";
 import { extractPostcode } from "@/lib/geo/postcode";
+import { estimateRoutes } from "@/lib/geo/route";
+import type { RouteEstimate } from "@/lib/geo/route-math";
 import { isIsoDate, weekDays } from "@/lib/schedule/dates";
 import { getScheduleBundle } from "@/lib/schedule/queries";
 import { KIND_META, type ScheduleKind } from "@/lib/schedule/types";
@@ -90,9 +92,14 @@ export type Appointment = {
   kind: ScheduleKind;
   title: string;
   clientName: string;
+  clientId: string | null;
   /** The work: "Removal Service", or the kind of item for non-visits. */
   service: string;
+  /** Collection address. */
   address: string;
+  deliveryAddress: string;
+  /** Miles and drive time from collection to delivery, when both have a postcode. */
+  route: RouteEstimate | null;
   /** Where the visit is, from the address postcode, for the team map. */
   location: LatLng | null;
   window: { anytime: boolean; start: string; end: string };
@@ -203,7 +210,14 @@ export async function getTodaysAppointments(companySlug: string, requestedDay?: 
 
   const jobValue = new Map(jobs.map((j) => [j.id, visitShare(j.total, j.visits)]));
   const postcodes = new Map(items.map((i) => [i.id, extractPostcode(i.address)]));
-  const places = await geocodePostcodes([...postcodes.values()].filter((p): p is string => Boolean(p)));
+  const [places, routes] = await Promise.all([
+    geocodePostcodes([...postcodes.values()].filter((p): p is string => Boolean(p))),
+    estimateRoutes(
+      items
+        .filter((i) => i.address && i.deliveryAddress)
+        .map((i) => ({ id: i.id, collection: i.address, delivery: i.deliveryAddress })),
+    ),
+  ]);
 
   const appointments: Appointment[] = items.map((item) => {
     const trackable = item.kind === "visit";
@@ -227,8 +241,11 @@ export async function getTodaysAppointments(companySlug: string, requestedDay?: 
       kind: item.kind,
       title: item.kind === "visit" ? item.title : item.detailLabel || item.title,
       clientName: item.clientName,
+      clientId: item.clientId,
       service: item.kind === "visit" ? item.service || "Visit" : KIND_META[item.kind].label,
       address: item.address,
+      deliveryAddress: item.deliveryAddress,
+      route: routes.get(item.id) ?? null,
       location: places.get(postcodes.get(item.id) ?? "") ?? null,
       window: { anytime: item.anytime || !item.start, start: item.start, end: item.end },
       status: appointmentStatusOn(

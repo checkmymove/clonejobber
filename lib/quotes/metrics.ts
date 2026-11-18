@@ -45,8 +45,13 @@ export function quoteListStatus(
   if (archivedAt) {
     return { key: "archived", label: "Archived", dot: "bg-stone-400" };
   }
+  // Approved by the client (the job is created at that moment) is not the same as
+  // converted: a quote the office turned into a job without the client's approval.
+  if (status === "approved") {
+    return { key: "approved", label: "Approved", dot: "bg-emerald-500" };
+  }
   if (convertedAt) {
-    return { key: "converted", label: "Converted", dot: "bg-emerald-600" };
+    return { key: "converted", label: "Converted", dot: "bg-violet-500" };
   }
   switch (status) {
     case "draft":

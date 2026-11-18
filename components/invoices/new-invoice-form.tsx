@@ -381,7 +381,7 @@ export function NewInvoiceForm({
               Change
             </button>
           </div>
-          <div className="space-y-3 text-sm">
+          <div className="space-y-3 rounded-xl border border-[#d5dde1] bg-[#f9fafa] p-4 text-sm">
             <div className="flex justify-between text-[#5d6f78]">
               <span>Subtotal</span>
               <span>{formatPounds(subtotal)}</span>
