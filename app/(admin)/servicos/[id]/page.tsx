@@ -348,7 +348,7 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
         {snapshot && request ? <RequestInventoryCard snapshot={snapshot} files={request.files} /> : null}
         <NotesCard kind="job" id={j.id} notes={j.notes} />
         <SentCard kind="job" id={j.id} />
-        <JobSendCard jobId={j.id} approved={approved} sentAt={j.approval_sent_at} clientName={j.client_name} />
+        <JobSendCard jobId={j.id} approved={approved} />
       </div>
     </div>
   );
