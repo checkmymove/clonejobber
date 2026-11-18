@@ -40,7 +40,7 @@ export async function saveJobVisitAction(jobId: string, input: VisitSaveInput): 
   const result = await sql.begin(async (tx) => {
     const job = await tx<{ id: string; number: string; approved: boolean }[]>`
       select j.id, j.number,
-             (j.approved_at is not null) as approved
+             ((to_jsonb(j) ->> 'approved_at') is not null) as approved
       from jobs j
       where j.id = ${jobId} and j.company_id = ${companyId}
       limit 1

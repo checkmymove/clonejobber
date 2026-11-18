@@ -37,7 +37,7 @@ export async function getClientHub(clientId: string): Promise<ClientHub> {
       order by created_at desc limit 8
     `,
     sql<{ id: string; number: string; title: string; status: string; approved_at: string | null; at: string | Date | null }[]>`
-      select j.id, j.number, j.title, j.status, j.approved_at,
+      select j.id, j.number, j.title, j.status, (to_jsonb(j) ->> 'approved_at')::timestamptz as approved_at,
              coalesce(j.scheduled_date::timestamptz, j.created_at) as at
       from jobs j where j.client_id = ${clientId} and j.status <> 'cancelled'
       order by j.created_at desc limit 8

@@ -161,7 +161,9 @@ export async function getJobDetail(id: string): Promise<JobDetail | null> {
            q.status as quote_status,
            coalesce(q.valid_until, r.move_date) as move_date,
            coalesce(nullif(q.move_time, ''), r.move_time, '') as move_time,
-           j.approval_sent_at, j.approved_at,
+           -- Read through to_jsonb so the page works before migration 0027 adds them.
+           (to_jsonb(j) ->> 'approval_sent_at')::timestamptz as approval_sent_at,
+           (to_jsonb(j) ->> 'approved_at')::timestamptz as approved_at,
            (select count(*) from invoices i
              where i.job_id = j.id and i.status <> 'cancelled')::int as invoice_count
     from jobs j

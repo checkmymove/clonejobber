@@ -30,10 +30,16 @@ export async function submitReferral(
   `;
   if (!quote[0]) return { ok: false, message: "This page is no longer available." };
   // A page left open must not flood the office: a few referrals a day per client.
-  const recent = await sql<{ n: number }[]>`
-    select count(*)::int as n from referrals
-    where client_id = ${quote[0].client_id} and created_at > now() - interval '1 day'
-  `;
+  let recent: { n: number }[];
+  try {
+    recent = await sql<{ n: number }[]>`
+      select count(*)::int as n from referrals
+      where client_id = ${quote[0].client_id} and created_at > now() - interval '1 day'
+    `;
+  } catch {
+    // Referrals table not created yet (migration 0027).
+    return { ok: false, message: "Referrals are not available just yet. Please try again later." };
+  }
   if ((recent[0]?.n ?? 0) >= 5) {
     return { ok: false, message: "Thanks! You have sent several referrals today. Please try again tomorrow." };
   }
