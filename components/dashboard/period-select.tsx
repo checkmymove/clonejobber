@@ -4,7 +4,14 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { PERFORMANCE_PERIODS, type PerformancePeriod } from "@/lib/funnel/periods";
 
-export function PeriodSelect({ value }: { value: PerformancePeriod }) {
+/** Period dropdown kept in `?period=`; the page's default period leaves the URL clean. */
+export function PeriodSelect({
+  value,
+  defaultValue = "month",
+}: {
+  value: PerformancePeriod;
+  defaultValue?: PerformancePeriod;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -15,7 +22,7 @@ export function PeriodSelect({ value }: { value: PerformancePeriod }) {
         value={value}
         onChange={(event) => {
           const sp = new URLSearchParams(params.toString());
-          if (event.target.value === "month") sp.delete("period");
+          if (event.target.value === defaultValue) sp.delete("period");
           else sp.set("period", event.target.value);
           const qs = sp.toString();
           router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });

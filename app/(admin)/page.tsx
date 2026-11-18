@@ -27,7 +27,7 @@ export default async function DashboardPage({
   const sp = await searchParams;
   const today = todayLondonInput();
   const day = sp.date && isIsoDate(sp.date) ? sp.date : today;
-  const period = isPerformancePeriod(sp.period) ? sp.period : "month";
+  const period = isPerformancePeriod(sp.period) ? sp.period : "week";
   const user = await requireAdmin();
 
   const [d, ops, perf, week, profile] = await Promise.all([
@@ -123,12 +123,14 @@ export default async function DashboardPage({
             period={period}
             revenue={perf.revenue}
             trend={perf.trend}
-            receivable={d.receivable}
-            owingCount={d.owingCount}
-            upcoming={d.upcomingJobs}
-            upcomingCount={d.upcomingCount}
             paid={perf.paid}
             paidCount={perf.paidCount}
+            receivable={d.receivable}
+            debtorCount={d.debtorCount}
+            debtors={d.debtors.slice(0, 3)}
+            upcoming={d.upcomingJobs}
+            upcomingCount={d.upcomingCount}
+            upcomingJobs={d.upcomingList}
           />
           <WeeklyTimesheets data={week} />
         </div>

@@ -5,10 +5,9 @@ import { weekdayShort } from "@/lib/schedule/dates";
 import type { WeeklyTimesheets as Data } from "@/lib/team/queries";
 import { hoursDecimal } from "@/lib/team/time";
 
-/** Hours each person logged per day of the week; Sunday shows only when someone worked it. */
+/** Hours each person logged per day of the week, Monday to Sunday. */
 export function WeeklyTimesheets({ data }: { data: Data }) {
-  const sundayWorked = data.rows.some((r) => r.seconds[6] > 0);
-  const shown = data.days.map((d, i) => ({ d, i })).filter(({ i }) => i < 6 || sundayWorked);
+  const shown = data.days.map((d, i) => ({ d, i }));
 
   return (
     <DashCard className="p-4 sm:p-5">

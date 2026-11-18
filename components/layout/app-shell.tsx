@@ -157,6 +157,37 @@ export function AppShell({
   const sidebar = (
     <div className="flex h-full flex-col px-4 pb-5">
       <div className="flex h-[76px] shrink-0 items-center px-1">{logo}</div>
+      <div className="relative mt-3" data-create-menu>
+        <button
+          type="button"
+          onClick={() => setCreateOpen((v) => !v)}
+          aria-expanded={createOpen}
+          aria-haspopup="menu"
+          className="flex h-11 w-full items-center gap-3.5 rounded-xl bg-[#13213d] px-3.5 text-[15px] font-semibold text-white hover:bg-[#1e3a5f]"
+        >
+          {createOpen ? <X size={20} strokeWidth={2} /> : <Plus size={20} strokeWidth={2} />}
+          Create
+        </button>
+        {createOpen ? (
+          <div role="menu" className="absolute inset-x-0 top-12 z-40 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
+            {CREATE_ITEMS.map((item) => (
+              <Link
+                key={item.label}
+                href={item.href}
+                role="menuitem"
+                onClick={() => {
+                  setCreateOpen(false);
+                  setMobileOpen(false);
+                }}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-800 hover:bg-slate-50"
+              >
+                <item.icon size={17} className="text-slate-500" />
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        ) : null}
+      </div>
       <nav className="mt-3 flex flex-col gap-1" aria-label="Main navigation">
         {NAV.map(navLink)}
         <hr className="mx-1 my-3 border-slate-200" />
@@ -207,33 +238,6 @@ export function AppShell({
             </form>
 
             <div className="ml-auto flex items-center gap-2 sm:gap-3">
-              <div className="relative" data-create-menu>
-                <button
-                  type="button"
-                  onClick={() => setCreateOpen((v) => !v)}
-                  aria-expanded={createOpen}
-                  className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-[#13213d] px-3.5 text-sm font-semibold text-white hover:bg-[#1e3a5f]"
-                >
-                  {createOpen ? <X size={17} /> : <Plus size={17} />}
-                  <span className="hidden sm:inline">Create</span>
-                </button>
-                {createOpen ? (
-                  <div className="absolute right-0 top-12 z-40 w-52 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
-                    {CREATE_ITEMS.map((item) => (
-                      <Link
-                        key={item.label}
-                        href={item.href}
-                        onClick={() => setCreateOpen(false)}
-                        className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-800 hover:bg-slate-50"
-                      >
-                        <item.icon size={17} className="text-slate-500" />
-                        {item.label}
-                      </Link>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-
               <div className="relative" data-bell-menu>
                 <button
                   type="button"

@@ -1,7 +1,7 @@
 import "server-only";
 import { sql } from "@/lib/db";
 import { todayLondonInput } from "@/lib/format";
-import { addMonths, startOfMonth } from "@/lib/schedule/dates";
+import { addMonths, startOfMonth, startOfWeek } from "@/lib/schedule/dates";
 import type { PerformancePeriod } from "@/lib/funnel/periods";
 import { listRequests } from "@/lib/requests/queries";
 import { listQuotes } from "@/lib/quotes/queries";
@@ -65,13 +65,22 @@ export async function getDashboard(companySlug: string) {
     j.visits.some((v) => v.status === "scheduled" && !v.later && v.date && v.date >= today && v.date <= weekEnd),
   );
   const upcomingJobs = upcoming.reduce((s, j) => s + j.total, 0);
+  const nextVisit = (j: (typeof upcoming)[number]) =>
+    j.visits
+      .filter((v) => v.status === "scheduled" && !v.later && v.date && v.date >= today && v.date <= weekEnd)
+      .map((v) => v.date as string)
+      .sort()[0];
+  const upcomingList = upcoming
+    .map((j) => ({ id: j.id, number: j.number, title: j.title, client: j.client_name, date: nextVisit(j), total: j.total }))
+    .sort((a, b) => a.date.localeCompare(b.date) || b.total - a.total);
 
   const owing = invoiceRows.filter(
     (i) => (i.list_status === "past_due" || i.list_status === "awaiting_payment") && i.balance > 0,
   );
-  const byClient = new Map<string, { name: string; balance: number }>();
+  const byClient = new Map<string, { id: string; name: string; balance: number; invoices: number }>();
   for (const i of owing) {
-    const entry = byClient.get(i.client_id) ?? { name: i.client_name, balance: 0 };
+    const entry = byClient.get(i.client_id) ?? { id: i.client_id, name: i.client_name, balance: 0, invoices: 0 };
+    entry.invoices += 1;
     entry.balance += i.balance;
     byClient.set(i.client_id, entry);
   }
@@ -88,6 +97,7 @@ export async function getDashboard(companySlug: string) {
     monthRevenue: month[0]?.revenue ?? 0,
     upcomingJobs,
     upcomingCount: upcoming.length,
+    upcomingList: upcomingList.slice(0, 3),
     owingCount: owing.length,
   };
 }
@@ -96,6 +106,12 @@ export async function getDashboard(companySlug: string) {
 /** [from, to] London dates of a period and of the one before it, cut to the same length. */
 export function periodRange(period: PerformancePeriod, today: string) {
   const days = (a: string, b: string) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
+  if (period === "week") {
+    // Monday to today, against the same days of last week.
+    const from = startOfWeek(today);
+    const prevFrom = addDays(from, -7);
+    return { from, to: today, prevFrom, prevTo: addDays(prevFrom, days(from, today)) };
+  }
   if (period === "last_month") {
     const from = startOfMonth(addMonths(today, -1));
     const to = addDays(startOfMonth(today), -1);

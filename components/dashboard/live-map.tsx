@@ -136,7 +136,7 @@ export function LiveMap({ points, live }: { points: MapPoint[]; live: number }) 
         Live map – Team location
       </DashTitle>
       <div className="relative isolate z-0 mt-4 overflow-hidden rounded-xl border border-slate-200">
-        <div ref={box} className="h-[320px] w-full bg-slate-100 sm:h-[360px]" aria-label="Map of today’s visits" />
+        <div ref={box} className="h-[640px] w-full bg-slate-100 sm:h-[720px]" aria-label="Map of today’s visits" />
         <button
           type="button"
           onClick={() => fit.current()}
