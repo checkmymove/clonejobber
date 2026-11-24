@@ -162,6 +162,7 @@ export interface ClientFile {
 export function validateFileList(
   files: ClientFile[],
   maxImages: number,
+  maxBytes = MAX_FILE_SIZE_BYTES,
 ): Errors {
   const e: Errors = {};
   if (files.length > maxImages)
@@ -171,8 +172,8 @@ export function validateFileList(
       e.images = "Only JPG, PNG or WEBP images are allowed";
       break;
     }
-    if (f.size <= 0 || f.size > MAX_FILE_SIZE_BYTES) {
-      e.images = "Each image must be up to 8 MB";
+    if (f.size <= 0 || f.size > maxBytes) {
+      e.images = `Each image must be up to ${Math.round(maxBytes / (1024 * 1024))} MB`;
       break;
     }
   }

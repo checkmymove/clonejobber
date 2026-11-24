@@ -5,6 +5,7 @@ import { Check, FileText, Mail, MessageSquare, Paperclip, X } from "lucide-react
 import { documentEmailHtml, stampImagePath } from "@/lib/email/templates";
 import { prepareSend, removeSendAttachment, sendDocument, uploadSendAttachment } from "@/lib/send/actions";
 import {
+  ATTACHMENT_CHUNK_BYTES,
   ATTACHMENT_FILE_MAX_BYTES,
   ATTACHMENT_LIMIT_BYTES,
   SEND_KIND_LABEL,
@@ -79,18 +80,30 @@ export function SendDialog({
     let total = attachedBytes;
     for (const file of Array.from(list)) {
       if (file.size > ATTACHMENT_FILE_MAX_BYTES) {
-        setFileError(`${file.name} is larger than 4 MB.`);
+        setFileError(`${file.name} is larger than ${mb(ATTACHMENT_FILE_MAX_BYTES)} MB.`);
         continue;
       }
       if (total + file.size > ATTACHMENT_LIMIT_BYTES) {
-        setFileError("Attachments can't be over the 10 MB limit.");
+        setFileError(`Attachments can't be over the ${mb(ATTACHMENT_LIMIT_BYTES)} MB limit.`);
         break;
       }
-      const fd = new FormData();
-      fd.set("kind", draft.kind);
-      fd.set("id", draft.id);
-      fd.set("file", file);
-      const result = await uploadSendAttachment(fd);
+      // Sent in 3 MB pieces: one request can't carry more than 4.5 MB on Vercel.
+      let result: Awaited<ReturnType<typeof uploadSendAttachment>> = { ok: false };
+      for (let offset = 0; offset < file.size; offset += ATTACHMENT_CHUNK_BYTES) {
+        const fd = new FormData();
+        fd.set("chunk", file.slice(offset, offset + ATTACHMENT_CHUNK_BYTES), file.name);
+        if (result.attachment) {
+          fd.set("attachmentId", result.attachment.id);
+        } else {
+          fd.set("kind", draft.kind);
+          fd.set("id", draft.id);
+          fd.set("name", file.name);
+          fd.set("type", file.type);
+          fd.set("size", String(file.size));
+        }
+        result = await uploadSendAttachment(fd);
+        if (!result.ok) break;
+      }
       if (result.ok && result.attachment) {
         total += result.attachment.size;
         const added = result.attachment;
@@ -141,7 +154,9 @@ export function SendDialog({
     });
     setPending(false);
     setOutcome(result);
-    if (result.ok && (!result.sms || result.sms.ok)) onDone();
+    // Sent: the dialog closes by itself. A text that isn't connected yet is only logged,
+    // so it doesn't hold the dialog open once the email went out.
+    if (result.ok && (!result.email || result.email.ok)) onDone();
   }
 
   const tabButton = (value: Tab, label: string, icon: React.ReactNode, on: boolean, setOn: (v: boolean) => void) => (

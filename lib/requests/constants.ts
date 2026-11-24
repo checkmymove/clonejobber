@@ -14,7 +14,11 @@ export const HOURS_OPTIONS = [
   "I don't know",
 ] as const;
 
-export const MAX_FILE_SIZE_BYTES = 8 * 1024 * 1024; // 8 MB per image
+export const MAX_FILE_SIZE_BYTES = 8 * 1024 * 1024; // 8 MB per image as stored (after shrinking)
+// Largest photo a client or the office can pick. The browser shrinks it before upload.
+export const MAX_PICK_SIZE_BYTES = 20 * 1024 * 1024;
+// What the photos of one request may add up to in the save call (Vercel caps it at 4.5 MB).
+export const PHOTO_UPLOAD_BUDGET_BYTES = 3 * 1024 * 1024;
 
 export const ALLOWED_MIME_TYPES = [
   "image/jpeg",

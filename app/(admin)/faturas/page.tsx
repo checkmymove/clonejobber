@@ -56,7 +56,10 @@ export default async function FaturasPage({ searchParams }: { searchParams: Prom
   const bounds = rangeBounds(params.due);
   const filtered = listed.filter(
     (i) =>
-      (!params.status || i.list_status === params.status) &&
+      // "unpaid" is the Dashboard's Awaiting payment card: sent and not paid, past due included.
+      (!params.status ||
+        i.list_status === params.status ||
+        (params.status === "unpaid" && (i.list_status === "awaiting_payment" || i.list_status === "past_due"))) &&
       (!bounds || (i.due_on >= bounds[0] && i.due_on <= bounds[1])),
   );
   const rows = sortInvoices(filtered, params.sort, params.dir);
@@ -122,10 +125,13 @@ export default async function FaturasPage({ searchParams }: { searchParams: Prom
           {
             name: "status",
             label: "Status",
-            options: INVOICE_STATUS_ORDER.map((s) => ({
-              value: s,
-              label: `${INVOICE_STATUS_META[s].label} (${counts[s]})`,
-            })),
+            options: [
+              { value: "unpaid", label: `Unpaid (${counts.awaiting_payment + counts.past_due})` },
+              ...INVOICE_STATUS_ORDER.map((s) => ({
+                value: s,
+                label: `${INVOICE_STATUS_META[s].label} (${counts[s]})`,
+              })),
+            ],
           },
           {
             name: "due",

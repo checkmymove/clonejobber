@@ -54,10 +54,12 @@ export function smsSegments(text: string): { length: number; segments: number } 
   return { length, segments: length <= single ? 1 : Math.ceil(length / multi) };
 }
 
-/** Jobber's send dialog: "You've attached 0.00 MB of the 10.00 MB limit." */
-export const ATTACHMENT_LIMIT_BYTES = 10 * 1024 * 1024;
-/** One upload per request stays under the 4.5 MB function body limit. */
-export const ATTACHMENT_FILE_MAX_BYTES = 4 * 1024 * 1024;
+/** "You've attached 0.00 MB of the 20.00 MB limit." Gmail's upload send takes up to 35 MB encoded. */
+export const ATTACHMENT_LIMIT_BYTES = 20 * 1024 * 1024;
+/** One file can use the whole limit: it is uploaded in chunks. */
+export const ATTACHMENT_FILE_MAX_BYTES = ATTACHMENT_LIMIT_BYTES;
+/** Each upload request stays under Vercel's 4.5 MB function body limit. */
+export const ATTACHMENT_CHUNK_BYTES = 3 * 1024 * 1024;
 export const ATTACHMENT_TYPES = [
   "image/jpeg",
   "image/png",

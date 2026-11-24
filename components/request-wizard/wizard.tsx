@@ -7,9 +7,12 @@ import { submitRequest } from "@/lib/requests/actions";
 import {
   HOURS_OPTIONS,
   LAST_STEP,
+  MAX_PICK_SIZE_BYTES,
+  PHOTO_UPLOAD_BUDGET_BYTES,
   STEP_TITLES,
   TOTAL_STEPS,
 } from "@/lib/requests/constants";
+import { compressImages } from "@/lib/images/compress";
 import {
   validateContact,
   validateFileList,
@@ -220,6 +223,7 @@ export function RequestWizard({
               type: i.file.type,
             })),
             maxImages,
+            MAX_PICK_SIZE_BYTES,
           ),
           ...validatePacking(packing),
         };
@@ -264,6 +268,7 @@ export function RequestWizard({
     const e = validateFileList(
       merged.map((i) => ({ name: i.file.name, size: i.file.size, type: i.file.type })),
       maxImages,
+      MAX_PICK_SIZE_BYTES,
     );
     if (e.images) {
       setErrors((prev) => ({ ...prev, images: e.images }));
@@ -308,6 +313,7 @@ export function RequestWizard({
       ...validateFileList(
         images.map((i) => ({ name: i.file.name, size: i.file.size, type: i.file.type })),
         maxImages,
+        MAX_PICK_SIZE_BYTES,
       ),
     };
     if (Object.keys(all).length > 0) {
@@ -331,7 +337,12 @@ export function RequestWizard({
       fd.set("services", JSON.stringify(serviceIds));
       fd.set("hours", JSON.stringify(hours));
       fd.set("inventory", inventory);
-      for (const img of images) fd.append("images", img.file, img.file.name);
+      // Phone photos are shrunk here so the whole request fits in one upload.
+      const photos = await compressImages(
+        images.map((img) => img.file),
+        PHOTO_UPLOAD_BUDGET_BYTES,
+      );
+      for (const photo of photos) fd.append("images", photo, photo.name);
 
       const res = await submitRequest(fd);
       if (res.ok && res.number) {
@@ -563,7 +574,7 @@ export function RequestWizard({
                   </span>
                   Upload here
                   <span className="text-xs">
-                    {images.length}/{maxImages} · JPG, PNG or WEBP up to 8 MB each
+                    {images.length}/{maxImages} · JPG, PNG or WEBP up to 20 MB each
                   </span>
                 </button>
                 <input

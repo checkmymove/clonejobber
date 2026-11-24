@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation";
 import { listClientsForSelect } from "@/lib/clients/queries";
-import { COMPANY_SLUG } from "@/lib/company";
+import { COMPANY_SLUG, getCompanyId } from "@/lib/company";
 import { penceToInput, toDateInput, todayLondonInput } from "@/lib/format";
-import { getJobDetail } from "@/lib/jobs/queries";
+import { getJobDetail, getJobPrefillFromQuote } from "@/lib/jobs/queries";
 import { NewJobForm } from "@/components/jobs/new-job-form";
 import { listTeam } from "@/lib/team/queries";
+import { listCatalog } from "@/lib/products/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,14 @@ export default async function EditServicoPage({
   const j = await getJobDetail(id);
   if (!j) notFound();
 
-  const [clients, team] = await Promise.all([listClientsForSelect(COMPANY_SLUG), listTeam(COMPANY_SLUG)]);
+  const [clients, team, fromQuote, catalog] = await Promise.all([
+    listClientsForSelect(COMPANY_SLUG),
+    listTeam(COMPANY_SLUG),
+    // A job created from a quote starts without a visit: the visit then takes the
+    // moving date and time already set on the request / quote.
+    j.quote_id ? getJobPrefillFromQuote(j.quote_id) : null,
+    getCompanyId().then(listCatalog),
+  ]);
 
   return (
     <div className="min-h-[calc(100dvh-6.5rem)] rounded-2xl bg-white px-6 py-8 sm:px-10">
@@ -25,6 +33,7 @@ export default async function EditServicoPage({
         <NewJobForm
           clients={clients}
           team={team}
+          catalog={catalog}
           jobId={j.id}
           quoteId={j.quote_id ?? undefined}
           requestId={j.request_id ?? undefined}
@@ -46,7 +55,7 @@ export default async function EditServicoPage({
                   assignee: v.assignee,
                   instructions: v.instructions,
                 }))
-              : undefined
+              : fromQuote?.visits
           }
           initialLines={j.lines.map((l) => ({
             name: l.name,
@@ -56,6 +65,7 @@ export default async function EditServicoPage({
           }))}
           initialDiscount={penceToInput(j.discount)}
           initialTax={penceToInput(j.tax)}
+          initialDeposit={fromQuote ? fromQuote.deposit / 100 : undefined}
           today={todayLondonInput()}
         />
       </div>

@@ -72,3 +72,16 @@ export async function getServiceForQuote(
     unitPrice: row.unit_price > 0 ? penceToInput(row.unit_price) : "",
   };
 }
+
+/** Products & Services as line-item choices (prices in pounds, as the forms type them). */
+export async function listCatalog(companyId: string | null | undefined) {
+  if (!companyId) return [];
+  const rows = await listProducts(companyId, "", "name", "asc");
+  return rows.map((p) => ({
+    id: p.id,
+    type: p.item_type,
+    name: p.name,
+    description: p.description,
+    price: (p.unit_price / 100).toFixed(2),
+  }));
+}

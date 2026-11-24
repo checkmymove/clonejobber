@@ -149,6 +149,19 @@ export function QuoteMoreMenu({
             <Mail size={18} />
             Send email &amp; text
           </button>
+          {status === "approved" ? (
+            // Approved: the header's green button is Convert to Job, so Resend lives here.
+            <button
+              type="button"
+              role="menuitem"
+              disabled={Boolean(pending) || archived}
+              onClick={() => void run("resend", () => sender.open("quote", quoteId))}
+              className={itemClass}
+            >
+              <Send size={18} />
+              Resend quote
+            </button>
+          ) : null}
           <Link
             href={`/q/${quoteId}`}
             role="menuitem"
@@ -233,12 +246,19 @@ export function ConvertToJobButton({
   archived: boolean;
   jobId: string | null;
 }) {
-  if (jobId || archived || status === "rejected" || status === "expired") return null;
+  const green =
+    "inline-flex h-10 items-center gap-2 rounded-xl bg-accent px-5 text-sm font-semibold text-white shadow-[0_1px_2px_rgba(15,23,42,0.08)] hover:opacity-90";
+  if (jobId) {
+    return (
+      <Link href={`/servicos/${jobId}`} className={green}>
+        <Hammer size={16} />
+        View Job
+      </Link>
+    );
+  }
+  if (archived || status === "rejected" || status === "expired") return null;
   return (
-    <Link
-      href={`/servicos/novo?quoteId=${quoteId}`}
-      className="inline-flex h-10 items-center gap-2 rounded-xl bg-ink px-4 text-sm font-bold text-white hover:opacity-90"
-    >
+    <Link href={`/servicos/novo?quoteId=${quoteId}`} className={green}>
       <Hammer size={16} />
       Convert to Job
     </Link>

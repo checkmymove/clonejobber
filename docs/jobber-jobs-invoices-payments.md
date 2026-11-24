@@ -91,3 +91,27 @@ Fonte: conta Jobber da Moving London, no Chrome do utilizador via CDP (REA `list
 - Estados (`lib/team/time.ts`): Completed se marcada feita; Active com alguém a trabalhar ou dentro da janela; Overdue depois da hora de fim; senão Remaining. Anytime nunca fica Overdue no próprio dia.
 - Valor da visita: total do job dividido pelas visitas do job, para não contar o job duas vezes.
 - Página do job: secção Labour com todas as entradas, total do job e total por pessoa. Equipa gerida em `/equipa`.
+
+## Home Workflow e cabeças das listas (observado em 24 nov 2026)
+
+Fonte: conta Jobber da Moving London no Chrome do utilizador via CDP (fluxo REA), só leitura: páginas, links e respostas GraphQL (`requestsMetadata`, `quotesMetadata`, `jobsMetadata`, `invoicesMetadata`, `requestKpis`, `jobKpis`).
+
+**Home › Workflow**: quatro colunas com barra de cor no topo (Requests laranja, Quotes bordô, Jobs verde, Invoices azul). Cada coluna é um link para a lista filtrada, e cada linha também:
+- Requests: número grande = **New** → `/requests?status=new`; linhas Needs approval → `?status=needs_approval`, Overdue → `?status=overdue`.
+- Quotes: **Approved** (aprovadas e ainda sem job) → `/quotes?status=approved`; Draft (n) £ → `?status=draft`; Changes requested (n) £ → `?status=changes_requested`.
+- Jobs: **Requires invoicing** → `/jobs?status=requires_invoicing`; Active (n) £ → `?status=active`; Action required (n) £ → `?status=action_required`.
+- Invoices: **Awaiting payment** (n e £, inclui as em atraso) → `/invoices?status=awaiting_payment`; Draft (n) → `?status=draft`; Past due (n) £ → `?status=past_due`.
+Valores curtos: £1,406, £81.9k.
+
+**Requests (lista)**: Overview (Needs approval, New, Assessment complete, Overdue, Unscheduled, cada um link `?status=`), New requests (Past 30 days, seta ↗), Conversion rate ("Quotes or jobs created from requests in the past 30 days"), cartão Get requests 24/7 (Share Your Form). API `requestKpis`: `newRequestsCount` (recebidos nos 30 dias e ainda New) e `convertedRequestsCount`; taxa = convertidos ÷ (new + convertidos) = 31/32 = 97%.
+
+**Quotes (lista)**: Overview (Draft, Awaiting response, Changes requested, Approved → `?status=`), Conversion rate (só %, 49/197 = 25%), Sent (197, £65k), Converted (49, £15.8k), todos Past 30 days com ↗ para o relatório e seta de tendência contra os 30 dias anteriores. Filtro Status inclui Converted e Archived.
+
+**Jobs (lista)**: Overview (Ending within 30 days, Late, Requires Invoicing, Action Required, Unscheduled), Recent visits (49, £25k, ↑32% contra 37), Visits scheduled (17, £7,425, ↓65% = comparado com as 49 visitas recentes). Com filtro: título "Filtered jobs (22 results)", pílula "Status | Late" e "Clear Filters". "Ending within 30 days" só se aplica a jobs recorrentes.
+
+### Como o Job To Go reproduz
+
+- Dashboard (`components/dashboard/workflow.tsx`, dados em `lib/funnel/dashboard.ts`) com os mesmos números e links. Requests: New; Awaiting review e Overdue (à espera de quote com a data de mudança já passada). Invoices: `/faturas?status=unpaid` (awaiting + past due).
+- Listas com o filtro "Status | All" que aplica ao escolher (`FilterBar` + `AutoSubmitSelect`) e "Clear filters". Estados dos requests em `lib/requests/metrics.ts`; filtros das quotes em `lib/quotes/metrics.ts` (`quoteFilterKey`).
+- Jobs: estado extra "Active" (tudo o que não está arquivado). "Ending within 30 days" ficou de fora: o Job To Go não tem jobs recorrentes.
+- Quotes enviadas sem resposta há 5 dias são arquivadas no 6.º dia (`lib/quotes/auto-archive.ts`), pelo cron diário `/api/cron/archive-quotes` e sempre que a lista de Quotes ou o Dashboard abre. Uma quote desarquivada depois de enviada não volta a ser arquivada. Separador "Archived (n)" na lista.

@@ -70,3 +70,20 @@ export async function listJobsForExpenses(companySlug: string): Promise<{ id: st
   `;
   return rows.map((r) => ({ id: r.id, label: `${r.number} · ${r.client}${r.title ? ` · ${r.title}` : ""}` }));
 }
+
+/** Expenses booked against one job, oldest first; null until migration 0025 runs. */
+export async function listJobExpenses(jobId: string): Promise<ExpenseRow[] | null> {
+  try {
+    const rows = await sql<(Omit<ExpenseRow, "spent_on"> & { spent_on: string | Date })[]>`
+      select e.id, e.spent_on, e.category, e.description, e.vendor, e.amount, e.payment_method,
+             e.job_id, null::text as job_number, null::text as job_client
+      from expenses e
+      where e.job_id = ${jobId}
+      order by e.spent_on, e.created_at
+    `;
+    return rows.map((r) => ({ ...r, spent_on: toDateInput(r.spent_on) }));
+  } catch (error) {
+    if (isMissingExpensesTable(error)) return null;
+    throw error;
+  }
+}

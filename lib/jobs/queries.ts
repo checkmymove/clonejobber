@@ -1,4 +1,5 @@
 import "server-only";
+import { addMinutesToClock } from "@/lib/schedule/dates";
 import { sql } from "@/lib/db";
 import { penceToInput, toDateInput, todayLondonInput } from "@/lib/format";
 import type { ParsedLine } from "@/lib/funnel/money";
@@ -277,6 +278,8 @@ export type JobPrefill = {
   notes: string;
   discount: string;
   tax: string;
+  /** Required deposit set on the quote, in pence. */
+  deposit: number;
   visits: JobVisitDraft[];
   lines: { name: string; qty: string; price: string; description: string }[];
 };
@@ -334,6 +337,7 @@ export async function getJobPrefillFromQuote(quoteId: string): Promise<JobPrefil
     notes: q.notes,
     discount: penceToInput(q.discount),
     tax: penceToInput(q.tax),
+    deposit: q.deposit ?? 0,
     visits: [
       {
         id: "visit-1",
@@ -341,7 +345,8 @@ export async function getJobPrefillFromQuote(quoteId: string): Promise<JobPrefil
         date: moveDate || new Date().toISOString().slice(0, 10),
         later: !moveDate,
         start,
-        end: "",
+        // Moves are booked in 3-hour slots, as the form does when the start is typed.
+        end: start ? addMinutesToClock(start, 180) : "",
         anytime: false,
         assignee: "",
         instructions: visitInstructionsFromQuote(q),

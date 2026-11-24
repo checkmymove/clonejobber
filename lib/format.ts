@@ -8,6 +8,16 @@ export function formatGBP(pence: number): string {
   }).format(pence / 100);
 }
 
+/** Jobber's short amounts: £1,406 · £81.9k · £1.2m (whole pounds). */
+export function formatGBPShort(pence: number): string {
+  const pounds = Math.round(pence / 100);
+  const abs = Math.abs(pounds);
+  const short = (n: number, suffix: string) => `£${(Math.round(n * 10) / 10).toLocaleString("en-GB")}${suffix}`;
+  if (abs >= 1_000_000) return short(pounds / 1_000_000, "m");
+  if (abs >= 10_000) return short(pounds / 1000, "k");
+  return `£${pounds.toLocaleString("en-GB")}`;
+}
+
 /** Form totals typed in pounds. Always two decimals, en-GB. */
 export function formatPounds(pounds: number): string {
   return new Intl.NumberFormat("en-GB", {

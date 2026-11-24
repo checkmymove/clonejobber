@@ -104,10 +104,11 @@ export async function deliverEmail(
         select file_name, mime_type, data, file_size from send_attachments
         where id = any(${ids}::uuid[]) and company_id = ${doc.companyId}
           and kind = ${draft.kind} and document_id = ${draft.id}
+          and octet_length(data) = file_size
       `
     : [];
   if (extra.reduce((s, f) => s + f.file_size, 0) > ATTACHMENT_LIMIT_BYTES) {
-    return { ok: false, message: "Attachments are over the 10 MB limit." };
+    return { ok: false, message: "Attachments are over the 20 MB limit." };
   }
 
   let gmailId: string;

@@ -234,7 +234,7 @@ export function QuoteServicesCard({ snapshot, catalog = [] }: { snapshot: QuoteE
       )}
       view={<ServicesView lines={snapshot.lines} />}
     >
-      <LineFields lines={lines} onChange={setLines} />
+      <LineFields lines={lines} onChange={setLines} catalog={catalog} />
     </InlineEditCard>
   );
 }

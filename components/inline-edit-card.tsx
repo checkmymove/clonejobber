@@ -1,5 +1,8 @@
 "use client";
 
+import { AutoGrowTextarea } from "@/components/auto-grow-textarea";
+import { ServiceNameField } from "@/components/funnel/service-name-field";
+import type { CatalogItem } from "@/components/quotes/quote-inline-cards";
 import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Pencil } from "lucide-react";
@@ -289,24 +292,47 @@ export function newDraftLine(): DraftLine {
 export function LineFields({
   lines,
   onChange,
+  catalog,
 }: {
   lines: DraftLine[];
   onChange: (lines: DraftLine[]) => void;
+  /** Products & Services: clicking a line's Service box lists them to pick from. */
+  catalog?: CatalogItem[];
 }) {
   return (
     <div className="space-y-3">
       {lines.map((line, index) => (
         <div key={line.id} className="space-y-2 rounded-xl border border-line p-3">
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_5.5rem_6.5rem_auto]">
-            <input
-              aria-label={`Line ${index + 1} name`}
-              className={inlineField}
-              placeholder="Service"
-              value={line.name}
-              onChange={(e) =>
-                onChange(lines.map((item) => (item.id === line.id ? { ...item, name: e.target.value } : item)))
-              }
-            />
+            {catalog?.length ? (
+              <ServiceNameField
+                ariaLabel={`Line ${index + 1} name`}
+                className={inlineField}
+                placeholder="Service"
+                value={line.name}
+                catalog={catalog}
+                onChange={(name) => onChange(lines.map((item) => (item.id === line.id ? { ...item, name } : item)))}
+                onPick={(picked) =>
+                  onChange(
+                    lines.map((item) =>
+                      item.id === line.id
+                        ? { ...item, name: picked.name, description: picked.description, price: padMoney(picked.price) }
+                        : item,
+                    ),
+                  )
+                }
+              />
+            ) : (
+              <input
+                aria-label={`Line ${index + 1} name`}
+                className={inlineField}
+                placeholder="Service"
+                value={line.name}
+                onChange={(e) =>
+                  onChange(lines.map((item) => (item.id === line.id ? { ...item, name: e.target.value } : item)))
+                }
+              />
+            )}
             <input
               aria-label={`Line ${index + 1} quantity`}
               className={inlineField}
@@ -337,9 +363,9 @@ export function LineFields({
               Remove
             </button>
           </div>
-          <textarea
+          <AutoGrowTextarea
             aria-label={`Line ${index + 1} summary`}
-            className={inlineArea}
+            className={inlineArea.replace(/\bmin-h-\S+/g, "")}
             placeholder="Service summary"
             value={line.description}
             onChange={(e) =>
@@ -351,7 +377,7 @@ export function LineFields({
       <button
         type="button"
         onClick={() => onChange([...lines, newDraftLine()])}
-        className="text-sm font-bold text-accent hover:underline"
+        className="h-9 rounded-lg bg-accent px-3 text-sm font-semibold text-white hover:opacity-90"
       >
         Add line item
       </button>

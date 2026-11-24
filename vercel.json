@@ -1,4 +1,5 @@
 {
   "framework": "nextjs",
-  "regions": ["gru1"]
+  "regions": ["gru1"],
+  "crons": [{ "path": "/api/cron/archive-quotes", "schedule": "0 6 * * *" }]
 }

@@ -5,6 +5,7 @@ import { isUuid } from "@/lib/funnel/validation";
 import { getJobDetail, type JobVisit } from "@/lib/jobs/queries";
 import { ClientDocumentView } from "@/components/funnel/client-document-view";
 import { PublicJobApprove } from "@/components/jobs/public-job-approve";
+import { RouteEstimateCard } from "@/components/funnel/route-estimate-card";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +54,11 @@ export default async function PublicJobPage({ params }: { params: Promise<{ id: 
           <PublicJobApprove jobId={job.id} approved={Boolean(job.approved_at)} />
         </div>
       ) : null}
+      <RouteEstimateCard
+        className="mt-6 shadow-none"
+        collection={job.pickup_address ?? ""}
+        delivery={job.delivery_address ?? ""}
+      />
       {visits.length ? (
         <div className="mt-6 border-t border-line pt-4">
           <h2 className="mb-2 text-[15px] font-bold text-ink">Visits</h2>

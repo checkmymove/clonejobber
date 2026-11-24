@@ -8,6 +8,8 @@ import { Card } from "@/components/ui";
 import { PublicQuoteActions } from "@/components/quotes/public-quote-actions";
 import { ClientHubPanel } from "@/components/quotes/client-hub-panel";
 import type { ClientHub } from "@/lib/quotes/client-hub";
+import { RouteEstimateCard } from "@/components/funnel/route-estimate-card";
+import { DEPOSIT_NOTE } from "@/lib/funnel/deposit";
 
 function money(pence: number) {
   return formatPounds(pence / 100);
@@ -174,6 +176,11 @@ export function PublicQuoteView({ quote, hub }: { quote: QuoteDetail; hub: Clien
           <StopCard title="Collection Information" stop={quote.collection} />
           <StopCard title="Delivery Information" stop={quote.delivery} />
         </div>
+        <RouteEstimateCard
+          className="mt-4"
+          collection={quote.collection?.address ?? ""}
+          delivery={quote.delivery?.address ?? ""}
+        />
 
         <Card className="mt-4 p-5">
           <h2 className="text-[16px] font-extrabold text-ink">Product / Service</h2>
@@ -243,6 +250,15 @@ export function PublicQuoteView({ quote, hub }: { quote: QuoteDetail; hub: Clien
               <dt>Total</dt>
               <dd>{money(quote.total)}</dd>
             </div>
+            {quote.deposit > 0 ? (
+              <div className="rounded-lg bg-cream px-3 py-2.5">
+                <div className="flex justify-between gap-6">
+                  <dt className="font-semibold text-ink">Required deposit</dt>
+                  <dd className="font-bold text-ink">{money(quote.deposit)}</dd>
+                </div>
+                <p className="mt-0.5 text-[13px] text-ink-soft">{DEPOSIT_NOTE}</p>
+              </div>
+            ) : null}
           </dl>
         </Card>
         </div>

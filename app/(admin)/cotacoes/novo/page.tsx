@@ -3,7 +3,7 @@ import { listClientsForSelect } from "@/lib/clients/queries";
 import { COMPANY_SLUG, getCompanyId } from "@/lib/company";
 import { describeService } from "@/lib/quotes/summary";
 import { getQuotePrefillForClient, getQuotePrefillFromRequest } from "@/lib/quotes/queries";
-import { getServiceForQuote, listServicesForQuote } from "@/lib/products/queries";
+import { getServiceForQuote, listCatalog, listServicesForQuote } from "@/lib/products/queries";
 import { isUuid } from "@/lib/funnel/validation";
 import { NewQuoteDialog } from "@/components/quotes/new-quote-dialog";
 import { NewQuoteForm } from "@/components/quotes/new-quote-form";
@@ -40,9 +40,10 @@ export default async function NovaCotacaoPage({
     service = found;
   }
 
-  const [clients, requestServices] = await Promise.all([
+  const [clients, requestServices, catalog] = await Promise.all([
     listClientsForSelect(COMPANY_SLUG),
     getActiveServices(companyId),
+    listCatalog(companyId),
   ]);
   let prefill = sp.requestId
     ? await getQuotePrefillFromRequest(sp.requestId, service)
@@ -68,6 +69,7 @@ export default async function NovaCotacaoPage({
       <div>
         <NewQuoteForm
           clients={clients}
+          catalog={catalog}
           requestServices={requestServices}
           requestId={prefill?.requestId ?? (sp.requestId || undefined)}
           sourceRequestId={sp.requestId}

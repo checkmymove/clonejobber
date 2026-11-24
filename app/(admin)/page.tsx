@@ -2,7 +2,7 @@ import { getDashboard, getPerformance, type StatusTally } from "@/lib/funnel/das
 import { isPerformancePeriod } from "@/lib/funnel/periods";
 import { requireAdmin } from "@/lib/auth/session";
 import { COMPANY_SLUG } from "@/lib/company";
-import { greetingLondon, todayLondonInput } from "@/lib/format";
+import { formatGBPShort, greetingLondon, todayLondonInput } from "@/lib/format";
 import { formatClock12, isIsoDate } from "@/lib/schedule/dates";
 import { getShellProfile } from "@/lib/shell";
 import { getTodaysAppointments, getWeeklyTimesheets } from "@/lib/team/queries";
@@ -38,51 +38,70 @@ export default async function DashboardPage({
     getShellProfile(COMPANY_SLUG, user.email ?? ""),
   ]);
 
-  const toInvoice = count(d.jobs, "requires_invoicing");
-  const late = count(d.jobs, "late");
-  const pastDue = count(d.invoices, "past_due");
+  const sum = (rows: StatusTally, ...statuses: string[]) => statuses.reduce((s, k) => s + (rows[k]?.total ?? 0), 0);
+  const money = (pence: number) => (pence ? formatGBPShort(pence) : undefined);
   const stages: WorkflowStage[] = [
     {
       key: "requests",
-      href: "/solicitacoes",
       label: "Requests",
-      count: count(d.requests, "new", "review"),
-      lines: [{ text: `${count(d.requests, "new")} new` }, { text: `${count(d.requests, "review")} in review` }],
+      count: count(d.requests, "new"),
+      status: "New",
+      href: "/solicitacoes?status=new",
+      lines: [
+        { text: "Awaiting review", count: count(d.requests, "review"), href: "/solicitacoes?status=review" },
+        { text: "Overdue", count: count(d.requests, "overdue"), href: "/solicitacoes?status=overdue", tone: "danger" },
+      ],
     },
     {
       key: "quotes",
-      href: "/cotacoes",
       label: "Quotes",
-      count: count(d.quotes, "draft", "awaiting", "changes", "approved"),
+      count: count(d.quotes, "approved"),
+      amount: money(sum(d.quotes, "approved")),
+      status: "Approved",
+      href: "/cotacoes?status=approved",
       lines: [
-        { text: `${count(d.quotes, "awaiting")} awaiting response` },
-        count(d.quotes, "changes")
-          ? { text: `${count(d.quotes, "changes")} changes requested`, tone: "warn" }
-          : { text: `${count(d.quotes, "approved")} approved` },
+        { text: "Draft", count: count(d.quotes, "draft"), amount: money(sum(d.quotes, "draft")), href: "/cotacoes?status=draft" },
+        {
+          text: "Changes requested",
+          count: count(d.quotes, "changes"),
+          amount: money(sum(d.quotes, "changes")),
+          href: "/cotacoes?status=changes",
+        },
       ],
     },
     {
       key: "jobs",
-      href: "/servicos",
       label: "Jobs",
-      count: count(d.jobs, "late", "requires_invoicing", "action_required", "unscheduled", "today", "upcoming"),
+      count: count(d.jobs, "requires_invoicing"),
+      amount: money(sum(d.jobs, "requires_invoicing")),
+      status: "Requires invoicing",
+      href: "/servicos?status=requires_invoicing",
       lines: [
-        { text: `${count(d.jobs, "today")} today` },
-        toInvoice
-          ? { text: `${toInvoice} to invoice`, tone: "warn" }
-          : late
-            ? { text: `${late} late`, tone: "danger" }
-            : { text: `${count(d.jobs, "upcoming")} upcoming` },
+        { text: "Active", count: count(d.jobs, "active"), amount: money(sum(d.jobs, "active")), href: "/servicos?status=active" },
+        {
+          text: "Action required",
+          count: count(d.jobs, "action_required"),
+          amount: money(sum(d.jobs, "action_required")),
+          href: "/servicos?status=action_required",
+        },
       ],
     },
     {
       key: "invoices",
-      href: "/faturas",
       label: "Invoices",
-      count: count(d.invoices, "past_due", "awaiting_payment", "draft"),
+      count: count(d.invoices, "awaiting_payment", "past_due"),
+      amount: money(sum(d.invoices, "awaiting_payment", "past_due")),
+      status: "Awaiting payment",
+      href: "/faturas?status=unpaid",
       lines: [
-        { text: `${count(d.invoices, "awaiting_payment")} awaiting payment` },
-        { text: `${pastDue} overdue`, tone: pastDue ? "danger" : undefined },
+        { text: "Draft", count: count(d.invoices, "draft"), href: "/faturas?status=draft" },
+        {
+          text: "Past due",
+          count: count(d.invoices, "past_due"),
+          amount: money(sum(d.invoices, "past_due")),
+          href: "/faturas?status=past_due",
+          tone: "danger",
+        },
       ],
     },
   ];

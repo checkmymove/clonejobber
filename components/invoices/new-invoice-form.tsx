@@ -7,6 +7,7 @@ import { createInvoice, saveInvoiceAndMarkSent, saveInvoiceAndPrepareSend, updat
 import { SendDialog, useSendDialog } from "@/components/funnel/send-dialog";
 import { ClientSelect } from "@/components/funnel/client-select";
 import { StickySaveBar } from "@/components/forms/sticky-save-bar";
+import { TotalsEditor } from "@/components/funnel/totals-editor";
 import { formatPounds, padMoney } from "@/lib/format";
 import {
   CheckCircle,
@@ -97,8 +98,6 @@ export function NewInvoiceForm({
   const [issuedOn, setIssuedOn] = useState(initialIssuedOn ?? "");
   const [discount, setDiscount] = useState(Number(initialDiscount) ? initialDiscount! : "");
   const [tax, setTax] = useState(Number(initialTax) ? initialTax! : "");
-  const [discountOpen, setDiscountOpen] = useState(Boolean(Number(initialDiscount)));
-  const [taxOpen, setTaxOpen] = useState(Boolean(Number(initialTax)));
 
   const subtotal = useMemo(
     () =>
@@ -381,51 +380,15 @@ export function NewInvoiceForm({
               Change
             </button>
           </div>
-          <div className="space-y-3 rounded-xl border border-[#d5dde1] bg-[#f9fafa] p-4 text-sm">
-            <div className="flex justify-between text-[#5d6f78]">
-              <span>Subtotal</span>
-              <span>{formatPounds(subtotal)}</span>
-            </div>
-            <div className="flex items-center justify-between text-[#5d6f78]">
-              <span>Discount</span>
-              {discountOpen ? (
-                <input
-                  aria-label="Discount"
-                  inputMode="decimal"
-                  placeholder="£ 0.00"
-                  value={discount}
-                  onChange={(event) => setDiscount(event.target.value)}
-                  onBlur={(event) => setDiscount(padMoney(event.target.value))}
-                  className={`h-9 w-28 rounded-lg border ${line} px-2 text-right text-sm ${ink} outline-none`}
-                />
-              ) : (
-                <button type="button" onClick={() => setDiscountOpen(true)} className="font-semibold underline" style={{ color: green }}>
-                  Add discount
-                </button>
-              )}
-            </div>
-            <div className="flex items-center justify-between text-[#5d6f78]">
-              <span>VAT</span>
-              {taxOpen ? (
-                <input
-                  aria-label="Tax"
-                  inputMode="decimal"
-                  placeholder="£ 0.00"
-                  value={tax}
-                  onChange={(event) => setTax(event.target.value)}
-                  onBlur={(event) => setTax(padMoney(event.target.value))}
-                  className={`h-9 w-28 rounded-lg border ${line} px-2 text-right text-sm ${ink} outline-none`}
-                />
-              ) : (
-                <button type="button" onClick={() => setTaxOpen(true)} className="font-semibold underline" style={{ color: green }}>
-                  Add tax
-                </button>
-              )}
-            </div>
-            <div className={`flex justify-between font-bold ${ink}`}>
-              <span>Total</span>
-              <span>{formatPounds(total)}</span>
-            </div>
+          <TotalsEditor
+            subtotal={subtotal}
+            discount={discount}
+            onDiscount={setDiscount}
+            tax={tax}
+            onTax={setTax}
+            taxLabel="VAT"
+            className="max-w-none"
+          >
             {balancePaid ? (
               <div className="flex justify-between text-[#5d6f78]">
                 <span>Payments and deposits</span>
@@ -436,7 +399,7 @@ export function NewInvoiceForm({
               <span>Invoice balance</span>
               <span>{formatPounds(Math.max(0, total - (balancePaid ?? 0) / 100))}</span>
             </div>
-          </div>
+          </TotalsEditor>
         </div>
       </SectionCard>
 

@@ -7,7 +7,12 @@ import { getLatestRequestId, getRequestDetail } from "@/lib/requests/queries";
 import { requestSnapshotFromDetail } from "@/lib/requests/edit-snapshot";
 import { quoteLinesFromPence } from "@/lib/quotes/edit-snapshot";
 import { QuoteRequestSidebar } from "@/components/quotes/quote-request-sidebar";
-import { QuoteMoreMenu, QuoteNextSteps, SendQuoteButton } from "@/components/quotes/quote-more-menu";
+import {
+  ConvertToJobButton,
+  QuoteMoreMenu,
+  QuoteNextSteps,
+  SendQuoteButton,
+} from "@/components/quotes/quote-more-menu";
 import { QuoteInfoCard } from "@/components/quotes/quote-info-card";
 import { listProducts } from "@/lib/products/queries";
 import {
@@ -130,7 +135,11 @@ export default async function CotacaoDetailPage({
               <ArrowLeft size={17} aria-hidden />
               Back
             </Link>
-            <SendQuoteButton quoteId={id} status={q.status} archived={archived} />
+            {q.status === "approved" ? (
+              <ConvertToJobButton quoteId={id} status={q.status} archived={archived} jobId={q.job_id} />
+            ) : (
+              <SendQuoteButton quoteId={id} status={q.status} archived={archived} />
+            )}
           </div>
         }
       />

@@ -1,8 +1,9 @@
 import { notFound, redirect } from "next/navigation";
 import { listClientsForSelect } from "@/lib/clients/queries";
-import { COMPANY_SLUG } from "@/lib/company";
+import { COMPANY_SLUG, getCompanyId } from "@/lib/company";
 import { NewJobForm } from "@/components/jobs/new-job-form";
 import { listTeam } from "@/lib/team/queries";
+import { listCatalog } from "@/lib/products/queries";
 import { getJobIdForQuote, getJobPrefillFromQuote } from "@/lib/jobs/queries";
 import { isUuid } from "@/lib/funnel/validation";
 import { todayLondonInput } from "@/lib/format";
@@ -15,7 +16,11 @@ export default async function NovoServicoPage({
   searchParams: Promise<{ quoteId?: string; date?: string }>;
 }) {
   const sp = await searchParams;
-  const [clients, team] = await Promise.all([listClientsForSelect(COMPANY_SLUG), listTeam(COMPANY_SLUG)]);
+  const [clients, team, catalog] = await Promise.all([
+    listClientsForSelect(COMPANY_SLUG),
+    listTeam(COMPANY_SLUG),
+    getCompanyId().then(listCatalog),
+  ]);
   const visitDay = /^\d{4}-\d{2}-\d{2}$/.test(sp.date ?? "") ? sp.date! : todayLondonInput();
 
   if (sp.quoteId) {
@@ -30,6 +35,7 @@ export default async function NovoServicoPage({
           <NewJobForm
             clients={clients}
             team={team}
+            catalog={catalog}
             quoteId={prefill.quoteId}
             requestId={prefill.requestId}
             initialClientId={prefill.clientId}
@@ -39,6 +45,7 @@ export default async function NovoServicoPage({
             initialLines={prefill.lines}
             initialDiscount={prefill.discount}
             initialTax={prefill.tax}
+            initialDeposit={prefill.deposit / 100}
             today={visitDay}
           />
         </div>
@@ -49,7 +56,7 @@ export default async function NovoServicoPage({
   return (
     <div className="min-h-[calc(100dvh-6.5rem)] rounded-2xl bg-white px-6 py-8 sm:px-10">
       <div>
-        <NewJobForm clients={clients} team={team} today={visitDay} />
+        <NewJobForm clients={clients} team={team} catalog={catalog} today={visitDay} />
       </div>
     </div>
   );

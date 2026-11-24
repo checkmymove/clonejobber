@@ -71,6 +71,48 @@ export function quoteListStatus(
   }
 }
 
+/**
+ * Status filter of the Quotes list (and the Overview / Dashboard links), as in Jobber:
+ * Approved means approved and still waiting for its job; once the job exists the quote
+ * counts as Converted. Archived wins over everything.
+ */
+export const QUOTE_FILTERS = [
+  { key: "draft", label: "Draft", dot: "bg-stone-400" },
+  { key: "awaiting", label: "Awaiting response", dot: "bg-amber-400" },
+  { key: "changes", label: "Changes requested", dot: "bg-sky-500" },
+  { key: "approved", label: "Approved", dot: "bg-emerald-500" },
+  { key: "converted", label: "Converted", dot: "bg-violet-500" },
+  { key: "rejected", label: "Declined", dot: "bg-rose-400" },
+  { key: "expired", label: "Expired", dot: "bg-stone-300" },
+  { key: "archived", label: "Archived", dot: "bg-stone-400" },
+] as const;
+
+export type QuoteFilterKey = (typeof QUOTE_FILTERS)[number]["key"];
+
+export function quoteFilterKey(q: {
+  status: string;
+  converted_at: string | Date | null;
+  archived_at?: string | Date | null;
+}): QuoteFilterKey | string {
+  if (q.archived_at) return "archived";
+  if (q.converted_at) return "converted";
+  return quoteListStatus(q.status, null).key;
+}
+
+/** Count and total (pence) per filter key, over every quote (archived included). */
+export function quoteFilterTally(
+  rows: { status: string; total: number; converted_at: string | Date | null; archived_at?: string | Date | null }[],
+): Record<string, { n: number; total: number }> {
+  const out: Record<string, { n: number; total: number }> = {};
+  for (const row of rows) {
+    const key = quoteFilterKey(row);
+    out[key] ??= { n: 0, total: 0 };
+    out[key].n += 1;
+    out[key].total += row.total;
+  }
+  return out;
+}
+
 function stamp(value: string | Date | null | undefined): number | null {
   if (!value) return null;
   const time = value instanceof Date ? value.getTime() : new Date(value).getTime();

@@ -3,7 +3,8 @@
 import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { useMemo, useRef, useState } from "react";
 import { Calendar, ChevronDown, Quote, Search, UserRound } from "lucide-react";
-import { HOURS_OPTIONS } from "@/lib/requests/constants";
+import { HOURS_OPTIONS, MAX_PICK_SIZE_BYTES, PHOTO_UPLOAD_BUDGET_BYTES } from "@/lib/requests/constants";
+import { compressImages } from "@/lib/images/compress";
 import {
   createAdminRequest,
   saveRequestAndConvert,
@@ -229,9 +230,9 @@ export function NewRequestForm({
     if (picked.length !== list.length) {
       setImagesError("Only JPG, PNG or WEBP images are allowed.");
     }
-    const oversized = picked.find((f) => f.size > 8 * 1024 * 1024);
+    const oversized = picked.find((f) => f.size > MAX_PICK_SIZE_BYTES);
     if (oversized) {
-      setImagesError(`Image ${oversized.name} exceeds 8 MB.`);
+      setImagesError(`Image ${oversized.name} exceeds 20 MB.`);
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
@@ -287,19 +288,20 @@ export function NewRequestForm({
           setError("Check the highlighted fields.");
           return;
         }
-        const photoBytes = images.reduce((sum, img) => sum + img.file.size, 0);
-        if (photoBytes > 12 * 1024 * 1024) {
-          setError("Photos must be 12 MB or less in total. Remove one and try again.");
-          return;
-        }
         setPending(true);
         try {
+          // Photos travel as base64 inside the save call (Vercel caps it at 4.5 MB):
+          // shrink them in the browser first, so up to 20 MB each can be picked.
+          const photos = await compressImages(
+            images.map((img) => img.file),
+            PHOTO_UPLOAD_BUDGET_BYTES,
+          );
           const payloadImages = await Promise.all(
-            images.map(async (img) => ({
-              name: img.file.name,
-              mime: img.file.type,
-              size: img.file.size,
-              data: await fileToBase64(img.file),
+            photos.map(async (file) => ({
+              name: file.name,
+              mime: file.type,
+              size: file.size,
+              data: await fileToBase64(file),
             })),
           );
           const iso = moveDateText.trim()

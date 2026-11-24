@@ -8,6 +8,10 @@ import { createJob, saveJobAndConvert, saveJobAndPrepareSend, updateJob } from "
 import { SendDialog, useSendDialog } from "@/components/funnel/send-dialog";
 import { ClientSelect } from "@/components/funnel/client-select";
 import { StickySaveBar } from "@/components/forms/sticky-save-bar";
+import { TotalsEditor } from "@/components/funnel/totals-editor";
+import { ServiceNameField } from "@/components/funnel/service-name-field";
+import { AutoGrowTextarea } from "@/components/auto-grow-textarea";
+import type { CatalogItem } from "@/components/quotes/quote-inline-cards";
 import { formatPounds, padMoney } from "@/lib/format";
 import { addMinutesToClock } from "@/lib/schedule/dates";
 import {
@@ -95,9 +99,13 @@ export function NewJobForm({
   initialLines,
   initialDiscount,
   initialTax,
+  initialDeposit,
   today,
   team = [],
+  catalog = [],
 }: {
+  /** Products & Services, listed when the Name box of a line is clicked. */
+  catalog?: CatalogItem[];
   clients: { id: string; first_name: string; last_name: string; email: string }[];
   quoteId?: string;
   requestId?: string;
@@ -111,6 +119,8 @@ export function NewJobForm({
   initialLines?: { name: string; qty: string; price: string; description?: string }[];
   initialDiscount?: string;
   initialTax?: string;
+  /** Required deposit from the quote, in pounds: shown under the total. */
+  initialDeposit?: number;
   today: string;
   /** People from Team, offered in each visit's Assign list. */
   team?: { id: string; name: string }[];
@@ -143,8 +153,6 @@ export function NewJobForm({
   const notes = initialNotes ?? "";
   const [discount, setDiscount] = useState(Number(initialDiscount) ? initialDiscount! : "");
   const [tax, setTax] = useState(Number(initialTax) ? initialTax! : "");
-  const [discountOpen, setDiscountOpen] = useState(Boolean(Number(initialDiscount)));
-  const [taxOpen, setTaxOpen] = useState(Boolean(Number(initialTax)));
   const [lines, setLines] = useState<Line[]>(
     initialLines?.length
       ? initialLines.map((l, i) => ({
@@ -403,13 +411,21 @@ export function NewJobForm({
               // A rule between items, so Packing Service sits apart from Driver + Helper.
               <div key={line.id} className={`space-y-2 ${index > 0 ? "border-t border-[#d5dde1] pt-4" : ""}`}>
                 <div className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[1fr_110px_150px_110px_auto]">
-                  <input
-                    aria-label="Name"
+                  <ServiceNameField
+                    ariaLabel="Name"
                     placeholder="Name"
                     value={line.name}
-                    onChange={(event) =>
+                    catalog={catalog}
+                    onChange={(name) =>
+                      setLines((rows) => rows.map((row) => (row.id === line.id ? { ...row, name } : row)))
+                    }
+                    onPick={(item) =>
                       setLines((rows) =>
-                        rows.map((row) => (row.id === line.id ? { ...row, name: event.target.value } : row)),
+                        rows.map((row) =>
+                          row.id === line.id
+                            ? { ...row, name: item.name, description: item.description, price: padMoney(item.price) }
+                            : row,
+                        ),
                       )
                     }
                     className={field}
@@ -455,7 +471,7 @@ export function NewJobForm({
                     <MoreHorizontal size={18} />
                   </button>
                 </div>
-                <textarea
+                <AutoGrowTextarea
                   aria-label="Description"
                   placeholder="Description"
                   value={line.description}
@@ -464,7 +480,7 @@ export function NewJobForm({
                       rows.map((row) => (row.id === line.id ? { ...row, description: event.target.value } : row)),
                     )
                   }
-                  className={`min-h-[72px] w-full resize-y rounded-lg border ${line} px-3 py-2 text-[15px] ${ink} outline-none ${ph}`}
+                  className={`w-full rounded-lg border ${line} px-3 py-2 text-[15px] leading-6 ${ink} outline-none ${ph}`}
                 />
               </div>
             );
@@ -480,68 +496,17 @@ export function NewJobForm({
         >
           Add line item
         </button>
-        <div className="mt-5 ml-auto w-fit max-w-full space-y-3 rounded-xl border border-[#d5dde1] bg-[#f9fafa] p-4 text-sm">
-          <div className="flex justify-end gap-10 text-[#5d6f78]">
-            <span className="w-40">Subtotal</span>
-            <span className="w-24 text-right">{formatPounds(subtotal)}</span>
-          </div>
-          <div className="flex items-center justify-end gap-10 text-[#5d6f78]">
-            <span className="w-40">Discount</span>
-            {discountOpen ? (
-              <input
-                aria-label="Discount"
-                inputMode="decimal"
-                placeholder="£ 0.00"
-                value={discount}
-                onChange={(event) => setDiscount(event.target.value)}
-                  onBlur={(event) => setDiscount(padMoney(event.target.value))}
-                className={`h-9 w-24 rounded-lg border ${line} px-2 text-right text-sm ${ink} outline-none`}
-              />
-            ) : (
-              <button
-                type="button"
-                onClick={() => setDiscountOpen(true)}
-                className="w-24 text-right font-semibold underline"
-                style={{ color: green }}
-              >
-                Add discount
-              </button>
-            )}
-          </div>
-          <div className="flex items-center justify-end gap-10 text-[#5d6f78]">
-            <span className="w-40">VAT</span>
-            {taxOpen ? (
-              <input
-                aria-label="Tax"
-                inputMode="decimal"
-                placeholder="£ 0.00"
-                value={tax}
-                onChange={(event) => setTax(event.target.value)}
-                  onBlur={(event) => setTax(padMoney(event.target.value))}
-                className={`h-9 w-24 rounded-lg border ${line} px-2 text-right text-sm ${ink} outline-none`}
-              />
-            ) : (
-              <button
-                type="button"
-                onClick={() => setTaxOpen(true)}
-                className="w-24 text-right font-semibold underline"
-                style={{ color: green }}
-              >
-                Add tax
-              </button>
-            )}
-          </div>
-          <div className={`flex justify-end gap-10 font-bold ${ink}`}>
-            <span className="w-40">Total price</span>
-            <span className="w-24 text-right">
-              {formatPounds(
-                Math.max(
-                  0,
-                  subtotal - (Number(discount.replace(",", ".")) || 0) + (Number(tax.replace(",", ".")) || 0),
-                ),
-              )}
-            </span>
-          </div>
+        <div className="mt-5 flex justify-end">
+          <TotalsEditor
+            subtotal={subtotal}
+            discount={discount}
+            onDiscount={setDiscount}
+            tax={tax}
+            onTax={setTax}
+            taxLabel="VAT"
+            totalLabel="Total price"
+            depositFixed={initialDeposit}
+          />
         </div>
       </SectionCard>
 

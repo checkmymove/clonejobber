@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Receipt } from "lucide-react";
+import { Plus, Receipt } from "lucide-react";
 import { CardIcon } from "@/components/card-icon";
 import { InlineEditCard, LineFields, newDraftLine, type DraftLine } from "@/components/inline-edit-card";
 import { LineItemsTable, TotalsList, type TotalRow } from "@/components/funnel/document-cards";
-import { AddFromCatalog, type CatalogItem } from "@/components/quotes/quote-inline-cards";
+import type { CatalogItem } from "@/components/quotes/quote-inline-cards";
 import { penceToInput } from "@/lib/format";
 import type { ParsedLine } from "@/lib/funnel/money";
 import { saveInvoiceLinesAction } from "@/lib/invoices/actions";
@@ -46,9 +46,9 @@ export function LineItemsInlineCard({
   const [draft, setDraft] = useState(saved);
   useEffect(() => setDraft(saved), [saved]);
 
-  const add = (start: () => void, item: CatalogItem | null) => {
-    const line = newDraftLine();
-    setDraft([...saved, item ? { ...line, name: item.name, description: item.description, price: item.price } : line]);
+  // Like the quote: "Add line item" opens a blank line whose Service box lists the catalog.
+  const addLine = (start: () => void) => {
+    setDraft([...saved, newDraftLine()]);
     start();
   };
 
@@ -64,10 +64,14 @@ export function LineItemsInlineCard({
         return kind === "job" ? saveJobLinesAction(id, input) : saveInvoiceLinesAction(id, input);
       }}
       actions={(start) => (
-        <>
-          <AddFromCatalog label="Add service" items={catalog.filter((c) => c.type === "service")} onPick={(item) => add(start, item)} />
-          <AddFromCatalog label="Add product" items={catalog.filter((c) => c.type === "product")} onPick={(item) => add(start, item)} />
-        </>
+        <button
+          type="button"
+          onClick={() => addLine(start)}
+          className="hidden h-9 items-center gap-1.5 rounded-lg bg-accent px-3 text-sm font-semibold text-white hover:opacity-90 sm:inline-flex"
+        >
+          <Plus size={15} aria-hidden />
+          Add line item
+        </button>
       )}
       view={
         <>
@@ -77,7 +81,7 @@ export function LineItemsInlineCard({
       }
     >
       {note ? <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">{note}</p> : null}
-      <LineFields lines={draft} onChange={setDraft} />
+      <LineFields lines={draft} onChange={setDraft} catalog={catalog} />
     </InlineEditCard>
   );
 }

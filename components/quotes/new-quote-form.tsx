@@ -2,8 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Calendar, ChevronDown, Hammer, Mail, Quote, Trash2 } from "lucide-react";
+import { Calendar, ChevronDown, Hammer, Mail, Quote } from "lucide-react";
 import { StickySaveBar } from "@/components/forms/sticky-save-bar";
+import { TotalsEditor } from "@/components/funnel/totals-editor";
+import { ServiceNameField } from "@/components/funnel/service-name-field";
+import { RouteEstimateLive } from "@/components/funnel/route-estimate-live";
+import type { CatalogItem } from "@/components/quotes/quote-inline-cards";
 import { TimeField, toTime24 } from "@/components/time-field";
 import { SendDialog, useSendDialog } from "@/components/funnel/send-dialog";
 import {
@@ -59,7 +63,10 @@ export function NewQuoteForm({
   initialDeposit,
   service,
   requestServices = [],
+  catalog = [],
 }: {
+  /** Products & Services, listed when the Service box of a line is clicked. */
+  catalog?: CatalogItem[];
   /** Services of the request form, for the editable Removal Service card. */
   requestServices?: { id: string; name: string }[];
   clients: Client[];
@@ -103,9 +110,6 @@ export function NewQuoteForm({
   const [discount, setDiscount] = useState(initialDiscount ?? "");
   const [tax, setTax] = useState(initialTax ?? "");
   const [deposit, setDeposit] = useState(initialDeposit ?? "");
-  const [discountOpen, setDiscountOpen] = useState(Boolean(initialDiscount));
-  const [taxOpen, setTaxOpen] = useState(Boolean(initialTax));
-  const [depositOpen, setDepositOpen] = useState(Boolean(initialDeposit));
   const [savedQuoteId, setSavedQuoteId] = useState(quoteId);
   // The linked request, editable in place with the same pencil cards as the request page.
   const [requestSnap, setRequestSnap] = useState<RequestEditSnapshot | null>(null);
@@ -189,11 +193,6 @@ export function NewQuoteForm({
     );
   }
 
-  function money(raw: string) {
-    const n = Number(raw.replace(/[£\s]/g, "").replace(",", "."));
-    return Number.isFinite(n) && n > 0 ? n : 0;
-  }
-
   const subtotal = useMemo(
     () =>
       lines.reduce((sum, line) => {
@@ -203,9 +202,6 @@ export function NewQuoteForm({
       }, 0),
     [lines],
   );
-  const discountAmount = money(discount);
-  const taxAmount = money(tax);
-  const quoteTotal = Math.max(0, subtotal - discountAmount + taxAmount);
 
   async function submit(followUp?: "send" | "job") {
     setError("");
@@ -329,6 +325,11 @@ export function NewQuoteForm({
         <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
           <RequestLocationCard title="Collection Information" snapshot={requestSnap} kind="pickup" onSaved={reloadRequest} />
           <RequestLocationCard title="Delivery Information" snapshot={requestSnap} kind="delivery" onSaved={reloadRequest} />
+          <RouteEstimateLive
+            className="sm:col-span-2"
+            collection={[requestSnap.pickupAddress, requestSnap.pickupPostcode].filter(Boolean).join(", ")}
+            delivery={[requestSnap.deliveryAddress, requestSnap.deliveryPostcode].filter(Boolean).join(", ")}
+          />
           <PackingServiceCard snapshot={requestSnap} onSaved={reloadRequest} />
           {hasRemovalService(requestSnap) ? (
             <RemovalServiceCard snapshot={requestSnap} services={requestServices} onSaved={reloadRequest} />
@@ -340,6 +341,11 @@ export function NewQuoteForm({
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {collection ? <StopCard title="Collection Information" stop={collection} /> : null}
               {delivery ? <StopCard title="Delivery Information" stop={delivery} /> : null}
+              <RouteEstimateLive
+                className="sm:col-span-2"
+                collection={collection?.address ?? ""}
+                delivery={delivery?.address ?? ""}
+              />
             </div>
           ) : null}
           {packing ? (
@@ -363,13 +369,12 @@ export function NewQuoteForm({
             return (
               <div key={line.id} className="space-y-3">
                 <div className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[minmax(0,1fr)_110px_150px_110px]">
-                  <label className="block">
+                  <div className="block">
                     <span className={label}>Service</span>
-                    <input
-                      aria-label="Service"
+                    <ServiceNameField
                       value={line.name}
-                      onChange={(e) => {
-                        const name = e.target.value;
+                      catalog={catalog}
+                      onChange={(name) => {
                         setLines((rows) =>
                           rows.map((row) => (row.id === line.id ? { ...row, name } : row)),
                         );
@@ -379,9 +384,21 @@ export function NewQuoteForm({
                           );
                         }
                       }}
+                      onPick={(item) => {
+                        setLines((rows) =>
+                          rows.map((row) =>
+                            row.id === line.id
+                              ? { ...row, name: item.name, description: item.description, price: padMoney(item.price) }
+                              : row,
+                          ),
+                        );
+                        if (line.id === lines[0]?.id) {
+                          setTitle((current) => (!current.trim() || current === line.name ? item.name : current));
+                        }
+                      }}
                       className={field}
                     />
-                  </label>
+                  </div>
                   <label className="block">
                     <span className={label}>Quantity</span>
                     <input
@@ -542,101 +559,15 @@ export function NewQuoteForm({
       </label>
 
       <div className="flex justify-end">
-        <div className="w-full max-w-[440px] rounded-xl border border-[#d5dde1] bg-[#f9fafa] p-4">
-          <div className="space-y-3 text-sm">
-            <div className="flex items-center justify-between text-[#5d6f78]">
-              <span>Subtotal</span>
-              <span>{formatPounds(subtotal)}</span>
-            </div>
-            <div className="flex items-center justify-between gap-3 text-[#5d6f78]">
-              <span>Discount</span>
-              {discountOpen ? (
-                <input
-                  aria-label="Discount"
-                  value={discount}
-                  onChange={(event) => setDiscount(event.target.value)}
-                  onBlur={(event) => setDiscount(padMoney(event.target.value))}
-                  placeholder="£0.00"
-                  className="h-9 w-28 rounded-lg border border-[#d5dde1] px-2 text-right text-[#042b3c] outline-none focus:border-[#388623]"
-                />
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setDiscountOpen(true)}
-                  className="font-semibold underline"
-                  style={{ color: green }}
-                >
-                  Add Discount
-                </button>
-              )}
-            </div>
-            <div className="flex items-center justify-between gap-3 text-[#5d6f78]">
-              <span>Tax</span>
-              {taxOpen ? (
-                <input
-                  aria-label="Tax"
-                  value={tax}
-                  onChange={(event) => setTax(event.target.value)}
-                  onBlur={(event) => setTax(padMoney(event.target.value))}
-                  placeholder="£0.00"
-                  className="h-9 w-28 rounded-lg border border-[#d5dde1] px-2 text-right text-[#042b3c] outline-none focus:border-[#388623]"
-                />
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setTaxOpen(true)}
-                  className="font-semibold underline"
-                  style={{ color: green }}
-                >
-                  Add Tax
-                </button>
-              )}
-            </div>
-            <div className={`flex items-center justify-between border-t ${line} pt-3 text-[15px] font-bold ${ink}`}>
-              <span>Total</span>
-              <span>{formatPounds(quoteTotal)}</span>
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              {depositOpen ? (
-                <span className="font-semibold underline" style={{ color: green }}>
-                  Required Deposit
-                </span>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setDepositOpen(true)}
-                  className="font-semibold underline"
-                  style={{ color: green }}
-                >
-                  Required Deposit
-                </button>
-              )}
-              {depositOpen ? (
-                <span className="flex items-center gap-2">
-                  <input
-                    aria-label="Required deposit"
-                    value={deposit}
-                    onChange={(event) => setDeposit(event.target.value)}
-                  onBlur={(event) => setDeposit(padMoney(event.target.value))}
-                    placeholder="£0.00"
-                    className="h-9 w-28 rounded-lg border border-[#d5dde1] px-2 text-right text-[#042b3c] outline-none focus:border-[#388623]"
-                  />
-                  <button
-                    type="button"
-                    aria-label="Remove required deposit"
-                    onClick={() => {
-                      setDeposit("");
-                      setDepositOpen(false);
-                    }}
-                    className="text-[#8aa0a8] hover:text-[#042b3c]"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </span>
-              ) : null}
-            </div>
-          </div>
-        </div>
+        <TotalsEditor
+          subtotal={subtotal}
+          discount={discount}
+          onDiscount={setDiscount}
+          tax={tax}
+          onTax={setTax}
+          deposit={deposit}
+          onDeposit={setDeposit}
+        />
       </div>
 
       <StickySaveBar

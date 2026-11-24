@@ -4,7 +4,11 @@ import { isAllowedAdminEmail } from "@/lib/auth/allowlist";
 
 function isPublicPath(pathname: string) {
   // /q, /j and /i are the client views of a quote, job and invoice (Preview as Client).
-  return pathname === "/login" || ["/r/", "/q/", "/j/", "/i/"].some((prefix) => pathname.startsWith(prefix));
+  // /api/cron/ is called by Vercel Cron and checks CRON_SECRET itself.
+  return (
+    pathname === "/login" ||
+    ["/r/", "/q/", "/j/", "/i/", "/api/cron/"].some((prefix) => pathname.startsWith(prefix))
+  );
 }
 
 function withSessionCookies(from: NextResponse, to: NextResponse) {

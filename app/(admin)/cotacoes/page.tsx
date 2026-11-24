@@ -1,17 +1,20 @@
 import { ClickableRow } from "@/components/clickable-row";
 import Link from "next/link";
-import { Info } from "lucide-react";
+import { Archive } from "lucide-react";
 import { formatGBP, formatPounds } from "@/lib/format";
 import { listQuotes } from "@/lib/quotes/queries";
 import {
   OVERVIEW_STATUSES,
+  QUOTE_FILTERS,
+  quoteFilterKey,
+  quoteFilterTally,
   quoteListStatus,
   quoteWindowStats,
 } from "@/lib/quotes/metrics";
+import { archiveStaleQuotes, QUOTE_REPLY_DAYS } from "@/lib/quotes/auto-archive";
 import { COMPANY_SLUG } from "@/lib/company";
 import { Card, EmptyState } from "@/components/ui";
-import { ListSearch } from "@/components/funnel/list-search";
-import { ConvertedToggle } from "@/components/funnel/list-kit";
+import { ConvertedToggle, FilterBar, KpiCard, OverviewCard, listHref } from "@/components/funnel/list-kit";
 
 export const dynamic = "force-dynamic";
 
@@ -29,74 +32,33 @@ function formatRate(value: number): string {
   return `${Math.round(value)}%`;
 }
 
-function Trend({ value }: { value: number | null }) {
-  if (value == null) return null;
-  const up = value >= 0;
-  const label = `${up ? "+" : ""}${Math.round(value)}%`;
-  return (
-    <span
-      title="Compared with the previous 30 days"
-      className={
-        up
-          ? "inline-flex items-center rounded-full bg-emerald-50 px-1.5 py-0.5 text-xs font-semibold text-emerald-700"
-          : "inline-flex items-center rounded-full bg-rose-50 px-1.5 py-0.5 text-xs font-semibold text-rose-700"
-      }
-    >
-      {label}
-    </span>
-  );
-}
+type Params = { q?: string; view?: string; status?: string };
 
-function MetricCard({
-  title,
-  hint,
-  value,
-  trend,
-  amount,
-}: {
-  title: string;
-  hint?: string;
-  value: string;
-  trend: number | null;
-  amount: number;
-}) {
-  return (
-    <section className="rounded-xl border border-line bg-card px-4 py-3.5">
-      <div className="flex items-center gap-1.5">
-        <h2 className="text-sm font-bold text-ink">{title}</h2>
-        {hint ? (
-          <span title={hint} className="text-ink-mute">
-            <Info size={14} aria-hidden />
-            <span className="sr-only">{hint}</span>
-          </span>
-        ) : null}
-      </div>
-      <p className="text-xs text-ink-mute">Past 30 days</p>
-      <div className="mt-3 flex items-center gap-2">
-        <p className="text-3xl font-extrabold tracking-tight text-ink">{value}</p>
-        <Trend value={trend} />
-      </div>
-      <p className="mt-1 text-sm font-medium text-ink-soft">{formatGBP(amount)}</p>
-    </section>
-  );
-}
-
-export default async function CotacoesPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ q?: string; view?: string }>;
-}) {
+export default async function CotacoesPage({ searchParams }: { searchParams: Promise<Params> }) {
   const params = await searchParams;
   const { q = "" } = params;
-  const [listed, all] = await Promise.all([
-    listQuotes(COMPANY_SLUG, q),
-    listQuotes(COMPANY_SLUG, q.trim() ? "" : q, { includeArchived: true }),
+  // Quotes still awaiting a reply 5 days after they were sent are archived on the 6th day.
+  await archiveStaleQuotes(COMPANY_SLUG);
+  const [everything, all] = await Promise.all([
+    listQuotes(COMPANY_SLUG, q, { includeArchived: true }),
+    q.trim() ? listQuotes(COMPANY_SLUG, "", { includeArchived: true }) : null,
   ]);
+  const every = all ?? everything;
+  const listed = everything.filter((quote) => !quote.archived_at);
   // Approved quotes stay in the list (their job is created on approval); a quote
   // converted to a job without the client's approval leaves it, ?view=all shows it again.
   const waiting = listed.filter((quote) => !quote.converted_at || quote.status === "approved");
-  const visible = params.view === "all" ? listed : waiting;
-  const stats = quoteWindowStats(all);
+  const status = QUOTE_FILTERS.some((f) => f.key === params.status) ? params.status : undefined;
+  const visible = status
+    ? everything.filter((quote) => quoteFilterKey(quote) === status)
+    : params.view === "all"
+      ? listed
+      : waiting;
+  const stats = quoteWindowStats(every);
+  const tally = quoteFilterTally(every);
+  const count = (key: string) => tally[key]?.n ?? 0;
+  const base = "/cotacoes";
+  const statusLabel = QUOTE_FILTERS.find((f) => f.key === status)?.label;
 
   return (
     <div>
@@ -111,61 +73,98 @@ export default async function CotacoesPage({
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <section className="col-span-2 rounded-xl border border-line bg-card px-4 py-3.5 sm:col-span-1">
-          <h2 className="text-sm font-bold text-ink">Overview</h2>
-          <p className="text-xs text-ink-mute">Past 30 days</p>
-          <ul className="mt-3 space-y-1.5">
-            {OVERVIEW_STATUSES.map((status) => (
-              <li
-                key={status.key}
-                className="flex items-center gap-2 text-[13px] whitespace-nowrap text-ink"
-              >
-                <span className={`size-2 shrink-0 rounded-full ${status.dot}`} />
-                <span>
-                  {status.label}{" "}
-                  <span className="text-ink-soft">({stats.overview[status.key]})</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <MetricCard
+        <OverviewCard
+          items={OVERVIEW_STATUSES.map((s) => ({
+            key: s.key,
+            label: s.label,
+            dot: s.dot,
+            count: count(s.key),
+            href: listHref(base, {}, { status: s.key }),
+          }))}
+        />
+        <KpiCard
           title="Conversion rate"
-          hint="Quotes converted to a job in the last 30 days, divided by quotes sent in the last 30 days."
+          period="Past 30 days"
+          hint="Quotes converted to a job in the past 30 days, divided by quotes sent in the past 30 days."
           value={formatRate(stats.conversionRate)}
           trend={stats.conversionTrend}
-          amount={stats.sentTotal}
+          href={listHref(base, {}, { status: "converted" })}
         />
-        <MetricCard
+        <KpiCard
           title="Sent"
-          hint="Quotes with a sent date in the last 30 days. The amount is the total after discount and tax."
+          period="Past 30 days"
+          hint="Quotes sent to the client in the past 30 days. The amount is their total after discount and tax."
           value={String(stats.sentCount)}
           trend={stats.sentTrend}
-          amount={stats.sentTotal}
+          sub={formatGBP(stats.sentTotal)}
+          href={listHref(base, {}, { status: "awaiting" })}
         />
-        <MetricCard
+        <KpiCard
           title="Converted"
-          hint="Quotes converted to a job in the last 30 days. The amount is the total after discount and tax."
+          period="Past 30 days"
+          hint="Quotes that became a job in the past 30 days. The amount is their total after discount and tax."
           value={String(stats.convertedCount)}
           trend={stats.convertedTrend}
-          amount={stats.convertedTotal}
+          sub={formatGBP(stats.convertedTotal)}
+          href={listHref(base, {}, { status: "converted" })}
         />
       </div>
 
       <div className="mt-6 mb-3 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-base font-bold text-ink">
-          {params.view === "all" ? "All quotes" : "Quotes"}{" "}
+          {status === "archived"
+            ? "Archived quotes"
+            : status || q.trim()
+              ? "Filtered quotes"
+              : params.view === "all"
+                ? "All quotes"
+                : "Quotes"}{" "}
           <span className="font-medium text-ink-mute">({visible.length} results)</span>
         </h2>
-        <ConvertedToggle base="/cotacoes" params={params} hidden={listed.length - waiting.length} />
+        <div className="flex flex-wrap items-center gap-3">
+          {status ? null : (
+            <ConvertedToggle base={base} params={params} hidden={listed.length - waiting.length} />
+          )}
+          {status === "archived" ? (
+            <Link href={base} className="text-sm font-semibold text-accent hover:underline">
+              Back to quotes
+            </Link>
+          ) : (
+            <Link
+              href={listHref(base, {}, { status: "archived" })}
+              className="inline-flex h-9 items-center gap-2 rounded-lg border border-line bg-card px-3 text-sm font-semibold text-ink hover:bg-cream"
+            >
+              <Archive size={15} aria-hidden />
+              Archived ({count("archived")})
+            </Link>
+          )}
+        </div>
       </div>
+      {status === "archived" ? (
+        <p className="mb-3 rounded-lg bg-cream px-3 py-2 text-sm text-ink-soft">
+          Quotes sent to the client with no reply after {QUOTE_REPLY_DAYS} days are archived on day {QUOTE_REPLY_DAYS + 1}.
+          Open one and choose More › Unarchive to bring it back.
+        </p>
+      ) : null}
 
       <Card className="p-4">
-        <ListSearch defaultValue={q} placeholder="Search quotes..." keep={{ view: params.view }} />
+        <FilterBar
+          params={params}
+          placeholder="Search quotes..."
+          clearHref={listHref(base, { q: params.q }, {})}
+          selects={[
+            {
+              name: "status",
+              label: "Status",
+              options: QUOTE_FILTERS.map((f) => ({ value: f.key, label: `${f.label} (${count(f.key)})` })),
+            },
+          ]}
+        />
         {visible.length === 0 ? (
           <EmptyState>
-            {q.trim()
+            {status
+              ? `No ${statusLabel?.toLowerCase()} quotes.`
+              : q.trim()
               ? "No quotes match that search."
               : listed.length > 0
                 ? "All quotes were converted to jobs."

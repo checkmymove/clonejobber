@@ -4,6 +4,7 @@ export const EXPENSE_CATEGORIES = [
   { key: "fuel", label: "Fuel" },
   { key: "van_hire", label: "Van hire" },
   { key: "materials", label: "Packing materials" },
+  { key: "food", label: "Food & meals" },
   { key: "equipment", label: "Equipment" },
   { key: "tolls_parking", label: "Tolls & parking" },
   { key: "insurance", label: "Insurance" },

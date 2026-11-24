@@ -8,6 +8,7 @@ import { deliverEmail, deliverSms } from "./deliver";
 import { sql } from "@/lib/db";
 import { getCompanyId } from "@/lib/company";
 import {
+  ATTACHMENT_CHUNK_BYTES,
   ATTACHMENT_FILE_MAX_BYTES,
   ATTACHMENT_TYPES,
   type SendAttachment,
@@ -67,27 +68,51 @@ export async function sendDocument(input: {
 }
 
 /** "Attachments › Select or drag files here to upload": one file per call. */
+/**
+ * Uploads one attachment in chunks of up to 3 MB (Vercel caps a request body at 4.5 MB).
+ * The first chunk creates the row with the file's declared size; the next ones
+ * (with `attachmentId`) append to it, never past that size.
+ */
 export async function uploadSendAttachment(
   formData: FormData,
 ): Promise<{ ok: boolean; message?: string; attachment?: SendAttachment }> {
   await requireAdmin();
-  const kind = String(formData.get("kind") ?? "") as SendKind;
-  const id = String(formData.get("id") ?? "");
-  const file = formData.get("file");
-  if (!KINDS.includes(kind) || !isUuid(id)) return { ok: false, message: "Document not found." };
-  if (!(file instanceof File) || file.size === 0) return { ok: false, message: "Choose a file." };
-  if (file.size > ATTACHMENT_FILE_MAX_BYTES) return { ok: false, message: `${file.name} is larger than 4 MB.` };
-  const type = file.type || "application/octet-stream";
-  if (!ATTACHMENT_TYPES.includes(type)) return { ok: false, message: `${file.name}: use a photo, PDF, Word, Excel or text file.` };
+  const chunk = formData.get("chunk") ?? formData.get("file");
+  if (!(chunk instanceof Blob) || chunk.size === 0) return { ok: false, message: "Choose a file." };
+  if (chunk.size > ATTACHMENT_CHUNK_BYTES + 1024) return { ok: false, message: "Upload chunk too large." };
   const companyId = await getCompanyId();
   if (!companyId) return { ok: false, message: "Company not found." };
-  const name = file.name.replace(/[\r\n"]/g, "").slice(0, 180) || "attachment";
+  const bytes = Buffer.from(await chunk.arrayBuffer());
+
+  const attachmentId = String(formData.get("attachmentId") ?? "");
+  if (attachmentId) {
+    if (!isUuid(attachmentId)) return { ok: false, message: "Attachment not found." };
+    const rows = await sql<{ id: string; file_name: string; mime_type: string; file_size: number }[]>`
+      update send_attachments set data = data || ${bytes}
+      where id = ${attachmentId} and company_id = ${companyId}
+        and octet_length(data) + ${bytes.length} <= file_size
+      returning id, file_name, mime_type, file_size
+    `;
+    if (!rows[0]) return { ok: false, message: "Could not finish the upload. Try again." };
+    return { ok: true, attachment: { id: rows[0].id, name: rows[0].file_name, size: rows[0].file_size, type: rows[0].mime_type } };
+  }
+
+  const kind = String(formData.get("kind") ?? "") as SendKind;
+  const id = String(formData.get("id") ?? "");
+  if (!KINDS.includes(kind) || !isUuid(id)) return { ok: false, message: "Document not found." };
+  const fileName = String(formData.get("name") ?? (chunk instanceof File ? chunk.name : "")) || "attachment";
+  const size = Number(formData.get("size") ?? bytes.length);
+  if (!Number.isFinite(size) || size < bytes.length) return { ok: false, message: "Choose a file." };
+  if (size > ATTACHMENT_FILE_MAX_BYTES) return { ok: false, message: `${fileName} is larger than 20 MB.` };
+  const type = String(formData.get("type") ?? "") || chunk.type || "application/octet-stream";
+  if (!ATTACHMENT_TYPES.includes(type)) return { ok: false, message: `${fileName}: use a photo, PDF, Word, Excel or text file.` };
+  const name = fileName.replace(/[\r\n"]/g, "").slice(0, 180) || "attachment";
   const rows = await sql<{ id: string }[]>`
     insert into send_attachments (company_id, kind, document_id, file_name, mime_type, file_size, data)
-    values (${companyId}, ${kind}, ${id}, ${name}, ${type}, ${file.size}, ${Buffer.from(await file.arrayBuffer())})
+    values (${companyId}, ${kind}, ${id}, ${name}, ${type}, ${size}, ${bytes})
     returning id
   `;
-  return { ok: true, attachment: { id: rows[0].id, name, size: file.size, type } };
+  return { ok: true, attachment: { id: rows[0].id, name, size, type } };
 }
 
 export async function removeSendAttachment(attachmentId: string): Promise<{ ok: boolean }> {

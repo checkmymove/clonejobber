@@ -11,9 +11,15 @@ export type ExpenseActionResult = { ok: boolean; message?: string; errors?: Reco
 
 const MISSING = "Expenses need the latest database update. Run npm run migrate first.";
 
-function refresh() {
+/** Check constraint failed: a category (e.g. Food & meals) the database doesn't know yet. */
+function isCheckViolation(error: unknown): boolean {
+  return typeof error === "object" && error !== null && (error as { code?: string }).code === "23514";
+}
+
+function refresh(jobId?: string | null) {
   revalidatePath("/despesas");
   revalidatePath("/relatorios");
+  if (jobId) revalidatePath(`/servicos/${jobId}`);
 }
 
 /** Adds an expense (id null) or updates one, scoped to the company. */
@@ -46,10 +52,10 @@ export async function saveExpenseAction(id: string | null, input: ExpenseInput):
       `;
     }
   } catch (error) {
-    if (isMissingExpensesTable(error)) return { ok: false, message: MISSING };
+    if (isMissingExpensesTable(error) || isCheckViolation(error)) return { ok: false, message: MISSING };
     throw error;
   }
-  refresh();
+  refresh(e.jobId);
   return { ok: true };
 }
 

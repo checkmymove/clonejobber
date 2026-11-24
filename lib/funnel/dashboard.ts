@@ -5,7 +5,9 @@ import { addMonths, startOfMonth, startOfWeek } from "@/lib/schedule/dates";
 import type { PerformancePeriod } from "@/lib/funnel/periods";
 import { listRequests } from "@/lib/requests/queries";
 import { listQuotes } from "@/lib/quotes/queries";
-import { quoteListStatus } from "@/lib/quotes/metrics";
+import { quoteFilterTally } from "@/lib/quotes/metrics";
+import { archiveStaleQuotes } from "@/lib/quotes/auto-archive";
+import { isRequestOverdue, requestListStatus } from "@/lib/requests/metrics";
 import { listJobs } from "@/lib/jobs/queries";
 import { listInvoices } from "@/lib/invoices/queries";
 
@@ -33,9 +35,10 @@ function addDays(day: string, days: number): string {
  * as the Requests, Quotes, Jobs and Invoices pages, so the numbers always match.
  */
 export async function getDashboard(companySlug: string) {
+  await archiveStaleQuotes(companySlug);
   const [requestRows, quoteRows, jobRows, invoiceRows, month] = await Promise.all([
     listRequests(companySlug),
-    listQuotes(companySlug),
+    listQuotes(companySlug, "", { includeArchived: true }),
     listJobs(companySlug),
     listInvoices(companySlug),
     sql<{ revenue: number }[]>`
@@ -51,17 +54,13 @@ export async function getDashboard(companySlug: string) {
   const today = todayLondonInput();
   const weekEnd = addDays(today, 7);
 
-  const requests = tally(requestRows, (r) => r.status);
-  const quotes = tally(
-    quoteRows,
-    (q) => {
-      // An approved quote already has its job: it counts there, not as an open quote.
-      const key = quoteListStatus(q.status, q.converted_at, q.archived_at).key;
-      return key === "approved" && q.converted_at ? "approved_job" : key;
-    },
-    (q) => q.total,
-  );
+  // Same keys as the ?status= filters of each list, so a click shows exactly these rows.
+  const requests = tally(requestRows, (r) => requestListStatus(r));
+  requests.overdue = { n: requestRows.filter((r) => isRequestOverdue(r, today)).length, total: 0 };
+  const quotes = quoteFilterTally(quoteRows);
   const jobs = tally(jobRows, (j) => j.list_status, (j) => j.total);
+  const activeJobs = jobRows.filter((j) => j.list_status !== "archived");
+  jobs.active = { n: activeJobs.length, total: activeJobs.reduce((s, j) => s + j.total, 0) };
   const invoices = tally(invoiceRows, (i) => i.list_status, (i) => i.balance);
 
   const liveJobs = jobRows.filter((j) => j.status !== "cancelled");

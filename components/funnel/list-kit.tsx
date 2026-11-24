@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { ArrowDown, ArrowUp, ArrowUpDown, Info } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight, Info } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { AutoSubmitSelect } from "@/components/funnel/auto-submit-select";
 
 /** Shared pieces of the Jobber-style list pages (Jobs, Invoices, Payments). */
 
@@ -30,6 +31,7 @@ export function KpiCard({
   trend,
   invertTrend,
   sub,
+  href,
   children,
 }: {
   title: string;
@@ -39,6 +41,8 @@ export function KpiCard({
   trend?: number | null;
   invertTrend?: boolean;
   sub?: string;
+  /** The ↗ in the corner: opens the rows behind the number. */
+  href?: string;
   children?: React.ReactNode;
 }) {
   return (
@@ -50,6 +54,15 @@ export function KpiCard({
             <Info size={14} aria-hidden />
             <span className="sr-only">{hint}</span>
           </span>
+        ) : null}
+        {href ? (
+          <Link
+            href={href}
+            aria-label={`Open ${title}`}
+            className="ml-auto grid h-7 w-7 place-items-center rounded-md text-ink hover:bg-cream"
+          >
+            <ArrowUpRight size={16} aria-hidden />
+          </Link>
         ) : null}
       </div>
       {period ? <p className="text-xs text-ink-mute">{period}</p> : null}
@@ -164,10 +177,13 @@ export function FilterBar({
   params,
   selects,
   placeholder,
+  clearHref,
 }: {
   params: Record<string, string | undefined>;
   selects: { name: string; label: string; options: { value: string; label: string }[] }[];
   placeholder: string;
+  /** "Clear filters" target, shown while a select has a value. */
+  clearHref?: string;
 }) {
   const kept = Object.entries(params).filter(
     ([k, v]) => v && k !== "q" && !selects.some((s) => s.name === k),
@@ -184,20 +200,20 @@ export function FilterBar({
         >
           {s.label}
           <span className="h-4 w-px bg-ink-mute/40" />
-          <select
+          <AutoSubmitSelect
             name={s.name}
+            ariaLabel={s.label}
             defaultValue={params[s.name] ?? ""}
-            className="h-8 rounded-full bg-transparent pr-1 text-sm font-semibold text-ink-soft outline-none"
-          >
-            <option value="">All</option>
-            {s.options.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
+            options={s.options}
+            className="h-8 cursor-pointer rounded-full bg-transparent pr-1 text-sm font-semibold text-ink-soft outline-none"
+          />
         </label>
       ))}
+      {clearHref && selects.some((s) => params[s.name]) ? (
+        <Link href={clearHref} className="text-sm font-semibold text-ink underline hover:text-accent">
+          Clear filters
+        </Link>
+      ) : null}
       <input
         type="search"
         name="q"

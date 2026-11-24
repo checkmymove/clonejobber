@@ -5,9 +5,9 @@ import { getJobKpis, listJobs, type JobRow } from "@/lib/jobs/queries";
 import { JOB_STATUS_META, JOB_STATUS_ORDER, type JobListStatus } from "@/lib/jobs/status";
 import { COMPANY_SLUG } from "@/lib/company";
 import { Card, EmptyState } from "@/components/ui";
-import { ListSearch } from "@/components/funnel/list-search";
 import {
   ConvertedToggle,
+  FilterBar,
   KpiCard,
   OverviewCard,
   SortTh,
@@ -54,11 +54,18 @@ export default async function ServicosPage({ searchParams }: { searchParams: Pro
   const [listed, kpis] = await Promise.all([listJobs(COMPANY_SLUG, params.q ?? ""), getJobKpis(COMPANY_SLUG)]);
   // A job that already has an invoice (or is closed) leaves the list unless asked for.
   const waiting = listed.filter((j) => j.invoice_count === 0 && j.list_status !== "archived");
-  const all = params.view === "all" || params.status === "archived" ? listed : waiting;
+  const all =
+    params.view === "all" || params.status === "archived" || params.status === "active" ? listed : waiting;
   const counts = Object.fromEntries(
     JOB_STATUS_ORDER.map((s) => [s, all.filter((j) => j.list_status === s).length]),
   ) as Record<JobListStatus, number>;
-  const filtered = params.status ? all.filter((j) => j.list_status === params.status) : all;
+  // Jobber's "Active": every job that is not archived, invoiced or not.
+  const activeCount = listed.filter((j) => j.list_status !== "archived").length;
+  const filtered = !params.status
+    ? all
+    : params.status === "active"
+      ? all.filter((j) => j.list_status !== "archived")
+      : all.filter((j) => j.list_status === params.status);
   const rows = sortJobs(filtered, params.sort, params.dir);
   const filtering = Boolean(params.status || params.q);
 
@@ -97,6 +104,8 @@ export default async function ServicosPage({ searchParams }: { searchParams: Pro
           period="Next 30 days"
           hint="Visits in the next 30 days, excluding today. The amount totals the jobs of those visits."
           value={String(kpis.scheduledVisits)}
+          // Jobber compares the next 30 days with the visits of the past 30.
+          trend={trendPct(kpis.scheduledVisits, kpis.recentVisits)}
           sub={formatGBP(kpis.scheduledRevenue)}
         />
       </div>
@@ -106,21 +115,29 @@ export default async function ServicosPage({ searchParams }: { searchParams: Pro
           {filtering ? "Filtered jobs" : params.view === "all" ? "All jobs" : "Awaiting an invoice"}{" "}
           <span className="font-medium text-ink-mute">({rows.length} results)</span>
         </h2>
-        <ConvertedToggle base="/servicos" params={params} hidden={listed.length - waiting.length} />
-        {params.status ? (
-          <Link
-            href={listHref("/servicos", params, { status: undefined })}
-            className="text-sm font-semibold text-accent hover:underline"
-          >
-            Clear filter
-          </Link>
-        ) : null}
+        {params.status ? null : (
+          <ConvertedToggle base="/servicos" params={params} hidden={listed.length - waiting.length} />
+        )}
       </div>
       <Card className="p-4">
-        <ListSearch
-          defaultValue={params.q}
+        <FilterBar
+          params={params}
           placeholder="Search jobs..."
-          keep={{ status: params.status, sort: params.sort, dir: params.dir, view: params.view }}
+          clearHref={listHref("/servicos", { q: params.q }, {})}
+          selects={[
+            {
+              name: "status",
+              label: "Status",
+              options: [
+                ...JOB_STATUS_ORDER.filter((s) => s !== "archived").map((s) => ({
+                  value: s,
+                  label: `${JOB_STATUS_META[s].label} (${counts[s]})`,
+                })),
+                { value: "active", label: `Active (${activeCount})` },
+                { value: "archived", label: "Archived" },
+              ],
+            },
+          ]}
         />
         {rows.length === 0 ? (
           <EmptyState>

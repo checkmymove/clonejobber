@@ -39,6 +39,8 @@ import {
 } from "@/components/funnel/document-cards";
 import { Card, PageHeader, buttonOutline } from "@/components/ui";
 import { LabourCard } from "@/components/team/labour-card";
+import { JobExpensesCard } from "@/components/jobs/job-expenses-card";
+import { listJobExpenses } from "@/lib/expenses/queries";
 import { JobScheduleCard } from "@/components/jobs/job-schedule-card";
 import { JobSendCard } from "@/components/jobs/job-send-card";
 import { parseMoveClock } from "@/lib/funnel/engine";
@@ -61,7 +63,7 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
   if (!j) notFound();
 
   const today = todayLondonInput();
-  const [request, deposits, labour, team, visitMembers, client, companyId, emails] = await Promise.all([
+  const [request, deposits, labour, team, visitMembers, client, companyId, emails, expenses] = await Promise.all([
     j.linked_request_id ? getRequestDetail(j.linked_request_id) : null,
     j.quote_id ? getQuoteDeposits(j.quote_id) : null,
     getJobLabour(j.id),
@@ -70,6 +72,7 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
     getClientContact(j.client_id),
     getCompanyId(),
     listDeliveries("job", j.id).catch(() => []),
+    listJobExpenses(j.id),
   ]);
   if (!client) notFound();
   const services = companyId ? await getActiveServices(companyId) : [];
@@ -189,6 +192,8 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
           today={today}
           serverNow={new Date().toISOString()}
         />
+
+        <JobExpensesCard jobId={j.id} expenses={expenses} today={today} />
 
         <Card className="h-fit p-5 xl:col-span-2">
           <CardTitle
