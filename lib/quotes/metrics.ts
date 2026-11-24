@@ -72,15 +72,18 @@ export function quoteListStatus(
 }
 
 /**
- * Status filter of the Quotes list (and the Overview / Dashboard links), as in Jobber:
- * Approved means approved and still waiting for its job; once the job exists the quote
- * counts as Converted. Archived wins over everything.
+ * Status filter of the Quotes list (and the Overview / Dashboard links). Each key matches
+ * the status label shown in the table: Approved is the client's approval (its job is
+ * usually created at that moment), Converted is a quote the office turned into a job
+ * without approval. "to_convert" is the approved quotes that still have no job, the
+ * number the Dashboard shows (as Jobber's Approved). Archived wins over everything.
  */
 export const QUOTE_FILTERS = [
   { key: "draft", label: "Draft", dot: "bg-stone-400" },
   { key: "awaiting", label: "Awaiting response", dot: "bg-amber-400" },
   { key: "changes", label: "Changes requested", dot: "bg-sky-500" },
   { key: "approved", label: "Approved", dot: "bg-emerald-500" },
+  { key: "to_convert", label: "Approved, no job yet", dot: "bg-emerald-500" },
   { key: "converted", label: "Converted", dot: "bg-violet-500" },
   { key: "rejected", label: "Declined", dot: "bg-rose-400" },
   { key: "expired", label: "Expired", dot: "bg-stone-300" },
@@ -95,8 +98,16 @@ export function quoteFilterKey(q: {
   archived_at?: string | Date | null;
 }): QuoteFilterKey | string {
   if (q.archived_at) return "archived";
-  if (q.converted_at) return "converted";
-  return quoteListStatus(q.status, null).key;
+  return quoteListStatus(q.status, q.converted_at).key;
+}
+
+/** Whether a quote shows up under a filter key (to_convert is a subset of approved). */
+export function quoteMatchesFilter(
+  q: { status: string; converted_at: string | Date | null; archived_at?: string | Date | null },
+  key: string,
+): boolean {
+  if (key === "to_convert") return !q.archived_at && q.status === "approved" && !q.converted_at;
+  return quoteFilterKey(q) === key;
 }
 
 /** Count and total (pence) per filter key, over every quote (archived included). */
@@ -105,10 +116,13 @@ export function quoteFilterTally(
 ): Record<string, { n: number; total: number }> {
   const out: Record<string, { n: number; total: number }> = {};
   for (const row of rows) {
-    const key = quoteFilterKey(row);
-    out[key] ??= { n: 0, total: 0 };
-    out[key].n += 1;
-    out[key].total += row.total;
+    const keys = [quoteFilterKey(row)];
+    if (quoteMatchesFilter(row, "to_convert")) keys.push("to_convert");
+    for (const key of keys) {
+      out[key] ??= { n: 0, total: 0 };
+      out[key].n += 1;
+      out[key].total += row.total;
+    }
   }
   return out;
 }

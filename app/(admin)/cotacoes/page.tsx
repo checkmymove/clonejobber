@@ -6,7 +6,7 @@ import { listQuotes } from "@/lib/quotes/queries";
 import {
   OVERVIEW_STATUSES,
   QUOTE_FILTERS,
-  quoteFilterKey,
+  quoteMatchesFilter,
   quoteFilterTally,
   quoteListStatus,
   quoteWindowStats,
@@ -50,7 +50,7 @@ export default async function CotacoesPage({ searchParams }: { searchParams: Pro
   const waiting = listed.filter((quote) => !quote.converted_at || quote.status === "approved");
   const status = QUOTE_FILTERS.some((f) => f.key === params.status) ? params.status : undefined;
   const visible = status
-    ? everything.filter((quote) => quoteFilterKey(quote) === status)
+    ? everything.filter((quote) => quoteMatchesFilter(quote, status))
     : params.view === "all"
       ? listed
       : waiting;

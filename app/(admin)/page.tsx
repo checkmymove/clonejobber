@@ -55,10 +55,10 @@ export default async function DashboardPage({
     {
       key: "quotes",
       label: "Quotes",
-      count: count(d.quotes, "approved"),
-      amount: money(sum(d.quotes, "approved")),
+      count: count(d.quotes, "to_convert"),
+      amount: money(sum(d.quotes, "to_convert")),
       status: "Approved",
-      href: "/cotacoes?status=approved",
+      href: "/cotacoes?status=to_convert",
       lines: [
         { text: "Draft", count: count(d.quotes, "draft"), amount: money(sum(d.quotes, "draft")), href: "/cotacoes?status=draft" },
         {
