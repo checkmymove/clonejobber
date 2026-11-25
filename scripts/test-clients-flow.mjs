@@ -37,20 +37,20 @@ try {
       returning id`;
     check("client created with notes", !!client.id);
 
-    // --- unique email per company --------------------------------------
-    let dup = false;
-    await tx`SAVEPOINT c_sp`;
-    try {
-      await tx`insert into clients (company_id, first_name, last_name, email, phone)
-        values (${company.id}, 'Dup', 'User', 'CLIENT.TEST@example.co.uk', '+44 1')`;
-    } catch (e) {
-      if (e.code === "23505") {
-        dup = true;
-        await tx`ROLLBACK TO SAVEPOINT c_sp`;
-      } else throw e;
-    }
-    await tx`RELEASE SAVEPOINT c_sp`;
-    check("duplicate email rejected (case-insensitive)", dup);
+    // --- returning email (migration 0020) --------------------------------
+    // "Create new client" may keep a second client with the same email; matching
+    // by email (public request form, New client) picks the most recently updated.
+    const [dupClient] = await tx`
+      insert into clients (company_id, first_name, last_name, email, phone, updated_at)
+      values (${company.id}, 'Dup', 'User', 'CLIENT.TEST@example.co.uk', '+44 1', now() + interval '1 minute')
+      returning id`;
+    check("same email allowed as a separate client", !!dupClient.id && dupClient.id !== client.id);
+    const matched = await tx`
+      select id from clients
+      where company_id = ${company.id} and email = ${"client.test@example.co.uk"}
+      order by updated_at desc`;
+    check("email match is case-insensitive", matched.length === 2);
+    check("email match picks the latest client", matched[0].id === dupClient.id);
 
     // --- addresses CRUD --------------------------------------------------
     const [a1] = await tx`
