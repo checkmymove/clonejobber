@@ -154,7 +154,17 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
             j.quote_number
               ? { label: "Quote number", value: j.quote_number, icon: INFO_ICONS.quote }
               : { label: "Job number", value: j.number, icon: INFO_ICONS.quote },
-            { label: "Job value", value: formatGBP(j.total), icon: INFO_ICONS.value },
+            {
+              label: "Job value",
+              value: formatGBP(j.total),
+              icon: INFO_ICONS.value,
+              // Required deposit set on the quote; it comes off the invoice.
+              note: deposits?.required
+                ? `Deposit required ${formatGBP(deposits.required)}${
+                    deposits.collected ? ` · ${formatGBP(Math.min(deposits.collected, deposits.required))} paid` : ""
+                  } · deducted from the invoice`
+                : undefined,
+            },
             { label: "Move date & time", value: moveLabel, icon: INFO_ICONS.date },
           ]}
         />

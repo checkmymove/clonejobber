@@ -2,8 +2,8 @@
 
 import { openPicker } from "@/components/date-field";
 import { TimeField, toTime24 } from "@/components/time-field";
-import { useEffect, useRef, useState } from "react";
-import { Box, Calculator, CalendarDays, ChevronDown, Clock, FileText, Plus } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Box, Calculator, CalendarDays, Clock, FileText } from "lucide-react";
 import { CardIcon } from "@/components/card-icon";
 import { cn } from "@/lib/cn";
 import { formatGBP, formatDateLondon, padMoney } from "@/lib/format";
@@ -209,104 +209,39 @@ export function QuoteServicesCard({ snapshot, catalog = [] }: { snapshot: QuoteE
   const [lines, setLines] = useState(snapshot.lines);
   useEffect(() => setLines(snapshot.lines), [snapshot.lines]);
 
-  const add = (start: () => void, item: CatalogItem | null) => {
-    const line = newDraftLine();
-    setLines([
-      ...snapshot.lines,
-      item ? { ...line, name: item.name, description: item.description, price: item.price } : line,
-    ]);
-    start();
-  };
-
   return (
     <InlineEditCard
       className="h-fit p-5 xl:col-span-2"
-      title="Services & products"
+      title="Product / Service"
       icon={<CardIcon icon={Box} tone="blue" boxed />}
       fitContent
       onCancel={() => setLines(snapshot.lines)}
       onSave={() => saveQuoteInPlace(snapshot.id, toQuoteInput(snapshot, { lines }))}
-      actions={(start) => (
-        <>
-          <AddFromCatalog label="Add service" items={catalog.filter((c) => c.type === "service")} onPick={(item) => add(start, item)} />
-          <AddFromCatalog label="Add product" items={catalog.filter((c) => c.type === "product")} onPick={(item) => add(start, item)} />
-        </>
-      )}
       view={<ServicesView lines={snapshot.lines} />}
+      footer={(start) => (
+        <AddLineItemButton
+          onClick={() => {
+            setLines([...snapshot.lines, newDraftLine()]);
+            start();
+          }}
+        />
+      )}
     >
       <LineFields lines={lines} onChange={setLines} catalog={catalog} />
     </InlineEditCard>
   );
 }
 
-/** "+ Add service": the catalog's services (or products), or a blank line. */
-export function AddFromCatalog({
-  label,
-  items,
-  onPick,
-}: {
-  label: string;
-  items: CatalogItem[];
-  onPick: (item: CatalogItem | null) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const root = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const close = (event: PointerEvent) => {
-      if (!root.current?.contains(event.target as Node)) setOpen(false);
-    };
-    const esc = (event: KeyboardEvent) => event.key === "Escape" && setOpen(false);
-    document.addEventListener("pointerdown", close);
-    document.addEventListener("keydown", esc);
-    return () => {
-      document.removeEventListener("pointerdown", close);
-      document.removeEventListener("keydown", esc);
-    };
-  }, [open]);
-
+/** Green "Add line item" under the Product / Service lines, as on New quote. */
+export function AddLineItemButton({ onClick }: { onClick: () => void }) {
   return (
-    <div ref={root} className="relative hidden sm:block">
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-blue-100 bg-blue-50 px-3 text-sm font-semibold text-[#1d4ed8] hover:bg-blue-100"
-      >
-        <Plus size={15} aria-hidden />
-        {label}
-        <ChevronDown size={14} aria-hidden />
-      </button>
-      {open ? (
-        <div className="absolute right-0 z-30 mt-1.5 max-h-80 w-72 overflow-y-auto rounded-xl border border-line bg-white p-1.5 shadow-xl">
-          {items.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => {
-                setOpen(false);
-                onPick(item);
-              }}
-              className="flex w-full items-start justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm hover:bg-cream"
-            >
-              <span className="min-w-0 font-medium text-ink">{item.name}</span>
-              <span className="shrink-0 text-ink-soft">{formatGBP(Math.round(Number(item.price) * 100))}</span>
-            </button>
-          ))}
-          {items.length === 0 ? <p className="px-3 py-2 text-sm text-ink-mute">Nothing in Products &amp; Services yet.</p> : null}
-          <button
-            type="button"
-            onClick={() => {
-              setOpen(false);
-              onPick(null);
-            }}
-            className="mt-1 w-full rounded-lg border-t border-line px-3 py-2 text-left text-sm font-semibold text-[#1d4ed8] hover:bg-cream"
-          >
-            Custom line
-          </button>
-        </div>
-      ) : null}
-    </div>
+    <button
+      type="button"
+      onClick={onClick}
+      className="mt-4 h-9 rounded-lg bg-accent px-3 text-sm font-semibold text-white hover:opacity-90"
+    >
+      Add line item
+    </button>
   );
 }
 

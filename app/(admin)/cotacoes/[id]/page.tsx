@@ -135,10 +135,11 @@ export default async function CotacaoDetailPage({
               <ArrowLeft size={17} aria-hidden />
               Back
             </Link>
-            {q.status === "approved" ? (
-              <ConvertToJobButton quoteId={id} status={q.status} archived={archived} jobId={q.job_id} />
-            ) : (
+            {/* Draft: Send Quote. Once sent, the green button moves on to the job; Resend is under More. */}
+            {q.status === "draft" && !q.job_id ? (
               <SendQuoteButton quoteId={id} status={q.status} archived={archived} />
+            ) : (
+              <ConvertToJobButton quoteId={id} status={q.status} archived={archived} jobId={q.job_id} />
             )}
           </div>
         }

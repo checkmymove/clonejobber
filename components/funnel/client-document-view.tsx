@@ -23,6 +23,7 @@ export function ClientDocumentView({
   showPrices,
   totals,
   pdfHref,
+  afterFacts,
   children,
 }: {
   companyName: string;
@@ -36,6 +37,8 @@ export function ClientDocumentView({
   showPrices: boolean;
   totals: ClientDocRow[];
   pdfHref: string;
+  /** Right under the client and Collection / Delivery block (the job's Route estimate). */
+  afterFacts?: ReactNode;
   children?: ReactNode;
 }) {
   return (
@@ -89,6 +92,8 @@ export function ClientDocumentView({
               </dl>
             </div>
           </div>
+
+          {afterFacts}
 
           <div className="overflow-x-auto">
             <table className="mt-5 w-full fit-table text-left text-[15px]">

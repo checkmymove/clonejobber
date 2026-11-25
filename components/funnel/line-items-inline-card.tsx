@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Receipt } from "lucide-react";
+import { Receipt } from "lucide-react";
 import { CardIcon } from "@/components/card-icon";
 import { InlineEditCard, LineFields, newDraftLine, type DraftLine } from "@/components/inline-edit-card";
 import { LineItemsTable, TotalsList, type TotalRow } from "@/components/funnel/document-cards";
-import type { CatalogItem } from "@/components/quotes/quote-inline-cards";
+import { AddLineItemButton, type CatalogItem } from "@/components/quotes/quote-inline-cards";
 import { penceToInput } from "@/lib/format";
 import type { ParsedLine } from "@/lib/funnel/money";
 import { saveInvoiceLinesAction } from "@/lib/invoices/actions";
@@ -63,16 +63,7 @@ export function LineItemsInlineCard({
         const input = draft.map((l) => ({ name: l.name, description: l.description, qty: l.qty, unitPrice: l.price }));
         return kind === "job" ? saveJobLinesAction(id, input) : saveInvoiceLinesAction(id, input);
       }}
-      actions={(start) => (
-        <button
-          type="button"
-          onClick={() => addLine(start)}
-          className="hidden h-9 items-center gap-1.5 rounded-lg bg-accent px-3 text-sm font-semibold text-white hover:opacity-90 sm:inline-flex"
-        >
-          <Plus size={15} aria-hidden />
-          Add line item
-        </button>
-      )}
+      footer={(start) => <AddLineItemButton onClick={() => addLine(start)} />}
       view={
         <>
           <LineItemsTable lines={lines} />

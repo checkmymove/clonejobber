@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DEPOSIT_NOTE } from "@/lib/funnel/deposit";
 import type { ReactNode } from "react";
 import { Card } from "@/components/ui";
 import { EqualHeightBody } from "@/components/equal-height";
@@ -189,7 +190,20 @@ export function TotalsCard({ title = "Totals", totals }: { title?: string; total
 export function depositTotalRows(deposits: QuoteDepositSummary, alwaysShowRequired = false): TotalRow[] {
   return [
     ...(deposits.required || alwaysShowRequired
-      ? [{ label: "Required deposit", value: formatGBP(deposits.required), muted: true }]
+      ? [
+          {
+            label: deposits.required ? (
+              <>
+                Required deposit
+                <span className="block text-xs text-ink-mute">{DEPOSIT_NOTE}</span>
+              </>
+            ) : (
+              "Required deposit"
+            ),
+            value: formatGBP(deposits.required),
+            muted: true,
+          },
+        ]
       : []),
     ...deposits.deposits.map((d) => ({
       label: (

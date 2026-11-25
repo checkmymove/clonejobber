@@ -149,8 +149,8 @@ export function QuoteMoreMenu({
             <Mail size={18} />
             Send email &amp; text
           </button>
-          {status === "approved" ? (
-            // Approved: the header's green button is Convert to Job, so Resend lives here.
+          {status !== "draft" ? (
+            // Once sent, the header's green button is Convert to Job, so Resend lives here.
             <button
               type="button"
               role="menuitem"

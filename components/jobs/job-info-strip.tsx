@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui";
 import { CopyButton } from "@/components/copy-button";
 
-export type InfoCell = { label: string; value: string; icon: LucideIcon; href?: string };
+export type InfoCell = { label: string; value: string; icon: LucideIcon; href?: string; /** Small line under the value. */ note?: string };
 
 /** The job at a glance: who, how to reach them, the quote, the value and when. */
 export function JobInfoStrip({ cells }: { cells: InfoCell[] }) {
@@ -24,6 +24,7 @@ export function JobInfoStrip({ cells }: { cells: InfoCell[] }) {
                   {c.value || "—"}
                 </p>
               )}
+              {c.note ? <p className="truncate text-[12px] text-ink-soft" title={c.note}>{c.note}</p> : null}
             </div>
             <CopyButton text={c.value} label={c.label.toLowerCase()} />
           </div>

@@ -1,6 +1,5 @@
 "use client";
 
-import { AutoGrowTextarea } from "@/components/auto-grow-textarea";
 import { ServiceNameField } from "@/components/funnel/service-name-field";
 import type { CatalogItem } from "@/components/quotes/quote-inline-cards";
 import { useState, type ReactNode } from "react";
@@ -9,7 +8,7 @@ import { ChevronDown, Pencil } from "lucide-react";
 import { Card } from "@/components/ui";
 import { EqualHeightBody } from "@/components/equal-height";
 import { CARD_TITLE } from "@/components/card-icon";
-import { padMoney } from "@/lib/format";
+import { formatPounds, padMoney } from "@/lib/format";
 
 export const inlineField =
   "h-10 w-full rounded-lg border border-line bg-white px-3 text-sm text-ink outline-none focus:border-accent";
@@ -45,10 +44,13 @@ export function InlineEditCard({
   icon,
   layout = "list",
   actions,
+  footer,
 }: {
   title: string;
   /** Buttons beside the pencil; `startEditing` opens the card's edit mode. */
   actions?: (startEditing: () => void) => ReactNode;
+  /** Under the view (not while editing), e.g. the green Add line item; `startEditing` opens edit mode. */
+  footer?: (startEditing: () => void) => ReactNode;
   /** Coloured icon before the title (see CardIcon). */
   icon?: ReactNode;
   /** "stat": icon, small title and one large value side by side (moving date, time). */
@@ -187,11 +189,19 @@ export function InlineEditCard({
           </div>
         </div>
       ) : (
-        fitContent ? (
-          <div>{view}</div>
-        ) : (
-          <EqualHeightBody label={title.toLowerCase()}>{view}</EqualHeightBody>
-        )
+        <>
+          {fitContent ? (
+            <div>{view}</div>
+          ) : (
+            <EqualHeightBody label={title.toLowerCase()}>{view}</EqualHeightBody>
+          )}
+          {footer
+            ? footer(() => {
+                setError("");
+                setEditing(true);
+              })
+            : null}
+        </>
       )}
     </Card>
   );
@@ -289,6 +299,21 @@ export function newDraftLine(): DraftLine {
   };
 }
 
+/** Line editor styles, the same as New quote (Convert to quote). */
+const lineLabel = "mb-1 block text-[13px] text-ink-soft";
+const lineField =
+  "h-11 w-full rounded-lg border border-line bg-white px-3 text-[15px] text-ink outline-none placeholder:text-ink-mute focus:border-accent focus:ring-2 focus:ring-accent/20";
+
+function lineTotal(line: DraftLine): number {
+  const qty = Number(line.qty.replace(",", ".")) || 0;
+  const price = Number(line.price.replace(",", ".")) || 0;
+  return qty * price;
+}
+
+/**
+ * Product / Service lines as New quote shows them: Service, Quantity, Unit price and
+ * Total on one row, the Service summary under it, and the green Add line item below.
+ */
 export function LineFields({
   lines,
   onChange,
@@ -299,85 +324,88 @@ export function LineFields({
   /** Products & Services: clicking a line's Service box lists them to pick from. */
   catalog?: CatalogItem[];
 }) {
+  const patch = (id: string, change: Partial<DraftLine>) =>
+    onChange(lines.map((item) => (item.id === id ? { ...item, ...change } : item)));
   return (
-    <div className="space-y-3">
-      {lines.map((line, index) => (
-        <div key={line.id} className="space-y-2 rounded-xl border border-line p-3">
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_5.5rem_6.5rem_auto]">
-            {catalog?.length ? (
-              <ServiceNameField
-                ariaLabel={`Line ${index + 1} name`}
-                className={inlineField}
-                placeholder="Service"
-                value={line.name}
-                catalog={catalog}
-                onChange={(name) => onChange(lines.map((item) => (item.id === line.id ? { ...item, name } : item)))}
-                onPick={(picked) =>
-                  onChange(
-                    lines.map((item) =>
-                      item.id === line.id
-                        ? { ...item, name: picked.name, description: picked.description, price: padMoney(picked.price) }
-                        : item,
-                    ),
-                  )
-                }
+    <div>
+      <div className="space-y-6">
+        {lines.map((line, index) => (
+          <div key={line.id} className="space-y-3">
+            <div className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[minmax(0,1fr)_110px_150px_120px]">
+              <div className="block">
+                <span className={lineLabel}>Service</span>
+                {catalog?.length ? (
+                  <ServiceNameField
+                    ariaLabel={`Line ${index + 1} name`}
+                    className={lineField}
+                    value={line.name}
+                    catalog={catalog}
+                    onChange={(name) => patch(line.id, { name })}
+                    onPick={(picked) =>
+                      patch(line.id, { name: picked.name, description: picked.description, price: padMoney(picked.price) })
+                    }
+                  />
+                ) : (
+                  <input
+                    aria-label={`Line ${index + 1} name`}
+                    className={lineField}
+                    value={line.name}
+                    onChange={(e) => patch(line.id, { name: e.target.value })}
+                  />
+                )}
+              </div>
+              <label className="block">
+                <span className={lineLabel}>Quantity</span>
+                <input
+                  aria-label={`Line ${index + 1} quantity`}
+                  className={lineField}
+                  value={line.qty}
+                  onChange={(e) => patch(line.id, { qty: e.target.value })}
+                />
+              </label>
+              <label className="block">
+                <span className={lineLabel}>Unit price</span>
+                <input
+                  aria-label={`Line ${index + 1} price`}
+                  className={lineField}
+                  placeholder="£ 0.00"
+                  value={line.price}
+                  onChange={(e) => patch(line.id, { price: e.target.value })}
+                  onBlur={(e) => patch(line.id, { price: padMoney(e.target.value) })}
+                />
+              </label>
+              <div className="block">
+                <span className={lineLabel}>Total</span>
+                <div className="flex h-11 items-center justify-end rounded-lg border border-line px-3 text-[15px] text-ink">
+                  {formatPounds(lineTotal(line))}
+                </div>
+              </div>
+            </div>
+            <label className="block">
+              <span className="mb-1 flex items-center justify-between gap-3">
+                <span className="text-[13px] text-ink-soft">Service summary</span>
+                <button
+                  type="button"
+                  className="text-[13px] font-semibold text-rose-700 hover:underline"
+                  onClick={() => onChange(lines.filter((item) => item.id !== line.id))}
+                >
+                  Remove line
+                </button>
+              </span>
+              <textarea
+                aria-label={`Line ${index + 1} summary`}
+                className="min-h-[180px] w-full resize-y rounded-lg border border-line bg-white px-3 py-2 text-[15px] leading-6 text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
+                value={line.description}
+                onChange={(e) => patch(line.id, { description: e.target.value })}
               />
-            ) : (
-              <input
-                aria-label={`Line ${index + 1} name`}
-                className={inlineField}
-                placeholder="Service"
-                value={line.name}
-                onChange={(e) =>
-                  onChange(lines.map((item) => (item.id === line.id ? { ...item, name: e.target.value } : item)))
-                }
-              />
-            )}
-            <input
-              aria-label={`Line ${index + 1} quantity`}
-              className={inlineField}
-              placeholder="Qty"
-              value={line.qty}
-              onChange={(e) =>
-                onChange(lines.map((item) => (item.id === line.id ? { ...item, qty: e.target.value } : item)))
-              }
-            />
-            <input
-              aria-label={`Line ${index + 1} price`}
-              className={inlineField}
-              placeholder="Price"
-              value={line.price}
-              onChange={(e) =>
-                onChange(lines.map((item) => (item.id === line.id ? { ...item, price: e.target.value } : item)))
-              }
-              onBlur={(e) => {
-                const price = padMoney(e.target.value);
-                onChange(lines.map((item) => (item.id === line.id ? { ...item, price } : item)));
-              }}
-            />
-            <button
-              type="button"
-              className="h-10 rounded-lg px-2 text-sm font-bold text-rose-700 hover:bg-rose-50"
-              onClick={() => onChange(lines.filter((item) => item.id !== line.id))}
-            >
-              Remove
-            </button>
+            </label>
           </div>
-          <AutoGrowTextarea
-            aria-label={`Line ${index + 1} summary`}
-            className={inlineArea.replace(/\bmin-h-\S+/g, "")}
-            placeholder="Service summary"
-            value={line.description}
-            onChange={(e) =>
-              onChange(lines.map((item) => (item.id === line.id ? { ...item, description: e.target.value } : item)))
-            }
-          />
-        </div>
-      ))}
+        ))}
+      </div>
       <button
         type="button"
         onClick={() => onChange([...lines, newDraftLine()])}
-        className="h-9 rounded-lg bg-accent px-3 text-sm font-semibold text-white hover:opacity-90"
+        className="mt-4 h-9 rounded-lg bg-accent px-3 text-sm font-semibold text-white hover:opacity-90"
       >
         Add line item
       </button>
