@@ -37,12 +37,13 @@ test("request KPIs: new = still waiting, conversion = converted ÷ (new + conver
   assert.equal(Math.round(k.conversionTrend), 50);
 });
 
-test("quote filter follows the label in the table: archived, approved, converted, status", () => {
+test("quote filter follows the label in the table: archived, converted (has a job), status", () => {
   assert.equal(quoteFilterKey({ status: "sent", converted_at: null, archived_at: "2026-11-01" }), "archived");
-  assert.equal(quoteFilterKey({ status: "approved", converted_at: "2026-11-01", archived_at: null }), "approved");
+  assert.equal(quoteFilterKey({ status: "approved", converted_at: "2026-11-01", archived_at: null }), "converted");
   assert.equal(quoteFilterKey({ status: "sent", converted_at: "2026-11-01", archived_at: null }), "converted");
   assert.equal(quoteMatchesFilter({ status: "approved", converted_at: null }, "to_convert"), true);
   assert.equal(quoteMatchesFilter({ status: "approved", converted_at: "2026-11-01" }, "to_convert"), false);
+  assert.equal(quoteMatchesFilter({ status: "approved", converted_at: null }, "approved"), true);
   assert.equal(quoteFilterKey({ status: "approved", converted_at: null }), "approved");
   assert.equal(quoteFilterKey({ status: "sent", converted_at: null }), "awaiting");
   assert.equal(quoteFilterKey({ status: "changes_requested", converted_at: null }), "changes");
@@ -55,8 +56,8 @@ test("quote filter follows the label in the table: archived, approved, converted
     { status: "approved", total: 57000, converted_at: null },
     { status: "approved", total: 66500, converted_at: "2026-11-21" },
   ]);
-  assert.deepEqual(a.approved, { n: 2, total: 123500 });
-  assert.deepEqual(a.to_convert, { n: 1, total: 57000 });
+  assert.deepEqual(a.approved, { n: 1, total: 57000 });
+  assert.deepEqual(a.converted, { n: 1, total: 66500 });
 });
 
 test("short amounts like Jobber's Workflow", () => {

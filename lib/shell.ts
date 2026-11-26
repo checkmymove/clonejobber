@@ -60,7 +60,7 @@ export async function getShellAlerts(companySlug: string): Promise<ShellAlert[]>
   `.catch(() => [{ n: 0 }]);
   const alerts: ShellAlert[] = [
     { key: "requests", label: "New requests to quote", count: c.requests, href: "/solicitacoes?status=new" },
-    { key: "to_convert", label: "Approved quotes to convert to job", count: c.to_convert, href: "/cotacoes?status=to_convert" },
+    { key: "to_convert", label: "Approved quotes to convert to job", count: c.to_convert, href: "/cotacoes?status=approved" },
     { key: "changes", label: "Quotes with changes requested", count: c.changes, href: "/cotacoes?status=changes" },
     { key: "to_schedule", label: "Approved jobs to schedule", count: toSchedule[0]?.n ?? 0, href: "/servicos" },
     { key: "past_due", label: "Invoices past due", count: c.past_due, href: "/faturas?status=past_due" },

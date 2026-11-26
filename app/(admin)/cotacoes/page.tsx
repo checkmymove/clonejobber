@@ -6,6 +6,7 @@ import { listQuotes } from "@/lib/quotes/queries";
 import {
   OVERVIEW_STATUSES,
   QUOTE_FILTERS,
+  normalizeQuoteFilter,
   quoteMatchesFilter,
   quoteFilterTally,
   quoteListStatus,
@@ -45,10 +46,10 @@ export default async function CotacoesPage({ searchParams }: { searchParams: Pro
   ]);
   const every = all ?? everything;
   const listed = everything.filter((quote) => !quote.archived_at);
-  // Approved quotes stay in the list (their job is created on approval); a quote
-  // converted to a job without the client's approval leaves it, ?view=all shows it again.
-  const waiting = listed.filter((quote) => !quote.converted_at || quote.status === "approved");
-  const status = QUOTE_FILTERS.some((f) => f.key === params.status) ? params.status : undefined;
+  // A quote that became a job moved on to Jobs and leaves the list; ?view=all shows it again.
+  const waiting = listed.filter((quote) => !quote.converted_at);
+  const wanted = normalizeQuoteFilter(params.status);
+  const status = QUOTE_FILTERS.some((f) => f.key === wanted) ? wanted : undefined;
   const visible = status
     ? everything.filter((quote) => quoteMatchesFilter(quote, status))
     : params.view === "all"
@@ -125,11 +126,12 @@ export default async function CotacoesPage({ searchParams }: { searchParams: Pro
           {status ? null : (
             <ConvertedToggle base={base} params={params} hidden={listed.length - waiting.length} />
           )}
-          {status === "archived" ? (
-            <Link href={base} className="text-sm font-semibold text-accent hover:underline">
+          {status ? (
+            <Link href={listHref(base, { q: params.q }, {})} className="text-sm font-semibold text-accent hover:underline">
               Back to quotes
             </Link>
-          ) : (
+          ) : null}
+          {status === "archived" ? null : (
             <Link
               href={listHref(base, {}, { status: "archived" })}
               className="inline-flex h-9 items-center gap-2 rounded-lg border border-line bg-card px-3 text-sm font-semibold text-ink hover:bg-cream"
@@ -162,7 +164,11 @@ export default async function CotacoesPage({ searchParams }: { searchParams: Pro
         />
         {visible.length === 0 ? (
           <EmptyState>
-            {status
+            {status === "approved"
+              ? listed.length > waiting.length
+                ? "No approved quotes waiting for a job. The approved ones were already converted to jobs (filter Converted)."
+                : "No approved quotes waiting for a job."
+              : status
               ? `No ${statusLabel?.toLowerCase()} quotes.`
               : q.trim()
               ? "No quotes match that search."
