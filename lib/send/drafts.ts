@@ -10,6 +10,7 @@ import { getJobDetail } from "@/lib/jobs/queries";
 import { pdfFileName } from "@/lib/pdf/document";
 import { getQuoteDetail } from "@/lib/quotes/queries";
 import { getRequestDetail } from "@/lib/requests/queries";
+import { addDays } from "@/lib/schedule/dates";
 import { normalizePhone } from "@/lib/sms/phone";
 import { jobDetailsText, renderLetter, type TemplateKey } from "@/lib/templates/catalog";
 import { getTemplate } from "@/lib/templates/queries";
@@ -148,31 +149,43 @@ async function quoteDraft(company: Company, id: string): Promise<Result> {
   };
 }
 
-async function jobDraft(company: Company, id: string): Promise<Result> {
+/**
+ * Send Job Confirmation (jobs need no client approval).
+ * - No packing: one email & text confirming the removal day and time.
+ * - Packing: this send confirms the packing service (always the day before the removal,
+ *   same start time) and schedules the removal confirmation 24 hours later.
+ * `letter: "removal"` forces the removal confirmation (the scheduled send).
+ */
+async function jobDraft(company: Company, id: string, letter: "auto" | "removal" = "auto"): Promise<Result> {
   const j = await getJobDetail(id);
   if (!j) return { ok: false, message: "Job not found." };
   const visit = j.visits
     .filter((v) => v.visit_date && !v.later && v.status !== "cancelled")
     .sort((a, b) => String(a.visit_date).localeCompare(String(b.visit_date)))[0];
-  const date = visit?.visit_date ? formatDateNumericLondon(visit.visit_date) : "To be confirmed";
-  const time =
-    visit && !visit.anytime && visit.start_time
-      ? `${visit.start_time}${visit.end_time ? ` – ${visit.end_time}` : ""}`
-      : "Anytime";
+  const timed = Boolean(visit && !visit.anytime && visit.start_time);
+  const removalDate = visit?.visit_date ? formatDateNumericLondon(visit.visit_date) : "To be confirmed";
+  const removalTime = timed ? `${visit!.start_time}${visit!.end_time ? ` – ${visit!.end_time}` : ""}` : "Anytime";
+  const packing = j.needs_packing && letter === "auto";
+  const date = packing
+    ? visit?.visit_date
+      ? formatDateNumericLondon(addDays(String(visit.visit_date), -1))
+      : "To be confirmed"
+    : removalDate;
+  const time = packing ? (timed ? visit!.start_time : "Anytime") : removalTime;
   const location = j.pickup_address || j.client_address || "";
   const url = clientJobUrl(id);
   const team = visit ? (await visitTeamNames([visit.id])).get(visit.id) ?? "" : "";
-  const letter = await letterFor(company.id, "job_booking", {
+  const filled = await letterFor(company.id, packing ? "job_packing_booking" : "job_booking", {
     ...baseVars(company, { name: j.client_name }),
     JOB_NUMBER: j.number,
     JOB_TITLE: j.title || "",
     JOB_DATE: date,
+    APPOINTMENT_DATE: date,
     ARRIVAL_WINDOW: time,
     ASSIGNED_TO: team,
     JOB_LOCATION: location,
     JOB_DETAILS: jobDetailsText({ date, time, team, address: location }),
   });
-  // Jobs need no client approval: the job email is always the booking confirmation.
   return {
     ok: true,
     draft: {
@@ -181,12 +194,27 @@ async function jobDraft(company: Company, id: string): Promise<Result> {
       number: j.number,
       clientName: j.client_name,
       viewUrl: url,
-      card: { heading: "Booking confirmation", buttonLabel: "View Job" },
-      email: { to: j.client_email, subject: letter.subject, message: letter.message },
-      sms: { to: normalizePhone(j.client_phone), message: withLink(letter.sms, url) },
+      card: { heading: packing ? "Packing confirmation" : "Removal confirmation", buttonLabel: "View Job" },
+      email: { to: j.client_email, subject: filled.subject, message: filled.message },
+      sms: { to: normalizePhone(j.client_phone), message: withLink(filled.sms, url) },
       attachment: pdfFileName("job", j.number),
+      ...(packing
+        ? {
+            followUp: {
+              purpose: "job_removal_confirmation" as const,
+              note: `Packing service on ${date}. The removal confirmation (${removalDate}, ${removalTime}) goes out on its own 24 hours after this message.`,
+            },
+          }
+        : {}),
     },
   };
+}
+
+/** The removal confirmation of a job, as the scheduled send delivers it. */
+export async function buildJobRemovalDraft(id: string): Promise<Result> {
+  const company = await sendCompany();
+  if (!company) return { ok: false, message: "Company not found." };
+  return jobDraft(company, id, "removal");
 }
 
 async function invoiceDraft(company: Company, id: string): Promise<Result> {

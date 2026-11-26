@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/auth/session";
 import { isUuid } from "@/lib/funnel/validation";
 import { buildSendDraft } from "./drafts";
 import { deliverEmail, deliverSms } from "./deliver";
+import { scheduleRemovalConfirmation } from "./scheduled";
 import { sql } from "@/lib/db";
 import { getCompanyId } from "@/lib/company";
 import {
@@ -58,13 +59,31 @@ export async function sendDocument(input: {
   const email = input.email ? await deliverEmail(prepared.draft, input.email) : undefined;
   const sms = input.sms ? await deliverSms(prepared.draft, input.sms) : undefined;
 
+  // Job with packing: the packing confirmation went out, so the removal confirmation
+  // follows on its own 24 hours later, to the same email and phone.
+  let scheduled = false;
+  if (prepared.draft.followUp && (email?.ok || (!input.email && input.sms))) {
+    await scheduleRemovalConfirmation({
+      jobId: input.id,
+      emailTo: email?.ok ? input.email!.to.trim() : null,
+      smsTo: input.sms ? input.sms.to : null,
+    });
+    scheduled = true;
+  }
+
   revalidatePath(PATHS[input.kind]);
   revalidatePath(`${PATHS[input.kind]}/${input.id}`);
   revalidatePath("/clientes");
   revalidatePath("/");
   // The email is what reaches the client today; texts wait for an SMS provider.
   const ok = email ? email.ok : Boolean(sms?.ok);
-  return { ok, email, sms, message: ok ? undefined : (email?.message ?? sms?.message) };
+  return {
+    ok,
+    email,
+    sms,
+    message: ok ? undefined : (email?.message ?? sms?.message),
+    scheduledNote: scheduled ? "Removal confirmation scheduled for 24 hours from now." : undefined,
+  };
 }
 
 /** "Attachments › Select or drag files here to upload": one file per call. */

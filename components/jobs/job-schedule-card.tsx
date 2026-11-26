@@ -12,7 +12,7 @@ import { Avatar } from "@/components/team/team-ui";
 import { TimeField } from "@/components/time-field";
 import { Card } from "@/components/ui";
 import { cn } from "@/lib/cn";
-import { addMinutesToClock } from "@/lib/schedule/dates";
+import { addDays, addMinutesToClock } from "@/lib/schedule/dates";
 import { saveJobVisitAction } from "@/lib/jobs/visit-actions";
 
 export type ScheduleVisit = {
@@ -230,6 +230,7 @@ export function JobScheduleCard({
   defaults,
   today,
   approved,
+  packing = false,
 }: {
   jobId: string;
   jobLabel: string;
@@ -238,8 +239,18 @@ export function JobScheduleCard({
   defaults: ScheduleDefaults;
   today: string;
   approved: boolean;
+  /** The client asked for packing: it is always the day before the removal, same start time. */
+  packing?: boolean;
 }) {
   const router = useRouter();
+  const removal = visits
+    .filter((v) => v.status !== "cancelled" && !v.later && v.date)
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)))[0];
+  const packingLine = packing
+    ? removal?.date
+      ? `${dmy(addDays(removal.date, -1))} · ${removal.anytime || !removal.start ? "Anytime" : removal.start} (day before the removal)`
+      : "Day before the removal, once the removal visit is scheduled"
+    : null;
   // With no visit yet the editor is already open: pick the time and the team, then save.
   const [editing, setEditing] = useState<string | null>(visits.length === 0 ? "new" : null);
   const names = new Map(team.map((m) => [m.id, m.name]));
@@ -351,6 +362,12 @@ export function JobScheduleCard({
             </tbody>
           </table>
         </div>
+      ) : null}
+
+      {packingLine ? (
+        <p className="mt-3 rounded-lg bg-orange-50 px-3 py-2 text-sm text-orange-900">
+          <span className="font-semibold">Packing service:</span> {packingLine}
+        </p>
       ) : null}
     </Card>
   );

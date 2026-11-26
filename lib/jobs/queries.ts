@@ -78,6 +78,8 @@ export interface JobDetail extends Omit<JobRow, "visits"> {
   move_time: string;
   approval_sent_at: string | null;
   approved_at: string | null;
+  /** The client asked for the packing service on the request. */
+  needs_packing: boolean;
   client_email: string;
   client_phone: string;
   client_address: string;
@@ -162,6 +164,7 @@ export async function getJobDetail(id: string): Promise<JobDetail | null> {
            q.status as quote_status,
            coalesce(q.valid_until, r.move_date) as move_date,
            coalesce(nullif(q.move_time, ''), r.move_time, '') as move_time,
+           coalesce(r.needs_packing_service, false) as needs_packing,
            -- Read through to_jsonb so the page works before migration 0027 adds them.
            (to_jsonb(j) ->> 'approval_sent_at')::timestamptz as approval_sent_at,
            (to_jsonb(j) ->> 'approved_at')::timestamptz as approved_at,

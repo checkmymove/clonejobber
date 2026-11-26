@@ -34,6 +34,11 @@ export type SendDraft = {
   smsReady: boolean;
   /** PAST DUE or PAID watermark on the email (and on the attached invoice PDF). */
   stamp?: "past_due" | "paid";
+  /**
+   * Job with packing: this is the packing confirmation, and sending it schedules the
+   * removal confirmation (same email and phone) to go out on its own 24 hours later.
+   */
+  followUp?: { purpose: "job_removal_confirmation"; note: string };
 };
 
 export type ChannelResult = { ok: boolean; message?: string };
@@ -43,6 +48,8 @@ export type SendOutcome = {
   message?: string;
   email?: ChannelResult;
   sms?: ChannelResult;
+  /** A follow-up message was scheduled by this send (packing → removal confirmation). */
+  scheduledNote?: string;
 };
 
 /** SMS segments: 160 characters for GSM text, 70 once a character needs Unicode. */

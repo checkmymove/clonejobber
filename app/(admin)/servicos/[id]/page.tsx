@@ -41,6 +41,7 @@ import { Card, PageHeader, buttonOutline } from "@/components/ui";
 import { LabourCard } from "@/components/team/labour-card";
 import { JobExpensesCard } from "@/components/jobs/job-expenses-card";
 import { listJobExpenses } from "@/lib/expenses/queries";
+import { pendingRemovalConfirmation } from "@/lib/send/scheduled";
 import { JobScheduleCard } from "@/components/jobs/job-schedule-card";
 import { parseMoveClock } from "@/lib/funnel/engine";
 import { LineItemsInlineCard } from "@/components/funnel/line-items-inline-card";
@@ -69,7 +70,7 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
   if (!j) notFound();
 
   const today = todayLondonInput();
-  const [request, deposits, labour, team, visitMembers, client, companyId, emails, expenses] = await Promise.all([
+  const [request, deposits, labour, team, visitMembers, client, companyId, emails, expenses, removalScheduled] = await Promise.all([
     j.linked_request_id ? getRequestDetail(j.linked_request_id) : null,
     j.quote_id ? getQuoteDeposits(j.quote_id) : null,
     getJobLabour(j.id),
@@ -79,6 +80,7 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
     getCompanyId(),
     listDeliveries("job", j.id).catch(() => []),
     listJobExpenses(j.id),
+    j.needs_packing ? pendingRemovalConfirmation(j.id) : null,
   ]);
   if (!client) notFound();
   const services = companyId ? await getActiveServices(companyId) : [];
@@ -201,6 +203,7 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
           }}
           today={today}
           approved={approved}
+          packing={j.needs_packing}
         />
 
         {/* Same as the quote page: collection and delivery side by side, then the route estimate. */}
@@ -362,7 +365,19 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
 
         {snapshot && request ? <RequestInventoryCard snapshot={snapshot} files={request.files} /> : null}
         <NotesCard kind="job" id={j.id} notes={j.notes} />
-        <SentCard kind="job" id={j.id} />
+        <SentCard
+          kind="job"
+          id={j.id}
+          scheduled={
+            removalScheduled
+              ? {
+                  label: "Removal confirmation",
+                  to: [removalScheduled.email_to, removalScheduled.sms_to].filter(Boolean).join(" · "),
+                  at: removalScheduled.send_at,
+                }
+              : null
+          }
+        />
       </div>
     </div>
   );

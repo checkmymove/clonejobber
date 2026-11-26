@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Check, FileText, Mail, MessageSquare, Paperclip, X } from "lucide-react";
 import { documentEmailHtml, stampImagePath } from "@/lib/email/templates";
 import { prepareSend, removeSendAttachment, sendDocument, uploadSendAttachment } from "@/lib/send/actions";
@@ -185,7 +186,8 @@ export function SendDialog({
     </div>
   );
 
-  return (
+  // Portalled to <body>: the dialog can open from the top bar, whose blur would trap a fixed overlay.
+  return createPortal(
     <div
       className="fixed inset-0 z-[60] grid place-items-center bg-[#123035]/45 p-4"
       onClick={() => {
@@ -218,6 +220,10 @@ export function SendDialog({
           {tabButton("email", "Email", <Mail size={17} />, useEmail, setUseEmail)}
           {tabButton("sms", "Text message", <MessageSquare size={17} />, useSms, setUseSms)}
         </div>
+
+        {draft.followUp ? (
+          <p className="mt-4 rounded-lg bg-sky-50 px-3 py-2 text-[14px] text-sky-900">{draft.followUp.note}</p>
+        ) : null}
 
         {tab === "email" ? (
           <div className={`mt-5 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] ${useEmail ? "" : "opacity-50"}`}>
@@ -430,6 +436,7 @@ export function SendDialog({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
