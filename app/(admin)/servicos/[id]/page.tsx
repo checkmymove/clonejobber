@@ -57,6 +57,13 @@ function visitTime(v: JobVisit): string {
   return `${formatDateNumericLondon(v.visit_date)} · ${v.start_time}${v.end_time ? `–${v.end_time}` : ""}`;
 }
 
+/** Estimated duration set on the request ("5" hours → 300 minutes); undefined when none is numeric. */
+function estimatedMinutes(hours: string[]): number | undefined {
+  const value = hours.map((h) => h.trim()).find((h) => /^\d+(\.\d+)?$/.test(h));
+  const minutes = value ? Math.round(Number(value) * 60) : 0;
+  return minutes > 0 ? minutes : undefined;
+}
+
 export default async function ServicoDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const j = await getJobDetail(id);
@@ -187,7 +194,12 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
             assigneeText: v.assignee,
           }))}
           team={team.filter((m) => m.active).map((m) => ({ id: m.id, name: m.name }))}
-          defaults={{ date: j.move_date ?? today, start: parseMoveClock(j.move_time) }}
+          defaults={{
+            date: j.move_date ?? today,
+            start: parseMoveClock(j.move_time),
+            // Estimated hours from the request (e.g. 5 → end time = start + 5h).
+            durationMinutes: estimatedMinutes(request?.estimated_hours ?? []),
+          }}
           today={today}
           approved={approved}
         />

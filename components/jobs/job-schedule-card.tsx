@@ -12,6 +12,7 @@ import { Avatar } from "@/components/team/team-ui";
 import { TimeField } from "@/components/time-field";
 import { Card } from "@/components/ui";
 import { cn } from "@/lib/cn";
+import { addMinutesToClock } from "@/lib/schedule/dates";
 import { saveJobVisitAction } from "@/lib/jobs/visit-actions";
 
 export type ScheduleVisit = {
@@ -30,6 +31,9 @@ export type ScheduleVisit = {
 };
 
 type Member = { id: string; name: string };
+
+/** Date and start time inherited from the funnel, plus the estimated duration set on the request. */
+export type ScheduleDefaults = { date: string; start: string; durationMinutes?: number };
 
 const MONTH = new Intl.DateTimeFormat("en-GB", { month: "short", timeZone: "UTC" });
 
@@ -75,13 +79,29 @@ function VisitEditor({
   jobId: string;
   visit: ScheduleVisit | null;
   team: Member[];
-  defaults: { date: string; start: string };
+  defaults: ScheduleDefaults;
   onDone: () => void;
   onCancel?: () => void;
 }) {
+  const durationMin = defaults.durationMinutes ?? 0;
+  const endFrom = (s: string) => (s && durationMin > 0 ? addMinutesToClock(s, durationMin) : "");
   const [date, setDate] = useState(visit?.date ?? defaults.date);
-  const [start, setStart] = useState(visit ? (visit.anytime ? "" : visit.start) : defaults.start);
-  const [end, setEnd] = useState(visit && !visit.anytime ? visit.end : "");
+  const [start, setStartRaw] = useState(visit ? (visit.anytime ? "" : visit.start) : defaults.start);
+  const [end, setEndRaw] = useState(() => {
+    if (visit && !visit.anytime && visit.end) return visit.end;
+    return endFrom(visit ? (visit.anytime ? "" : visit.start) : defaults.start);
+  });
+  // End follows start (start + estimated duration from the request) until the user sets it by hand.
+  const [endTouched, setEndTouched] = useState(Boolean(visit && !visit.anytime && visit.end));
+  const setStart = (value: string) => {
+    setStartRaw(value);
+    if (!value) setEndRaw("");
+    else if (!endTouched) setEndRaw(endFrom(value));
+  };
+  const setEnd = (value: string) => {
+    setEndRaw(value);
+    setEndTouched(true);
+  };
   const [members, setMembers] = useState<string[]>(visit?.memberIds ?? []);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -185,7 +205,7 @@ export function JobScheduleCard({
   jobLabel: string;
   visits: ScheduleVisit[];
   team: Member[];
-  defaults: { date: string; start: string };
+  defaults: ScheduleDefaults;
   today: string;
   approved: boolean;
 }) {
@@ -206,9 +226,7 @@ export function JobScheduleCard({
           <h2 className={CARD_TITLE}>Schedule</h2>
           {approved ? (
             <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">Approved by client</span>
-          ) : (
-            <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800">Awaiting client approval</span>
-          )}
+          ) : null}
         </div>
         {editing === null ? (
           <button
