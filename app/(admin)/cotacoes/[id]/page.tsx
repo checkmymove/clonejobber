@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { formatDateLondon, formatGBP, penceToInput, toDateInput } from "@/lib/format";
+import { formatDateLondon, penceToInput, toDateInput } from "@/lib/format";
 import { getQuoteDetail } from "@/lib/quotes/queries";
 import { getLatestRequestId, getRequestDetail } from "@/lib/requests/queries";
 import { requestSnapshotFromDetail } from "@/lib/requests/edit-snapshot";
@@ -10,7 +10,6 @@ import { QuoteRequestSidebar } from "@/components/quotes/quote-request-sidebar";
 import {
   ConvertToJobButton,
   QuoteMoreMenu,
-  QuoteNextSteps,
   SendQuoteButton,
 } from "@/components/quotes/quote-more-menu";
 import { QuoteInfoCard } from "@/components/quotes/quote-info-card";
@@ -28,7 +27,6 @@ import {
   RequestLocationCard,
 } from "@/components/requests/request-inline-cards";
 import { hasRemovalService } from "@/lib/requests/edit-snapshot";
-import { depositTotalRows, type TotalRow } from "@/components/funnel/document-cards";
 import { ClientContactCard } from "@/components/funnel/client-contact-card";
 import { NotesCard } from "@/components/funnel/notes-card";
 import { getClientContact } from "@/lib/clients/queries";
@@ -100,14 +98,6 @@ export default async function CotacaoDetailPage({
     taxPence: q.tax,
     lines: quoteLinesFromPence(q.lines),
   };
-
-  const totals: TotalRow[] = [
-    { label: "Subtotal", value: formatGBP(q.subtotal), muted: true },
-    ...(q.discount ? [{ label: "Discount", value: `-${formatGBP(q.discount)}`, muted: true }] : []),
-    ...(q.tax ? [{ label: "Tax", value: formatGBP(q.tax), muted: true }] : []),
-    { label: "Total", value: formatGBP(q.total), strong: true },
-    ...depositTotalRows(deposits, true),
-  ];
 
   const moveDate = snapshot.validUntil;
   const subtitle = [
@@ -204,8 +194,7 @@ export default async function CotacaoDetailPage({
               <SentCard kind="quote" id={id} />
             </div>
             <div className="flex min-w-0 flex-col gap-4">
-              <QuoteTotalsCard snapshot={snapshot} totals={totals} />
-              <QuoteNextSteps quoteId={id} status={q.status} archived={archived} jobId={q.job_id} />
+              <QuoteTotalsCard snapshot={snapshot} deposits={deposits} />
             </div>
           </div>
         </div>

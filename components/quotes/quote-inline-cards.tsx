@@ -2,19 +2,25 @@
 
 import { openPicker } from "@/components/date-field";
 import { TimeField, toTime24 } from "@/components/time-field";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Box, Calculator, CalendarDays, ChevronDown, Clock, FileText } from "lucide-react";
-import { CardIcon } from "@/components/card-icon";
+import { CardIcon, CARD_TITLE } from "@/components/card-icon";
+import { Card } from "@/components/ui";
 import { cn } from "@/lib/cn";
-import { formatGBP, formatDateLondon, padMoney } from "@/lib/format";
+import { formatGBP, formatDateLondon, formatDateNumericLondon, penceToInput } from "@/lib/format";
+import { DEPOSIT_NOTE } from "@/lib/funnel/deposit";
+import { parseGbpToPence } from "@/lib/funnel/money";
 import type { QuoteInput } from "@/lib/funnel/validation";
+import { paymentMethodLabel } from "@/lib/payments/constants";
+import type { QuoteDepositSummary } from "@/lib/payments/queries";
 import { saveQuoteInPlace } from "@/lib/quotes/actions";
 import { saveRequestInPlace } from "@/lib/requests/actions";
 import {
   toAdminRequestInput,
   type RequestEditSnapshot,
 } from "@/lib/requests/edit-snapshot";
-import type { TotalRow } from "@/components/funnel/document-cards";
 import {
   Dl,
   Field,
@@ -148,58 +154,181 @@ export function QuoteTermsCard({ snapshot }: { snapshot: QuoteEditSnapshot }) {
 }
 
 /** Totals with the pencil for discount, tax and the required deposit. */
-export function QuoteTotalsCard({ snapshot, totals }: { snapshot: QuoteEditSnapshot; totals: TotalRow[] }) {
-  const [discount, setDiscount] = useState(snapshot.discount);
-  const [tax, setTax] = useState(snapshot.tax);
-  const [deposit, setDeposit] = useState(snapshot.deposit);
-  useEffect(() => {
-    setDiscount(snapshot.discount);
-    setTax(snapshot.tax);
-    setDeposit(snapshot.deposit);
-  }, [snapshot]);
+type TotalsField = "discount" | "tax" | "total" | "deposit" | "outstanding";
+
+/**
+ * Quote totals with no pencil: a click on Discount, Tax, Total, Required deposit or
+ * Outstanding deposit turns that value into a field; Enter or leaving the field saves,
+ * Esc cancels. Total is reached through the discount (Total = Subtotal − Discount + Tax);
+ * Outstanding deposit sets the required deposit to what was collected plus the new amount.
+ */
+export function QuoteTotalsCard({ snapshot, deposits }: { snapshot: QuoteEditSnapshot; deposits: QuoteDepositSummary }) {
+  const router = useRouter();
+  const [editing, setEditing] = useState<TotalsField | null>(null);
+  const [draft, setDraft] = useState("");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
+  const outstanding = Math.max(0, deposits.required - deposits.collected);
+
+  const current: Record<TotalsField, number> = {
+    discount: snapshot.discountPence,
+    tax: snapshot.taxPence,
+    total: snapshot.total,
+    deposit: deposits.required,
+    outstanding,
+  };
+
+  function start(field: TotalsField) {
+    if (pending) return;
+    setError("");
+    setEditing(field);
+    setDraft(penceToInput(current[field]));
+  }
+
+  async function commit() {
+    if (!editing || pending) return;
+    const field = editing;
+    const pence = parseGbpToPence(draft);
+    if (pence == null) {
+      setError("Enter an amount in pounds, e.g. 250.00");
+      return;
+    }
+    if (pence === current[field]) {
+      setEditing(null);
+      return;
+    }
+    const patch: { discount?: string; tax?: string; deposit?: string } = {};
+    if (field === "discount") {
+      if (pence > snapshot.subtotal) return setError(`Discount cannot be more than the subtotal (${formatGBP(snapshot.subtotal)}).`);
+      patch.discount = penceToInput(pence);
+    } else if (field === "tax") {
+      patch.tax = penceToInput(pence);
+    } else if (field === "total") {
+      const discount = snapshot.subtotal + snapshot.taxPence - pence;
+      if (discount < 0) {
+        return setError(
+          `Total cannot be above ${formatGBP(snapshot.subtotal + snapshot.taxPence)}. To charge more, raise the prices in Product / Service.`,
+        );
+      }
+      if (discount > snapshot.subtotal) return setError(`Total cannot be below the tax (${formatGBP(snapshot.taxPence)}).`);
+      patch.discount = penceToInput(discount);
+    } else if (field === "deposit") {
+      patch.deposit = penceToInput(pence);
+    } else {
+      patch.deposit = penceToInput(deposits.collected + pence);
+    }
+    setPending(true);
+    setError("");
+    const result = await saveQuoteInPlace(snapshot.id, toQuoteInput(snapshot, patch));
+    setPending(false);
+    if (!result.ok) {
+      setError(result.message || Object.values(result.errors ?? {})[0] || "Could not save.");
+      return;
+    }
+    setEditing(null);
+    router.refresh();
+  }
+
+  function value(field: TotalsField, shown: string, strong = false) {
+    if (editing === field) {
+      return (
+        <input
+          autoFocus
+          inputMode="decimal"
+          aria-label={`New ${field}`}
+          disabled={pending}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onFocus={(e) => e.target.select()}
+          onBlur={() => void commit()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              void commit();
+            } else if (e.key === "Escape") {
+              setEditing(null);
+              setError("");
+            }
+          }}
+          className={cn(
+            "h-8 w-32 rounded-lg border border-accent bg-white px-2 text-right text-ink outline-none ring-2 ring-accent/20",
+            strong ? "text-base font-bold" : "text-sm font-semibold",
+          )}
+        />
+      );
+    }
+    return <span className={cn("text-ink", strong ? "font-bold" : "font-semibold")}>{shown}</span>;
+  }
+
+  /** One clickable row: hover shows it can be edited; a click opens the field. */
+  function row(field: TotalsField, label: ReactNode, shown: string, { strong = false } = {}) {
+    const isEditing = editing === field;
+    return (
+      <div
+        role={isEditing ? undefined : "button"}
+        tabIndex={isEditing ? undefined : 0}
+        title={isEditing ? undefined : "Click to edit"}
+        onClick={() => !isEditing && start(field)}
+        onKeyDown={(e) => {
+          if (!isEditing && (e.key === "Enter" || e.key === " ")) {
+            e.preventDefault();
+            start(field);
+          }
+        }}
+        className={cn(
+          "flex min-h-10 items-center justify-between gap-4 rounded-lg px-3 py-1.5 outline-none",
+          !isEditing && "cursor-pointer hover:bg-cream focus-visible:ring-2 focus-visible:ring-accent/30",
+          strong ? "my-1.5 border-y border-line py-2.5 text-base font-bold text-ink" : "text-ink-soft",
+        )}
+      >
+        <span>{label}</span>
+        {value(field, shown, strong)}
+      </div>
+    );
+  }
 
   return (
-    <InlineEditCard
-      className="h-fit p-5"
-      title="Quote totals"
-      fitContent
-      icon={<CardIcon icon={Calculator} tone="blue" />}
-      onCancel={() => {
-        setDiscount(snapshot.discount);
-        setTax(snapshot.tax);
-        setDeposit(snapshot.deposit);
-      }}
-      onSave={() => saveQuoteInPlace(snapshot.id, toQuoteInput(snapshot, { discount, tax, deposit }))}
-      view={
-        <div className="text-sm">
-          {totals.map((row, index) =>
-            row.strong ? (
-              <div key={index} className="my-1.5 flex justify-between gap-4 rounded-lg bg-emerald-50 px-3 py-2.5 text-base font-bold text-ink">
-                <span>{row.label}</span>
-                <span>{row.value}</span>
-              </div>
-            ) : (
-              <div key={index} className={cn("flex justify-between gap-4 px-3 py-1.5", row.muted ? "text-ink-soft" : "text-ink")}>
-                <span>{row.label}</span>
-                <span className="font-semibold text-ink">{row.value}</span>
-              </div>
-            ),
-          )}
-        </div>
-      }
-    >
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Field label="Discount">
-          <input className={inlineField} value={discount} onChange={(e) => setDiscount(e.target.value)} onBlur={(e) => setDiscount(padMoney(e.target.value))} />
-        </Field>
-        <Field label="Tax">
-          <input className={inlineField} value={tax} onChange={(e) => setTax(e.target.value)} onBlur={(e) => setTax(padMoney(e.target.value))} />
-        </Field>
-        <Field label="Deposit">
-          <input className={inlineField} value={deposit} onChange={(e) => setDeposit(e.target.value)} onBlur={(e) => setDeposit(padMoney(e.target.value))} />
-        </Field>
+    <Card className="h-fit p-5">
+      <div className="mb-3 flex items-center gap-3">
+        <CardIcon icon={Calculator} tone="blue" />
+        <h2 className={CARD_TITLE}>Quote totals</h2>
       </div>
-    </InlineEditCard>
+      <div className="text-sm">
+        <div
+          className="flex min-h-10 items-center justify-between gap-4 px-3 py-1.5 text-ink-soft"
+          title="Sum of the lines in Product / Service"
+        >
+          <span>Subtotal</span>
+          <span className="font-semibold text-ink">{formatGBP(snapshot.subtotal)}</span>
+        </div>
+        {row("discount", "Discount", snapshot.discountPence ? `-${formatGBP(snapshot.discountPence)}` : formatGBP(0))}
+        {row("tax", "Tax", formatGBP(snapshot.taxPence))}
+        {row("total", "Total", formatGBP(snapshot.total), { strong: true })}
+        {row(
+          "deposit",
+          deposits.required ? (
+            <>
+              Required deposit
+              <span className="block text-xs text-ink-mute">{DEPOSIT_NOTE}</span>
+            </>
+          ) : (
+            "Required deposit"
+          ),
+          formatGBP(deposits.required),
+        )}
+        {deposits.deposits.map((d) => (
+          <div key={d.id} className="flex min-h-10 items-center justify-between gap-4 px-3 py-1.5 text-ink-soft">
+            <Link href={`/pagamentos/${d.id}`} className="text-accent underline">
+              Deposit collected · {formatDateNumericLondon(d.paid_on)} · {paymentMethodLabel(d.method)}
+            </Link>
+            <span className="font-semibold text-ink">-{formatGBP(d.amount)}</span>
+          </div>
+        ))}
+        {row("outstanding", "Outstanding deposit", formatGBP(outstanding))}
+      </div>
+      {pending ? <p className="mt-2 px-3 text-sm text-ink-mute">Saving…</p> : null}
+      {error ? <p className="mt-2 px-3 text-sm font-semibold text-rose-700">{error}</p> : null}
+    </Card>
   );
 }
 

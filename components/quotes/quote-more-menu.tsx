@@ -5,8 +5,6 @@ import Link from "next/link";
 import {
   Archive,
   Banknote,
-  CalendarCheck,
-  CheckCircle2,
   Eye,
   FileDown,
   Hammer,
@@ -96,10 +94,16 @@ export function QuoteMoreMenu({
           role="menu"
           className="absolute left-0 z-30 mt-2 w-64 rounded-xl border border-[#d5dde1] bg-white p-2 shadow-xl sm:left-auto sm:right-0"
         >
-          {jobId ? (
-            <Link href={`/servicos/${jobId}`} role="menuitem" className={itemClass} onClick={() => setOpen(false)}>
+          {/* Was the Next steps panel under the totals: the move to the job now lives here. */}
+          {jobId || (!archived && convertible) ? (
+            <Link
+              href={jobId ? `/servicos/${jobId}` : `/servicos/novo?quoteId=${quoteId}`}
+              role="menuitem"
+              className={itemClass}
+              onClick={() => setOpen(false)}
+            >
               <Hammer size={18} />
-              View job
+              Convert to job
             </Link>
           ) : null}
           <button
@@ -252,7 +256,7 @@ export function ConvertToJobButton({
     return (
       <Link href={`/servicos/${jobId}`} className={green}>
         <Hammer size={16} />
-        View Job
+        Convert to Job
       </Link>
     );
   }
@@ -303,61 +307,6 @@ export function SendQuoteButton({ quoteId, status, archived }: { quoteId: string
         {status === "draft" ? "Send Quote" : "Resend Quote"}
       </button>
       {error ? <p className="absolute right-0 top-12 z-20 w-64 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{error}</p> : null}
-      {dialog}
-    </div>
-  );
-}
-
-/** "Next steps" under the totals: send, preview, and move on to the job. */
-export function QuoteNextSteps({
-  quoteId,
-  status,
-  archived,
-  jobId,
-}: {
-  quoteId: string;
-  status: string;
-  archived: boolean;
-  jobId: string | null;
-}) {
-  const { send, dialog, error } = useQuoteSender();
-  const open = !archived && status !== "rejected" && status !== "expired";
-  const step =
-    "inline-flex h-10 items-center gap-2 rounded-xl border border-line bg-white px-3.5 text-sm font-semibold text-ink hover:bg-cream";
-  return (
-    <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
-      <p className="mb-3 flex items-center gap-2 text-sm font-bold text-ink">
-        <CheckCircle2 size={18} className="text-accent" aria-hidden />
-        Next steps
-      </p>
-      <div className="flex flex-wrap gap-2">
-        {open ? (
-          <button
-            type="button"
-            onClick={() => void send(quoteId)}
-            className="inline-flex h-10 items-center gap-2 rounded-xl bg-ink px-3.5 text-sm font-semibold text-white hover:opacity-90"
-          >
-            <Send size={15} aria-hidden />
-            {status === "draft" ? "Send Quote" : "Resend Quote"}
-          </button>
-        ) : null}
-        <Link href={`/q/${quoteId}`} className={step}>
-          <Eye size={15} aria-hidden />
-          Preview as client
-        </Link>
-        {jobId ? (
-          <Link href={`/servicos/${jobId}`} className={step}>
-            <Hammer size={15} aria-hidden />
-            View job
-          </Link>
-        ) : open ? (
-          <Link href={`/servicos/novo?quoteId=${quoteId}`} className={step}>
-            <CalendarCheck size={15} aria-hidden />
-            Convert to Job
-          </Link>
-        ) : null}
-      </div>
-      {error ? <p className="mt-2 text-sm font-semibold text-rose-700">{error}</p> : null}
       {dialog}
     </div>
   );
