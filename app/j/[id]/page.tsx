@@ -4,7 +4,6 @@ import { formatDateNumericLondon } from "@/lib/format";
 import { isUuid } from "@/lib/funnel/validation";
 import { getJobDetail, type JobVisit } from "@/lib/jobs/queries";
 import { ClientDocumentView } from "@/components/funnel/client-document-view";
-import { PublicJobApprove } from "@/components/jobs/public-job-approve";
 import { RouteEstimateCard } from "@/components/funnel/route-estimate-card";
 
 export const dynamic = "force-dynamic";
@@ -33,9 +32,9 @@ export default async function PublicJobPage({ params }: { params: Promise<{ id: 
       status={
         job.status === "done"
           ? { label: "Completed", dot: "bg-emerald-500", badge: "bg-emerald-50 text-emerald-800" }
-          : job.approved_at
-            ? { label: "Approved", dot: "bg-emerald-500", badge: "bg-emerald-50 text-emerald-800" }
-            : { label: "Awaiting your approval", dot: "bg-amber-400", badge: "bg-amber-50 text-amber-900" }
+          : visits.some((v) => v.visit_date && !v.later)
+            ? { label: "Booked", dot: "bg-emerald-500", badge: "bg-emerald-50 text-emerald-800" }
+            : { label: "To be scheduled", dot: "bg-amber-400", badge: "bg-amber-50 text-amber-900" }
       }
       clientName={job.client_name}
       clientLines={[job.client_address, job.client_phone]}
@@ -56,11 +55,6 @@ export default async function PublicJobPage({ params }: { params: Promise<{ id: 
         />
       }
     >
-      {job.status !== "done" ? (
-        <div className="mt-6 border-t border-line pt-5">
-          <PublicJobApprove jobId={job.id} approved={Boolean(job.approved_at)} />
-        </div>
-      ) : null}
       {visits.length ? (
         <div className="mt-6 border-t border-line pt-4">
           <h2 className="mb-2 text-[15px] font-bold text-ink">Visits</h2>

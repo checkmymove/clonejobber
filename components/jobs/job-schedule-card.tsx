@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarDays, Check, Pencil, Plus } from "lucide-react";
 import { CARD_TITLE, CardIcon } from "@/components/card-icon";
@@ -31,6 +31,17 @@ export type ScheduleVisit = {
 };
 
 type Member = { id: string; name: string };
+
+/** Save of the Schedule editor that is open on the page, if any. */
+let pendingScheduleSave: (() => Promise<{ ok: boolean; message?: string }>) | null = null;
+
+/**
+ * Called by Send Job Confirmation: saves what is in the open Schedule editor (date, times,
+ * team) and creates the visit, so the confirmation carries it. Nothing open → nothing to do.
+ */
+export async function savePendingSchedule(): Promise<{ ok: boolean; message?: string }> {
+  return pendingScheduleSave ? pendingScheduleSave() : { ok: true };
+}
 
 /** Date and start time inherited from the funnel, plus the estimated duration set on the request. */
 export type ScheduleDefaults = { date: string; start: string; durationMinutes?: number };
@@ -106,17 +117,36 @@ function VisitEditor({
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  const save = async () => {
+  const save = async (): Promise<{ ok: boolean; message?: string }> => {
+    if (!date) {
+      const failed = { ok: false, message: "Choose a date in Schedule." };
+      setMessage(failed.message);
+      return failed;
+    }
     setPending(true);
     setMessage(null);
     const result = await saveJobVisitAction(jobId, { visitId: visit?.id ?? null, date, start, end, memberIds: members });
     setPending(false);
     if (!result.ok) {
       setMessage(result.message ?? "Could not save.");
-      return;
+      return { ok: false, message: result.message ?? "Could not save the schedule." };
     }
     onDone();
+    return { ok: true };
   };
+
+  // While this editor is open, Send Job Confirmation saves it first (and creates the visit).
+  const saveRef = useRef(save);
+  useEffect(() => {
+    saveRef.current = save;
+  });
+  useEffect(() => {
+    const flush = () => saveRef.current();
+    pendingScheduleSave = flush;
+    return () => {
+      if (pendingScheduleSave === flush) pendingScheduleSave = null;
+    };
+  }, []);
 
   return (
     <div className="rounded-xl border border-line bg-cream/40 p-4">
@@ -180,7 +210,7 @@ function VisitEditor({
           disabled={pending || !date}
           className="h-10 rounded-xl bg-[#13213d] px-5 text-sm font-semibold text-white hover:bg-[#1e3a5f] disabled:opacity-60"
         >
-          {pending ? "Saving…" : visit ? "Save" : "Schedule visit"}
+          {pending ? "Saving…" : "Save"}
         </button>
       </div>
     </div>

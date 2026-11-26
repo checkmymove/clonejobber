@@ -18,6 +18,7 @@ import {
 import { ActionButton, MoreMenu } from "@/components/funnel/more-menu";
 import { SendDialog, useSendDialog } from "@/components/funnel/send-dialog";
 import { openCompleteVisit } from "@/components/jobs/complete-visit-dialog";
+import { savePendingSchedule } from "@/components/jobs/job-schedule-card";
 import {
   closeJobAction,
   deleteJobAction,
@@ -49,13 +50,21 @@ export function JobHeaderActions({
     return result;
   };
 
+  // An unsaved Schedule (date, times, team picked but Save not clicked) is saved first,
+  // creating the visit, so the confirmation goes out with it.
+  const sendConfirmation = async () => {
+    const saved = await savePendingSchedule();
+    if (!saved.ok) return saved;
+    return sender.open("job", jobId);
+  };
+
   // Before invoicing, the job's main action is the booking confirmation (email & text).
   const primary =
     invoiceCount === 0 ? (
       <ActionButton
         label={sent ? "Resend Job Confirmation" : "Send Job Confirmation"}
         icon={<Send size={16} />}
-        run={() => sender.open("job", jobId)}
+        run={sendConfirmation}
       />
     ) : closed ? (
       <ActionButton
@@ -103,7 +112,7 @@ export function JobHeaderActions({
             kind: "action",
             label: sent ? "Resend Email and Text" : "Send email & text",
             icon: <Mail size={18} />,
-            run: () => sender.open("job", jobId),
+            run: sendConfirmation,
           },
           { kind: "link", label: "Preview as Client", icon: <Eye size={18} />, href: `/j/${jobId}`, file: true },
           {
