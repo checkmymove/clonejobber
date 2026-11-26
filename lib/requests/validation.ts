@@ -111,6 +111,34 @@ export function validateLocation(s: LocationStep): Errors {
   return e;
 }
 
+/** Most collections (or deliveries) one request may list. */
+export const MAX_STOPS = 5;
+
+/**
+ * Validates every stop of one kind. Keys are prefixed with the stop's index,
+ * e.g. "pickups.1.postcode" for Collection 2.
+ */
+export function validateLocations(
+  prefix: "pickups" | "deliveries",
+  stops: LocationStep[],
+): Errors {
+  const e: Errors = {};
+  if (!Array.isArray(stops) || stops.length === 0) {
+    e[`${prefix}.0.address`] = "Address is required";
+    return e;
+  }
+  if (stops.length > MAX_STOPS) {
+    e[`${prefix}.0.address`] = `Up to ${MAX_STOPS} addresses`;
+    return e;
+  }
+  stops.forEach((stop, i) => {
+    for (const [k, v] of Object.entries(validateLocation(stop))) {
+      e[`${prefix}.${i}.${k}`] = v;
+    }
+  });
+  return e;
+}
+
 export interface PackingStep {
   needsService: boolean | null;
   needsMaterials: boolean | null;
@@ -145,11 +173,10 @@ export function validateHours(hours: string[]): Errors {
   return e;
 }
 
+/** The inventory list is optional; only its length is checked. */
 export function validateInventory(description: string): Errors {
   const e: Errors = {};
-  const len = description.trim().length;
-  if (len < 10) e.inventory = "Please describe the items (min. 10 characters)";
-  else if (len > 2000) e.inventory = "Description is too long (max. 2000)";
+  if (description.trim().length > 2000) e.inventory = "Description is too long (max. 2000)";
   return e;
 }
 

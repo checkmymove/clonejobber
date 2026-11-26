@@ -66,6 +66,16 @@ export type InvoiceInput = {
   lines: LineInput[];
 };
 
+/** An extra collection or delivery (Collection 2, Delivery 2…). */
+export type RequestStopInput = {
+  address: string;
+  postcode: string;
+  floor: string;
+  lift: boolean;
+  parking: string;
+  bedrooms: string;
+};
+
 export type AdminRequestInput = {
   clientId: string;
   title: string;
@@ -89,6 +99,9 @@ export type AdminRequestInput = {
   serviceIds?: string[];
   hours: string;
   inventory: string;
+  /** Left out = keep the extra stops already saved; [] removes them. */
+  extraPickups?: RequestStopInput[];
+  extraDeliveries?: RequestStopInput[];
 };
 
 export function validateQuoteInput(input: QuoteInput): {
@@ -221,11 +234,25 @@ export function validateAdminRequest(input: AdminRequestInput): Record<string, s
   if (!input.pickupPostcode.trim()) errors.pickupPostcode = "Collection postcode is required";
   if (!input.deliveryAddress.trim()) errors.deliveryAddress = "Delivery address is required";
   if (!input.deliveryPostcode.trim()) errors.deliveryPostcode = "Delivery postcode is required";
-  if (!input.inventory.trim()) errors.inventory = "Inventory is required";
   const pickupBeds = bedroomsError(input.pickupBedrooms);
   if (pickupBeds) errors.pickupBedrooms = pickupBeds;
   const deliveryBeds = bedroomsError(input.deliveryBedrooms);
   if (deliveryBeds) errors.deliveryBedrooms = deliveryBeds;
+  const extras: [string, string, RequestStopInput[] | undefined][] = [
+    ["extraPickups", "Collection", input.extraPickups],
+    ["extraDeliveries", "Delivery", input.extraDeliveries],
+  ];
+  for (const [key, noun, stops] of extras) {
+    if (!stops) continue;
+    if (stops.length > 4) errors[key] = `Up to 5 ${noun.toLowerCase()} addresses`;
+    stops.forEach((stop, i) => {
+      if (!stop.address.trim() || !stop.postcode.trim()) {
+        errors[key] = `${noun} ${i + 2} needs an address and postcode`;
+      }
+      const beds = bedroomsError(stop.bedrooms);
+      if (beds) errors[key] = `${noun} ${i + 2}: ${beds}`;
+    });
+  }
   if (input.moveDate && Number.isNaN(Date.parse(`${input.moveDate}T00:00:00Z`))) {
     errors.moveDate = "Use the format dd/mm/yyyy.";
   }

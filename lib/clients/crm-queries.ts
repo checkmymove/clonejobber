@@ -171,7 +171,7 @@ export async function getWorkOverview(
     const rows = await sql<{ id: string; number: string; status: string; submitted_at: string; pickup: string | null }[]>`
       select r.id, r.number, r.status, r.submitted_at, pl.address as pickup
       from requests r
-      left join request_locations pl on pl.request_id = r.id and pl.kind = 'pickup'
+      left join request_locations pl on pl.request_id = r.id and pl.kind = 'pickup' and pl.position = 0
       where r.client_id = ${clientId}
       order by r.submitted_at desc
     `;

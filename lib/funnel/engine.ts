@@ -246,8 +246,10 @@ export async function persistJob(
   let delivery = "";
   if (input.requestId) {
     const locs = await db`
-      select kind, address, postcode from request_locations where request_id = ${input.requestId}
+      select kind, address, postcode from request_locations
+      where request_id = ${input.requestId} and position = 0
     `;
+    // The job keeps the first collection and delivery; extra stops stay on the request.
     pickup = locs
       .filter((l: { kind: string }) => l.kind === "pickup")
       .map((l: { address: string; postcode: string }) => `${l.address}, ${l.postcode}`)

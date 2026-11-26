@@ -1,5 +1,26 @@
 import { toDateInput } from "@/lib/format";
-import type { AdminRequestInput } from "@/lib/funnel/validation";
+import type { AdminRequestInput, RequestStopInput } from "@/lib/funnel/validation";
+
+/** A stored stop row, as getRequestDetail returns the extra ones. */
+export type RequestStopRow = {
+  address: string;
+  postcode: string;
+  floor: string;
+  has_lift: boolean;
+  parking_restrictions: string;
+  bedrooms: number;
+};
+
+function stopFromRow(row: RequestStopRow): RequestStopInput {
+  return {
+    address: row.address ?? "",
+    postcode: row.postcode ?? "",
+    floor: row.floor ?? "",
+    lift: Boolean(row.has_lift),
+    parking: row.parking_restrictions ?? "",
+    bedrooms: row.bedrooms == null ? "" : String(row.bedrooms),
+  };
+}
 
 export type RequestEditSnapshot = {
   id: string;
@@ -24,6 +45,9 @@ export type RequestEditSnapshot = {
   serviceIds: string[];
   hours: string;
   inventory: string;
+  /** Collection 2, 3… and Delivery 2, 3… (the first ones are the pickup and delivery fields). */
+  extraPickups: RequestStopInput[];
+  extraDeliveries: RequestStopInput[];
 };
 
 export function toAdminRequestInput(snapshot: RequestEditSnapshot): AdminRequestInput {
@@ -50,6 +74,8 @@ export function toAdminRequestInput(snapshot: RequestEditSnapshot): AdminRequest
     serviceIds: snapshot.serviceIds,
     hours: snapshot.hours,
     inventory: snapshot.inventory,
+    extraPickups: snapshot.extraPickups,
+    extraDeliveries: snapshot.extraDeliveries,
   };
 }
 
@@ -76,6 +102,8 @@ export function requestSnapshotFromDetail(r: {
   service_ids: string[];
   estimated_hours: string[];
   inventory_description: string;
+  extra_pickups?: RequestStopRow[];
+  extra_deliveries?: RequestStopRow[];
 }): RequestEditSnapshot {
   return {
     id: r.id,
@@ -100,6 +128,8 @@ export function requestSnapshotFromDetail(r: {
     serviceIds: r.service_ids,
     hours: r.estimated_hours[0] ?? "",
     inventory: r.inventory_description,
+    extraPickups: (r.extra_pickups ?? []).map(stopFromRow),
+    extraDeliveries: (r.extra_deliveries ?? []).map(stopFromRow),
   };
 }
 

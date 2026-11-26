@@ -133,7 +133,7 @@ export async function listQuotes(
     join companies co on co.id = q.company_id
     join clients c on c.id = q.client_id
     left join requests r on r.id = q.request_id
-    left join request_locations pl on pl.request_id = r.id and pl.kind = 'pickup'
+    left join request_locations pl on pl.request_id = r.id and pl.kind = 'pickup' and pl.position = 0
     left join lateral (
       select address_line, city, postcode
       from client_addresses
@@ -217,8 +217,8 @@ export async function getQuoteDetail(id: string): Promise<QuoteDetail | null> {
       limit 1
     ) ca on true
     left join requests r on r.id = q.request_id
-    left join request_locations pl on pl.request_id = r.id and pl.kind = 'pickup'
-    left join request_locations dl on dl.request_id = r.id and dl.kind = 'delivery'
+    left join request_locations pl on pl.request_id = r.id and pl.kind = 'pickup' and pl.position = 0
+    left join request_locations dl on dl.request_id = r.id and dl.kind = 'delivery' and dl.position = 0
     where q.id = ${id}
     limit 1
   `;
@@ -308,8 +308,8 @@ export async function getQuotePrefillFromRequest(
            dl.parking_restrictions as delivery_parking, dl.bedrooms as delivery_bedrooms
     from requests r
     join clients c on c.id = r.client_id
-    left join request_locations pl on pl.request_id = r.id and pl.kind = 'pickup'
-    left join request_locations dl on dl.request_id = r.id and dl.kind = 'delivery'
+    left join request_locations pl on pl.request_id = r.id and pl.kind = 'pickup' and pl.position = 0
+    left join request_locations dl on dl.request_id = r.id and dl.kind = 'delivery' and dl.position = 0
     where r.id = ${requestId}
     limit 1
   `;

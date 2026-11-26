@@ -308,8 +308,8 @@ export async function getScheduleBundle(
       left join clients qc on qc.id = q.client_id
       left join clients ic on ic.id = i.client_id
       left join requests qr on qr.id = q.request_id
-      left join request_locations pl on pl.request_id = qr.id and pl.kind = 'pickup'
-      left join request_locations dl on dl.request_id = qr.id and dl.kind = 'delivery'
+      left join request_locations pl on pl.request_id = qr.id and pl.kind = 'pickup' and pl.position = 0
+      left join request_locations dl on dl.request_id = qr.id and dl.kind = 'delivery' and dl.position = 0
       left join jobs ij on ij.id = i.job_id
       where co.slug = ${companySlug}
         and r.status <> 'cancelled'
@@ -329,8 +329,8 @@ export async function getScheduleBundle(
       join companies co on co.id = a.company_id
       join clients c on c.id = a.client_id
       left join requests r on r.id = a.request_id
-      left join request_locations pl on pl.request_id = r.id and pl.kind = 'pickup'
-      left join request_locations dl on dl.request_id = r.id and dl.kind = 'delivery'
+      left join request_locations pl on pl.request_id = r.id and pl.kind = 'pickup' and pl.position = 0
+      left join request_locations dl on dl.request_id = r.id and dl.kind = 'delivery' and dl.position = 0
       where co.slug = ${companySlug}
         and a.status <> 'cancelled'
         and (a.starts_at at time zone 'Europe/London')::date >= ${from}::date

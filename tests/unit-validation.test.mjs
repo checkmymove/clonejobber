@@ -14,9 +14,10 @@ import {
   validateHours,
   validateInventory,
   validateLocation,
+  validateLocations,
   validatePacking,
   validateServices,
-} from "../.testbuild/validation.js";
+} from "../.testbuild/requests/validation.js";
 
 const goodContact = {
   firstName: "Amelia",
@@ -84,6 +85,13 @@ describe("locations", () => {
     const e = validateLocation({ ...goodLoc, hasLift: null, bedrooms: "" });
     assert.ok(e.hasLift && e.bedrooms);
   });
+  it("validates every collection and delivery by index", () => {
+    assert.deepEqual(validateLocations("pickups", [goodLoc, goodLoc]), {});
+    const e = validateLocations("deliveries", [goodLoc, { ...goodLoc, postcode: "00000" }]);
+    assert.deepEqual(Object.keys(e), ["deliveries.1.postcode"]);
+    assert.ok(validateLocations("pickups", [])["pickups.0.address"]);
+    assert.ok(validateLocations("pickups", Array(6).fill(goodLoc))["pickups.0.address"]);
+  });
 });
 
 describe("packing/services/hours", () => {
@@ -111,9 +119,11 @@ describe("packing/services/hours", () => {
 });
 
 describe("inventory + files", () => {
-  it("requires a meaningful description", () => {
-    assert.ok(validateInventory("sofa").inventory);
+  it("treats the inventory list as optional", () => {
+    assert.deepEqual(validateInventory(""), {});
+    assert.deepEqual(validateInventory("sofa"), {});
     assert.deepEqual(validateInventory("3 bedrooms, wardrobe, 40 boxes, sofa"), {});
+    assert.ok(validateInventory("x".repeat(2001)).inventory);
   });
   const f = (n, size = 100, type = "image/jpeg") => ({ name: n, size, type });
   it("accepts up to 10 images (scenarios 6, 7)", () => {

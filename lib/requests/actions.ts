@@ -22,7 +22,7 @@ import {
   validateFileList,
   validateHours,
   validateInventory,
-  validateLocation,
+  validateLocations,
   validatePacking,
   validateServices,
   type ContactStep,
@@ -30,6 +30,7 @@ import {
   type LocationStep,
   type PackingStep,
 } from "@/lib/requests/validation";
+import type { RequestStopInput } from "@/lib/funnel/validation";
 import { getClientIp } from "@/lib/ratelimit";
 import { consumeRateLimit } from "@/lib/requests/submit-limit";
 
@@ -50,6 +51,34 @@ function parseJson<T>(raw: FormDataEntryValue | null, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+const EMPTY_STOP: LocationStep = {
+  address: "",
+  postcode: "",
+  floor: "",
+  hasLift: null,
+  parking: "",
+  bedrooms: "",
+};
+
+/** Reads the stops array; a form open from before multi-stop sent one object instead. */
+function parseStops(formData: FormData, listKey: string, singleKey: string): LocationStep[] {
+  const raw = formData.has(listKey)
+    ? parseJson<unknown>(formData.get(listKey), [])
+    : [parseJson<unknown>(formData.get(singleKey), EMPTY_STOP)];
+  if (!Array.isArray(raw)) return [];
+  return raw.map((s) => {
+    const stop = (s && typeof s === "object" ? s : {}) as Partial<LocationStep>;
+    return {
+      address: String(stop.address ?? ""),
+      postcode: String(stop.postcode ?? ""),
+      floor: String(stop.floor ?? ""),
+      hasLift: typeof stop.hasLift === "boolean" ? stop.hasLift : null,
+      parking: String(stop.parking ?? ""),
+      bedrooms: String(stop.bedrooms ?? ""),
+    };
+  });
 }
 
 export async function submitRequest(formData: FormData): Promise<SubmitResult> {
@@ -104,22 +133,8 @@ export async function submitRequest(formData: FormData): Promise<SubmitResult> {
     moveDate: "",
     moveTime: "",
   });
-  const pickup = parseJson<LocationStep>(formData.get("pickup"), {
-    address: "",
-    postcode: "",
-    floor: "",
-    hasLift: null,
-    parking: "",
-    bedrooms: "",
-  });
-  const delivery = parseJson<LocationStep>(formData.get("delivery"), {
-    address: "",
-    postcode: "",
-    floor: "",
-    hasLift: null,
-    parking: "",
-    bedrooms: "",
-  });
+  const pickups = parseStops(formData, "pickups", "pickup");
+  const deliveries = parseStops(formData, "deliveries", "delivery");
   const packing = parseJson<PackingStep>(formData.get("packing"), {
     needsService: null,
     needsMaterials: null,
@@ -138,15 +153,8 @@ export async function submitRequest(formData: FormData): Promise<SubmitResult> {
   // --- full server-side validation --------------------------------------
   const errors: Errors = {
     ...validateContact(contact),
-    ...Object.fromEntries(
-      Object.entries(validateLocation(pickup)).map(([k, v]) => [`pickup.${k}`, v]),
-    ),
-    ...Object.fromEntries(
-      Object.entries(validateLocation(delivery)).map(([k, v]) => [
-        `delivery.${k}`,
-        v,
-      ]),
-    ),
+    ...validateLocations("pickups", pickups),
+    ...validateLocations("deliveries", deliveries),
     ...validatePacking(packing),
     ...validateServices(serviceIds, validServiceIds),
     ...validateHours(hours),
@@ -263,19 +271,19 @@ export async function submitRequest(formData: FormData): Promise<SubmitResult> {
     `;
     const requestId = req[0].id;
 
-    const loc = async (kind: "pickup" | "delivery", s: LocationStep) => {
+    const loc = async (kind: "pickup" | "delivery", s: LocationStep, position: number) => {
       await tx`
         insert into request_locations
-          (request_id, kind, address, postcode, floor, has_lift,
+          (request_id, kind, position, address, postcode, floor, has_lift,
            parking_restrictions, bedrooms)
         values
-          (${requestId}, ${kind}, ${s.address.trim()}, ${s.postcode.trim()},
+          (${requestId}, ${kind}, ${position}, ${s.address.trim()}, ${s.postcode.trim()},
            ${s.floor.trim()}, ${s.hasLift === true}, ${s.parking.trim()},
            ${Number(s.bedrooms)})
       `;
     };
-    await loc("pickup", pickup);
-    await loc("delivery", delivery);
+    for (const [i, stop] of pickups.entries()) await loc("pickup", stop, i);
+    for (const [i, stop] of deliveries.entries()) await loc("delivery", stop, i);
 
     for (const sid of serviceIds) {
       await tx`
@@ -316,7 +324,13 @@ export async function submitRequest(formData: FormData): Promise<SubmitResult> {
         (${company.id}, 'public-form', 'request.submitted',
          'request', ${requestId},
          ${`Request ${number} submitted via public form`},
-         ${tx.json({ number, services: serviceIds.length, images: buffers.length })})
+         ${tx.json({
+           number,
+           services: serviceIds.length,
+           images: buffers.length,
+           collections: pickups.length,
+           deliveries: deliveries.length,
+         })})
     `;
 
     return { number, requestId };
@@ -394,6 +408,8 @@ type AdminRequestWriteInput = {
   inventory: string;
   notes?: string;
   images?: { name: string; mime: string; size: number; data: string }[];
+  extraPickups?: RequestStopInput[];
+  extraDeliveries?: RequestStopInput[];
 };
 
 async function persistNewAdminRequest(input: AdminRequestWriteInput): Promise<SubmitResult> {
@@ -586,11 +602,18 @@ async function persistAdminRequest(
           needs_packing_service = ${input.needsPacking},
           needs_packing_materials = ${input.needsBoxes},
           estimated_hours = ${tx.array(hours)},
-          inventory_description = ${input.inventory.trim() || input.title.trim() || "Internal request"},
+          inventory_description = ${input.inventory.trim()},
           updated_at = now()
         where id = ${requestId}
       `;
-      await tx`delete from request_locations where request_id = ${requestId}`;
+      // Main stops are rewritten; extra ones only when this save carries them.
+      await tx`
+        delete from request_locations
+        where request_id = ${requestId}
+          and (position = 0
+            or (kind = 'pickup' and ${input.extraPickups !== undefined})
+            or (kind = 'delivery' and ${input.extraDeliveries !== undefined}))
+      `;
       await tx`
         insert into request_locations
           (request_id, kind, address, postcode, floor, has_lift, parking_restrictions, bedrooms)
@@ -607,6 +630,23 @@ async function persistAdminRequest(
            ${input.deliveryFloor.trim() || "—"}, ${input.deliveryLift},
            ${input.deliveryParking.trim() || "—"}, ${deliveryBeds})
       `;
+      const extras: ["pickup" | "delivery", AdminRequestWriteInput["extraPickups"]][] = [
+        ["pickup", input.extraPickups],
+        ["delivery", input.extraDeliveries],
+      ];
+      for (const [kind, stops] of extras) {
+        for (const [i, stop] of (stops ?? []).entries()) {
+          await tx`
+            insert into request_locations
+              (request_id, kind, position, address, postcode, floor, has_lift,
+               parking_restrictions, bedrooms)
+            values
+              (${requestId}, ${kind}, ${i + 1}, ${stop.address.trim()}, ${stop.postcode.trim()},
+               ${stop.floor.trim() || "—"}, ${stop.lift},
+               ${stop.parking.trim() || "—"}, ${Number(stop.bedrooms.trim() || "0")})
+          `;
+        }
+      }
       await tx`delete from request_services where request_id = ${requestId}`;
       for (const serviceId of serviceIds) {
         await tx`

@@ -303,6 +303,32 @@ export function RemovalServiceCard({
   );
 }
 
+function locationRows(loc: LocationDraft): [string, string][] {
+  return [
+    ["Address", `${loc.address}${loc.postcode ? `, ${loc.postcode}` : ""}`.replace(/^, /, "") || "—"],
+    ["Floor", loc.floor || "—"],
+    ["Lift", loc.lift ? "Yes" : "No"],
+    ["Parking", loc.parking || "—"],
+    ["Bedrooms", loc.bedrooms || "—"],
+  ];
+}
+
+const emptyStop: LocationDraft = {
+  address: "",
+  postcode: "",
+  floor: "",
+  lift: false,
+  parking: "",
+  bedrooms: "",
+};
+
+/** Most stops of one kind a request may list (public form allows the same). */
+const MAX_STOPS = 5;
+
+/**
+ * Collection (or Delivery) of the request. When the client gave more than one, the
+ * card lists Collection 1, 2… and the editor can add or remove the extra ones.
+ */
 export function RequestLocationCard({
   title,
   snapshot,
@@ -314,34 +340,82 @@ export function RequestLocationCard({
   kind: "pickup" | "delivery";
   onSaved?: () => void;
 }) {
+  const noun = kind === "pickup" ? "Collection" : "Delivery";
   const current = kind === "pickup" ? pickupOf(snapshot) : deliveryOf(snapshot);
+  const currentExtras = (kind === "pickup" ? snapshot.extraPickups : snapshot.extraDeliveries) ?? [];
   const [draft, setDraft] = useState(current);
-  useEffect(() => setDraft(current), [snapshot, kind]);
-  const viewRows: [string, string][] = [
-    ["Address", `${current.address}${current.postcode ? `, ${current.postcode}` : ""}`.replace(/^, /, "") || "—"],
-    ["Floor", current.floor || "—"],
-    ["Lift", current.lift ? "Yes" : "No"],
-    ["Parking", current.parking || "—"],
-    ["Bedrooms", current.bedrooms || "—"],
-  ];
+  const [extras, setExtras] = useState<LocationDraft[]>(currentExtras);
+  useEffect(() => {
+    setDraft(current);
+    setExtras(currentExtras);
+  }, [snapshot, kind]);
+  const many = currentExtras.length > 0;
+
+  const view = many ? (
+    <div className="space-y-3">
+      {[current, ...currentExtras].map((loc, i) => (
+        <div key={i} className={i > 0 ? "border-t border-line pt-3" : undefined}>
+          <p className="mb-1 text-[12px] font-bold uppercase tracking-wide text-ink-soft">
+            {noun} {i + 1}
+          </p>
+          <Dl rows={locationRows(loc)} />
+        </div>
+      ))}
+    </div>
+  ) : (
+    <Dl rows={locationRows(current)} />
+  );
+
+  const save = () => {
+    const base = kind === "pickup" ? withPickup(snapshot, draft) : withDelivery(snapshot, draft);
+    const next = kind === "pickup" ? { ...base, extraPickups: extras } : { ...base, extraDeliveries: extras };
+    return saveThen(saveRequestInPlace(snapshot.id, toAdminRequestInput(next)), onSaved);
+  };
 
   return (
     <InlineEditCard
-      title={title}
+      title={many ? `${title} (${currentExtras.length + 1})` : title}
       icon={<CardIcon icon={MapPin} tone={kind === "pickup" ? "emerald" : "rose"} />}
-      view={<Dl rows={viewRows} />}
-      onCancel={() => setDraft(current)}
-      onSave={() =>
-        saveThen(
-          saveRequestInPlace(
-            snapshot.id,
-            toAdminRequestInput(kind === "pickup" ? withPickup(snapshot, draft) : withDelivery(snapshot, draft)),
-          ),
-          onSaved,
-        )
-      }
+      view={view}
+      onCancel={() => {
+        setDraft(current);
+        setExtras(currentExtras);
+      }}
+      onSave={save}
     >
+      {extras.length > 0 ? (
+        <p className="text-[12px] font-bold uppercase tracking-wide text-ink-soft">{noun} 1</p>
+      ) : null}
       <LocationFields value={draft} onChange={setDraft} />
+      {extras.map((stop, i) => (
+        <div key={i} className="space-y-3 border-t border-line pt-3">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[12px] font-bold uppercase tracking-wide text-ink-soft">
+              {noun} {i + 2}
+            </p>
+            <button
+              type="button"
+              onClick={() => setExtras(extras.filter((_, j) => j !== i))}
+              className="rounded-lg px-2 py-1 text-xs font-bold text-rose-700 hover:bg-rose-50"
+            >
+              ✕ Remove
+            </button>
+          </div>
+          <LocationFields
+            value={stop}
+            onChange={(value) => setExtras(extras.map((s, j) => (j === i ? value : s)))}
+          />
+        </div>
+      ))}
+      {extras.length + 1 < MAX_STOPS ? (
+        <button
+          type="button"
+          onClick={() => setExtras([...extras, { ...emptyStop }])}
+          className="flex h-9 w-full items-center justify-center rounded-lg border border-dashed border-blue-300 bg-blue-50 text-sm font-bold text-blue-700 hover:border-blue-500 hover:bg-blue-100"
+        >
+          + Add {noun}
+        </button>
+      ) : null}
     </InlineEditCard>
   );
 }

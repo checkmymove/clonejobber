@@ -18,7 +18,8 @@ import {
   validateFileList,
   validateHours,
   validateInventory,
-  validateLocation,
+  validateLocations,
+  MAX_STOPS,
   validatePacking,
   validateServices,
   type ContactStep,
@@ -63,8 +64,8 @@ const DRAFT_FORM_STEPS = TOTAL_STEPS;
 
 const ERROR_STEP: [RegExp, number][] = [
   [/^(firstName|lastName|companyName|email|phone|leadSourceId|moveDate|moveTime)$/, 0],
-  [/^pickup\./, 1],
-  [/^delivery\./, 2],
+  [/^pickups?\./, 1],
+  [/^deliver(y|ies)\./, 2],
   [/^(services|hours|inventory|images|needsService|needsMaterials)$/, 3],
 ];
 
@@ -76,6 +77,13 @@ function stepForErrors(errors: Errors): number {
     }
   }
   return first;
+}
+
+/** Saved drafts hold arrays; older ones held a single pickup/delivery object. */
+function restoreStops(list: unknown, single: unknown): LocationStep[] | null {
+  const raw = Array.isArray(list) ? list : single && typeof single === "object" ? [single] : null;
+  if (!raw || raw.length === 0) return null;
+  return raw.slice(0, MAX_STOPS).map((s) => ({ ...emptyLocation, ...(s as Partial<LocationStep>) }));
 }
 
 /**
@@ -114,8 +122,8 @@ export function RequestWizard({
     moveDate: "",
     moveTime: "",
   });
-  const [pickup, setPickup] = useState<LocationStep>({ ...emptyLocation });
-  const [delivery, setDelivery] = useState<LocationStep>({ ...emptyLocation });
+  const [pickups, setPickups] = useState<LocationStep[]>([{ ...emptyLocation }]);
+  const [deliveries, setDeliveries] = useState<LocationStep[]>([{ ...emptyLocation }]);
   const [packing, setPacking] = useState<PackingStep>({
     needsService: null,
     needsMaterials: null,
@@ -145,8 +153,10 @@ export function RequestWizard({
       if (raw) {
         const d = JSON.parse(raw);
         if (d.contact) setContact(d.contact);
-        if (d.pickup) setPickup(d.pickup);
-        if (d.delivery) setDelivery(d.delivery);
+        const savedPickups = restoreStops(d.pickups, d.pickup);
+        if (savedPickups) setPickups(savedPickups);
+        const savedDeliveries = restoreStops(d.deliveries, d.delivery);
+        if (savedDeliveries) setDeliveries(savedDeliveries);
         if (d.packing) setPacking(d.packing);
         if (Array.isArray(d.serviceIds)) setServiceIds(d.serviceIds);
         if (Array.isArray(d.hours)) setHours(d.hours);
@@ -172,8 +182,8 @@ export function RequestWizard({
         draftKey,
         JSON.stringify({
           contact,
-          pickup,
-          delivery,
+          pickups,
+          deliveries,
           packing,
           serviceIds,
           hours,
@@ -187,7 +197,7 @@ export function RequestWizard({
     } catch {
       /* storage full/blocked: form still works in memory */
     }
-  }, [contact, pickup, delivery, packing, serviceIds, hours, inventory, step, restored, result, draftKey]);
+  }, [contact, pickups, deliveries, packing, serviceIds, hours, inventory, step, restored, result, draftKey]);
 
   useEffect(
     () => () => {
@@ -198,19 +208,20 @@ export function RequestWizard({
 
   const setC = (patch: Partial<ContactStep>) =>
     setContact((c) => ({ ...c, ...patch }));
-  const setP = (patch: Partial<LocationStep>) =>
-    setPickup((p) => ({ ...p, ...patch }));
-  const setD = (patch: Partial<LocationStep>) =>
-    setDelivery((d) => ({ ...d, ...patch }));
+  /** Drops the errors of one step's stops, so indexes never point at the wrong box. */
+  const clearStopErrors = (prefix: "pickups" | "deliveries") =>
+    setErrors((prev) =>
+      Object.fromEntries(Object.entries(prev).filter(([k]) => !k.startsWith(`${prefix}.`))),
+    );
 
   function validateStep(s: number): Errors {
     switch (s) {
       case 0:
         return validateContact(contact);
       case 1:
-        return validateLocation(pickup);
+        return validateLocations("pickups", pickups);
       case 2:
-        return validateLocation(delivery);
+        return validateLocations("deliveries", deliveries);
       case 3:
         return {
           ...validateServices(serviceIds, validServiceIds),
@@ -297,15 +308,8 @@ export function RequestWizard({
     // Re-validate everything server will check, surfacing the first bad step.
     const all: Errors = {
       ...validateContact(contact),
-      ...Object.fromEntries(
-        Object.entries(validateLocation(pickup)).map(([k, v]) => [`pickup.${k}`, v]),
-      ),
-      ...Object.fromEntries(
-        Object.entries(validateLocation(delivery)).map(([k, v]) => [
-          `delivery.${k}`,
-          v,
-        ]),
-      ),
+      ...validateLocations("pickups", pickups),
+      ...validateLocations("deliveries", deliveries),
       ...validatePacking(packing),
       ...validateServices(serviceIds, validServiceIds),
       ...validateHours(hours),
@@ -331,8 +335,8 @@ export function RequestWizard({
       fd.set("startedAt", String(startedAt.current));
       fd.set("website", ""); // honeypot, always empty for humans
       fd.set("contact", JSON.stringify(contact));
-      fd.set("pickup", JSON.stringify(pickup));
-      fd.set("delivery", JSON.stringify(delivery));
+      fd.set("pickups", JSON.stringify(pickups));
+      fd.set("deliveries", JSON.stringify(deliveries));
       fd.set("packing", JSON.stringify(packing));
       fd.set("services", JSON.stringify(serviceIds));
       fd.set("hours", JSON.stringify(hours));
@@ -487,18 +491,29 @@ export function RequestWizard({
           </>
         ) : null}
 
-        {step === 1 || step === 2 ? (
-          <LocationFields
-            value={step === 1 ? pickup : delivery}
-            onChange={step === 1 ? setP : setD}
+        {step === 1 ? (
+          <StopList
+            stops={pickups}
+            setStops={setPickups}
+            onRemoved={() => clearStopErrors("pickups")}
             errors={errors}
-            prefix={step === 1 ? "pickup" : "delivery"}
-            addressLabel={step === 1 ? "Pickup address" : "Delivery Address"}
-            bedroomsLabel={
-              step === 1
-                ? "How many bedrooms are you moving from?"
-                : "How many bedrooms are you moving to?"
-            }
+            prefix="pickups"
+            noun="Collection"
+            addressLabel="Pickup address"
+            bedroomsLabel="How many bedrooms are you moving from?"
+          />
+        ) : null}
+
+        {step === 2 ? (
+          <StopList
+            stops={deliveries}
+            setStops={setDeliveries}
+            onRemoved={() => clearStopErrors("deliveries")}
+            errors={errors}
+            prefix="deliveries"
+            noun="Delivery"
+            addressLabel="Delivery Address"
+            bedroomsLabel="How many bedrooms are you moving to?"
           />
         ) : null}
 
@@ -548,8 +563,7 @@ export function RequestWizard({
             </StepBlock>
             <StepBlock title="Inventory">
               <Field
-                label="Inventory List"
-                required
+                label="Inventory List (optional)"
                 error={errors.inventory}
                 hint="Please provide as much information as you can."
               >
@@ -638,12 +652,22 @@ export function RequestWizard({
               <ReviewRow label="Move date" value={contact.moveDate || "Not set"} />
               <ReviewRow label="Moving time" value={contact.moveTime} />
             </ReviewSection>
-            <ReviewSection title="Collection Information">
-              <LocationReview value={pickup} />
-            </ReviewSection>
-            <ReviewSection title="Delivery Information">
-              <LocationReview value={delivery} />
-            </ReviewSection>
+            {pickups.map((stop, i) => (
+              <ReviewSection
+                key={`p${i}`}
+                title={pickups.length > 1 ? `Collection ${i + 1}` : "Collection Information"}
+              >
+                <LocationReview value={stop} />
+              </ReviewSection>
+            ))}
+            {deliveries.map((stop, i) => (
+              <ReviewSection
+                key={`d${i}`}
+                title={deliveries.length > 1 ? `Delivery ${i + 1}` : "Delivery Information"}
+              >
+                <LocationReview value={stop} />
+              </ReviewSection>
+            ))}
             <ReviewSection title="Service Details">
               <div>
                 {services.map((s) => (
@@ -675,7 +699,9 @@ export function RequestWizard({
               />
             </ReviewSection>
             <ReviewSection title="Inventory List">
-              <p className="whitespace-pre-wrap text-ink">{inventory}</p>
+              <p className="whitespace-pre-wrap text-ink">
+                {inventory.trim() || <span className="text-ink-mute">Not provided.</span>}
+              </p>
               {images.length > 0 ? (
                 <div className="mt-2 grid grid-cols-4 gap-2 sm:grid-cols-6">
                   {images.map((img) => (
@@ -750,6 +776,85 @@ export function RequestWizard({
   );
 }
 
+/** Collection 1, 2… (or Delivery 1, 2…) with "+ Add" and a remove button on the extra ones. */
+function StopList({
+  stops,
+  setStops,
+  onRemoved,
+  errors,
+  prefix,
+  noun,
+  addressLabel,
+  bedroomsLabel,
+}: {
+  stops: LocationStep[];
+  setStops: React.Dispatch<React.SetStateAction<LocationStep[]>>;
+  onRemoved: () => void;
+  errors: Errors;
+  prefix: "pickups" | "deliveries";
+  noun: string;
+  addressLabel: string;
+  bedroomsLabel: string;
+}) {
+  const many = stops.length > 1;
+  const patch = (i: number, part: Partial<LocationStep>) =>
+    setStops((list) => list.map((s, j) => (j === i ? { ...s, ...part } : s)));
+  const remove = (i: number) => {
+    if (stops.length <= 1) return;
+    setStops((list) => list.filter((_, j) => j !== i));
+    onRemoved();
+  };
+  return (
+    <div className="space-y-4">
+      {stops.map((stop, i) => (
+        <section
+          key={i}
+          className={many ? "space-y-4 rounded-xl border border-line p-4" : "space-y-4"}
+        >
+          {many ? (
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">
+                {noun} {i + 1}
+              </h3>
+              {i > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => remove(i)}
+                  className="rounded-lg px-2.5 py-1 text-xs font-bold text-rose-700 hover:bg-rose-50"
+                  aria-label={`Remove ${noun} ${i + 1}`}
+                >
+                  ✕ Remove
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          <LocationFields
+            value={stop}
+            onChange={(part) => patch(i, part)}
+            errors={errors}
+            prefix={`${prefix}.${i}`}
+            addressLabel={many ? `${addressLabel} (${noun} ${i + 1})` : addressLabel}
+            bedroomsLabel={bedroomsLabel}
+          />
+        </section>
+      ))}
+      {stops.length < MAX_STOPS ? (
+        <button
+          type="button"
+          onClick={() => setStops((list) => [...list, { ...emptyLocation }])}
+          className="flex h-11 w-full items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-blue-300 bg-blue-50 text-sm font-bold text-blue-700 transition hover:border-blue-500 hover:bg-blue-100"
+        >
+          + Add {noun}
+        </button>
+      ) : (
+        <p className="text-center text-xs text-ink-mute">
+          Up to {MAX_STOPS} {noun.toLowerCase()} addresses.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function LocationFields({
   value,
   onChange,
@@ -761,11 +866,11 @@ function LocationFields({
   value: LocationStep;
   onChange: (p: Partial<LocationStep>) => void;
   errors: Errors;
-  prefix: "pickup" | "delivery";
+  prefix: string;
   addressLabel: string;
   bedroomsLabel: string;
 }) {
-  const err = (k: string) => errors[k] ?? errors[`${prefix}.${k}`];
+  const err = (k: string) => errors[`${prefix}.${k}`];
   return (
     <>
       <Field label={addressLabel} required error={err("address")}>

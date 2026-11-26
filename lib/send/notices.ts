@@ -33,7 +33,7 @@ export async function sendQuoteApprovedNotice(quoteId: string): Promise<SendOutc
            j.id as job_id, nullif(j.pickup_address, '') as job_pickup
     from quotes q
     join clients c on c.id = q.client_id
-    left join request_locations pl on pl.request_id = q.request_id and pl.kind = 'pickup'
+    left join request_locations pl on pl.request_id = q.request_id and pl.kind = 'pickup' and pl.position = 0
     left join lateral (
       select id, pickup_address from jobs where quote_id = q.id order by created_at limit 1
     ) j on true

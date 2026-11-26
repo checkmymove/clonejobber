@@ -1,5 +1,6 @@
 import "server-only";
 import { sql } from "@/lib/db";
+import type { RequestStopRow } from "@/lib/requests/edit-snapshot";
 
 export interface AdminRequestRow {
   id: string;
@@ -33,7 +34,7 @@ export async function listRequests(
     from requests r
     join companies co on co.id = r.company_id
     join clients c on c.id = r.client_id
-    left join request_locations pl on pl.request_id = r.id and pl.kind = 'pickup'
+    left join request_locations pl on pl.request_id = r.id and pl.kind = 'pickup' and pl.position = 0
     where co.slug = ${companySlug}
       and (${q.trim() === ""}
         or r.number ilike ${like}
@@ -72,6 +73,10 @@ export interface AdminRequestDetail extends AdminRequestRow {
   service_ids: string[];
   service_names: string[];
   files: { id: string; file_name: string; file_size: number }[];
+  /** Collection 2, 3… in order (the first collection is pickup_*). */
+  extra_pickups: RequestStopRow[];
+  /** Delivery 2, 3… in order (the first delivery is delivery_*). */
+  extra_deliveries: RequestStopRow[];
   timeline: { action: string; summary: string; created_at: string }[];
 }
 
@@ -111,15 +116,15 @@ export async function getRequestDetail(
     from requests r
     join clients c on c.id = r.client_id
     left join lead_sources ls on ls.id = r.lead_source_id
-    left join request_locations pl on pl.request_id = r.id and pl.kind = 'pickup'
-    left join request_locations dl on dl.request_id = r.id and dl.kind = 'delivery'
+    left join request_locations pl on pl.request_id = r.id and pl.kind = 'pickup' and pl.position = 0
+    left join request_locations dl on dl.request_id = r.id and dl.kind = 'delivery' and dl.position = 0
     where r.id = ${id}
     limit 1
   `;
   const row = rows[0];
   if (!row) return null;
 
-  const [serviceRows, fileRows, logRows] = await Promise.all([
+  const [serviceRows, fileRows, logRows, extraRows] = await Promise.all([
     sql<{ id: string; name: string }[]>`
       select s.id, s.name from request_services rs
       join services s on s.id = rs.service_id
@@ -134,6 +139,12 @@ export async function getRequestDetail(
       where entity = 'request' and entity_id = ${id}
       order by created_at desc limit 20
     `,
+    sql<(RequestStopRow & { kind: string })[]>`
+      select kind, address, postcode, floor, has_lift, parking_restrictions, bedrooms
+      from request_locations
+      where request_id = ${id} and position > 0
+      order by kind, position
+    `,
   ]);
 
   return {
@@ -141,6 +152,8 @@ export async function getRequestDetail(
     service_ids: serviceRows.map((s) => s.id),
     service_names: serviceRows.map((s) => s.name),
     files: fileRows,
+    extra_pickups: extraRows.filter((s) => s.kind === "pickup"),
+    extra_deliveries: extraRows.filter((s) => s.kind === "delivery"),
     timeline: logRows,
   };
 }
