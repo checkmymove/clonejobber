@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Bell,
   Box,
@@ -17,10 +17,12 @@ import {
   Inbox,
   LogOut,
   Menu,
+  MessageSquare,
   Plus,
   ReceiptText,
   Search,
   Settings,
+  ThumbsUp,
   UserRound,
   Users,
   Wallet,
@@ -31,6 +33,7 @@ import { CompleteVisitHost } from "@/components/jobs/complete-visit-dialog";
 import { Avatar } from "@/components/team/team-ui";
 import { cn } from "@/lib/cn";
 import type { ShellAlert, ShellProfile } from "@/lib/shell";
+import { NOTIFICATIONS_SEEN_COOKIE, type NotificationKind, type ShellNotification } from "@/lib/notification-types";
 
 type NavItem = { href: string; label: string; icon: typeof House; exact?: boolean };
 
@@ -85,16 +88,85 @@ function useOutsideClose(open: boolean, attr: string, close: () => void) {
   }, [open, attr, close]);
 }
 
+const NOTIFICATION_STYLE: Record<NotificationKind, { icon: typeof House; tone: string }> = {
+  request: { icon: Inbox, tone: "bg-sky-50 text-sky-700" },
+  quote: { icon: FileText, tone: "bg-amber-50 text-amber-700" },
+  approved: { icon: ThumbsUp, tone: "bg-emerald-50 text-emerald-700" },
+  changes: { icon: MessageSquare, tone: "bg-sky-50 text-sky-700" },
+  declined: { icon: X, tone: "bg-rose-50 text-rose-700" },
+  job: { icon: Hammer, tone: "bg-violet-50 text-violet-700" },
+  invoice: { icon: ReceiptText, tone: "bg-slate-100 text-slate-700" },
+  payment: { icon: Wallet, tone: "bg-emerald-50 text-emerald-700" },
+  referral: { icon: UserRound, tone: "bg-amber-50 text-amber-700" },
+};
+
+function timeAgo(iso: string, now: number): string {
+  const minutes = Math.max(0, Math.round((now - Date.parse(iso)) / 60000));
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  return days < 7 ? `${days}d ago` : new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
+/** Bell feed and counts, refreshed every minute and whenever the bell opens. */
+function useNotifications(initial: { notifications: ShellNotification[]; alerts: ShellAlert[]; seenAt: number }) {
+  const [data, setData] = useState({ notifications: initial.notifications, alerts: initial.alerts });
+  const [seenAt, setSeenAt] = useState(initial.seenAt);
+
+  // A server render (navigation, router.refresh) brings newer data.
+  useEffect(() => {
+    setData({ notifications: initial.notifications, alerts: initial.alerts });
+  }, [initial.notifications, initial.alerts]);
+
+  const reload = useCallback(async () => {
+    try {
+      const res = await fetch("/api/notifications", { cache: "no-store" });
+      if (!res.ok) return;
+      const body = (await res.json()) as { notifications: ShellNotification[]; alerts: ShellAlert[] };
+      setData({ notifications: body.notifications, alerts: body.alerts });
+    } catch {
+      // Offline or signed out: keep what is on screen.
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void reload();
+    }, 60_000);
+    const onVisible = () => document.visibilityState === "visible" && void reload();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [reload]);
+
+  const markSeen = useCallback(() => {
+    const now = Date.now();
+    setSeenAt(now);
+    document.cookie = `${NOTIFICATIONS_SEEN_COOKIE}=${now}; path=/; max-age=31536000; samesite=lax`;
+  }, []);
+
+  const unread = data.notifications.filter((n) => Date.parse(n.at) > seenAt).length;
+  return { ...data, seenAt, unread, reload, markSeen };
+}
+
 export function AppShell({
   children,
   email,
   profile,
-  alerts,
+  alerts: initialAlerts,
+  notifications: initialNotifications,
+  seenAt: initialSeenAt,
 }: {
   children: React.ReactNode;
   email: string;
   profile: ShellProfile;
   alerts: ShellAlert[];
+  notifications: ShellNotification[];
+  seenAt: number;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -105,7 +177,24 @@ export function AppShell({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [query, setQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
+  const bell = useNotifications({ notifications: initialNotifications, alerts: initialAlerts, seenAt: initialSeenAt });
+  const alerts = bell.alerts;
   const attention = alerts.reduce((s, a) => s + a.count, 0);
+  // When the bell opened: items newer than the previous visit keep their dot until it closes.
+  const [openedSeenAt, setOpenedSeenAt] = useState(0);
+  const [now, setNow] = useState(0);
+
+  function toggleBell() {
+    if (bellOpen) {
+      setBellOpen(false);
+      return;
+    }
+    setOpenedSeenAt(bell.seenAt);
+    setNow(Date.now());
+    setBellOpen(true);
+    bell.markSeen();
+    void bell.reload();
+  }
 
   useOutsideClose(createOpen, "data-create-menu", () => setCreateOpen(false));
   useOutsideClose(bellOpen, "data-bell-menu", () => setBellOpen(false));
@@ -241,44 +330,77 @@ export function AppShell({
               <div className="relative" data-bell-menu>
                 <button
                   type="button"
-                  onClick={() => setBellOpen((v) => !v)}
+                  onClick={toggleBell}
                   aria-expanded={bellOpen}
-                  aria-label={attention ? `${attention} things need attention` : "Notifications"}
+                  aria-label={bell.unread ? `${bell.unread} new notifications` : "Notifications"}
                   className="relative grid h-10 w-10 place-items-center rounded-xl text-slate-700 hover:bg-white"
                 >
                   <Bell size={21} strokeWidth={1.75} />
-                  {attention ? (
+                  {bell.unread ? (
                     <span className="absolute right-1.5 top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-rose-500 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-canvas">
-                      {attention > 9 ? "9+" : attention}
+                      {bell.unread > 9 ? "9+" : bell.unread}
                     </span>
+                  ) : attention ? (
+                    <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-amber-400 ring-2 ring-canvas" />
                   ) : null}
                 </button>
                 {bellOpen ? (
-                  <div className="absolute right-0 top-12 z-40 w-80 max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
-                    <p className="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Needs attention
-                    </p>
-                    {alerts.length === 0 ? (
-                      <p className="px-3 py-3 text-sm text-slate-500">You’re all caught up.</p>
-                    ) : (
-                      alerts.map((a) => (
-                        <Link
-                          key={a.key}
-                          href={a.href}
-                          onClick={() => setBellOpen(false)}
-                          className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-800 hover:bg-slate-50"
-                        >
-                          <span className="min-w-0">{a.label}</span>
-                          {a.meta ? (
-                            <span className="shrink-0 text-xs text-slate-400">{a.meta}</span>
-                          ) : (
-                            <span className="rounded-full bg-rose-50 px-2 py-0.5 text-xs font-bold text-rose-700">
-                              {a.count}
-                            </span>
-                          )}
-                        </Link>
-                      ))
-                    )}
+                  <div className="absolute right-0 top-12 z-40 flex max-h-[min(640px,calc(100vh-6rem))] w-96 max-w-[calc(100vw-2rem)] flex-col rounded-2xl border border-slate-200 bg-white shadow-xl">
+                    <div className="flex items-center justify-between px-4 pb-2 pt-3">
+                      <p className="text-sm font-bold text-slate-900">Notifications</p>
+                      <span className="text-xs text-slate-400">Last 30 days</span>
+                    </div>
+                    <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+                      {bell.notifications.length === 0 ? (
+                        <p className="px-3 py-3 text-sm text-slate-500">No activity yet.</p>
+                      ) : (
+                        bell.notifications.map((n) => {
+                          const style = NOTIFICATION_STYLE[n.kind];
+                          const Icon = style.icon;
+                          const fresh = Date.parse(n.at) > openedSeenAt;
+                          return (
+                            <Link
+                              key={n.id}
+                              href={n.href}
+                              onClick={() => setBellOpen(false)}
+                              className={cn(
+                                "flex items-start gap-3 rounded-xl px-2.5 py-2.5 text-sm hover:bg-slate-50",
+                                fresh && "bg-sky-50/60",
+                              )}
+                            >
+                              <span className={cn("mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full", style.tone)}>
+                                <Icon size={15} />
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className={cn("block leading-snug text-slate-800", fresh && "font-semibold text-slate-900")}>
+                                  {n.title}
+                                </span>
+                                <span className="mt-0.5 block text-xs text-slate-400">{timeAgo(n.at, now)}</span>
+                              </span>
+                              {fresh ? <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-sky-500" aria-label="New" /> : null}
+                            </Link>
+                          );
+                        })
+                      )}
+                    </div>
+                    {alerts.length ? (
+                      <div className="border-t border-slate-100 p-2">
+                        <p className="px-3 pb-1 pt-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Needs attention
+                        </p>
+                        {alerts.map((a) => (
+                          <Link
+                            key={a.key}
+                            href={a.href}
+                            onClick={() => setBellOpen(false)}
+                            className="flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm text-slate-800 hover:bg-slate-50"
+                          >
+                            <span className="min-w-0">{a.label}</span>
+                            <span className="rounded-full bg-rose-50 px-2 py-0.5 text-xs font-bold text-rose-700">{a.count}</span>
+                          </Link>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
               </div>

@@ -142,18 +142,21 @@ try {
 
     const approved = await changeQuoteStatus(tx, quote.id, "approved");
     check("quote approved", approved.ok);
-    const [autoJob] = await tx`
-      select id, number from jobs where quote_id = ${quote.id}`;
-    check("confirmed quote created a job for the schedule", !!autoJob && String(autoJob.number).startsWith("JOB-"));
-    const [visit] = await tx`
-      select id from job_visits where job_id = ${autoJob.id}`;
-    check("job from an approved quote waits to be scheduled by hand (no visit)", !visit);
+    const [noJobYet] = await tx`
+      select id from jobs where quote_id = ${quote.id}`;
+    check("approving a quote does not create the job (it waits under Approved)", !noJobYet);
     const [doneReminder] = await tx`
       select status from schedule_reminders where quote_id = ${quote.id}`;
     check("approved quote completes the quote reminder", doneReminder?.status === "done");
 
     const job = await convertApprovedQuoteToJob(tx, company.id, quote.id);
-    check("second convert reuses the job", job.alreadyExisted && job.id === autoJob.id);
+    check("Convert to Job creates the job", job.ok && !job.alreadyExisted && String(job.number).startsWith("JOB-"));
+    const [autoJob] = await tx`
+      select id, number from jobs where quote_id = ${quote.id}`;
+    check("job is linked to the quote", !!autoJob && autoJob.id === job.id);
+    const [visit] = await tx`
+      select id from job_visits where job_id = ${autoJob.id}`;
+    check("job from an approved quote waits to be scheduled by hand (no visit)", !visit);
 
     const again = await convertApprovedQuoteToJob(tx, company.id, quote.id);
     check("third convert still reuses the job", again.alreadyExisted && again.id === autoJob.id);

@@ -173,9 +173,9 @@ export async function changeQuoteStatus(
       set status = 'done', updated_at = now()
       where quote_id = ${quoteId} and status = 'scheduled'
     `;
-    const job = await quoteToJob(db, rows[0].company_id, quoteId, true);
-    if (!job.ok) return job;
-    return { ok: true, id: quoteId, number: job.number };
+    // Approval no longer creates the job: the quote waits under Quotes → Approved
+    // (Dashboard) until the office presses Convert to Job, as in Jobber.
+    return { ok: true, id: quoteId };
   }
   if (status === "rejected" || status === "expired") {
     await db`
