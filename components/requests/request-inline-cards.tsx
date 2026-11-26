@@ -22,6 +22,7 @@ import {
   Field,
   InlineEditCard,
   inventorySummary,
+  InventoryPhotos,
   LocationFields,
   YesNoSelect,
   inlineArea,
@@ -442,29 +443,7 @@ export function RequestInventoryCard({
       view={
         <>
           <p className="whitespace-pre-wrap text-sm text-ink">{snapshot.inventory || "—"}</p>
-          {files.length > 0 ? (
-            <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
-              {files.map((file) => (
-                <a
-                  key={file.id}
-                  href={`/api/requests/${snapshot.id}/files/${file.id}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  title={file.file_name}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={`/api/requests/${snapshot.id}/files/${file.id}`}
-                    alt={file.file_name}
-                    className="aspect-square w-full rounded-lg border border-line object-cover"
-                    loading="lazy"
-                  />
-                </a>
-              ))}
-            </div>
-          ) : (
-            <p className="mt-2 text-sm text-ink-mute">No images attached.</p>
-          )}
+          <InventoryPhotos requestId={snapshot.id} files={files} />
         </>
       }
     >

@@ -20,6 +20,7 @@ import {
   Field,
   InlineEditCard,
   inventorySummary,
+  InventoryPhotos,
   LineFields,
   LocationFields,
   newDraftLine,
@@ -373,9 +374,12 @@ function ServicesView({ lines }: { lines: QuoteEditSnapshot["lines"] }) {
 export function QuoteInventoryCard({
   snapshot,
   request,
+  files = [],
 }: {
   snapshot: QuoteEditSnapshot;
   request: RequestEditSnapshot | null;
+  /** Photos uploaded on the linked request, inherited by the quote. */
+  files?: { id: string; file_name: string }[];
 }) {
   const [inventory, setInventory] = useState(snapshot.inventory);
   useEffect(() => setInventory(snapshot.inventory), [snapshot.inventory]);
@@ -387,7 +391,7 @@ export function QuoteInventoryCard({
       fitContent
       icon={<CardIcon icon={Box} tone="blue" />}
       collapsible
-      summary={inventorySummary(snapshot.inventory)}
+      summary={inventorySummary(snapshot.inventory, request ? files.length : 0)}
       onCancel={() => setInventory(snapshot.inventory)}
       onSave={async () => {
         const saved = await saveQuoteInPlace(snapshot.id, toQuoteInput(snapshot, { inventory }));
@@ -397,7 +401,12 @@ export function QuoteInventoryCard({
         }
         return saved;
       }}
-      view={<p className="whitespace-pre-wrap text-sm text-ink">{snapshot.inventory || "—"}</p>}
+      view={
+        <>
+          <p className="whitespace-pre-wrap text-sm text-ink">{snapshot.inventory || "—"}</p>
+          {request ? <InventoryPhotos requestId={request.id} files={files} /> : null}
+        </>
+      }
     >
       <textarea className={inlineArea} value={inventory} onChange={(e) => setInventory(e.target.value)} />
     </InlineEditCard>

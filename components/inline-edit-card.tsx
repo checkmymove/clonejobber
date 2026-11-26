@@ -420,3 +420,35 @@ export function inventorySummary(inventory: string, photos = 0): string {
   if (photos) parts.push(`${photos} photo${photos === 1 ? "" : "s"}`);
   return parts.join(" · ");
 }
+
+/**
+ * Photos the client uploaded on the request, shown in every Inventory list down the
+ * funnel (request, quote, job, invoice). Files are served by the request's file route.
+ */
+export function InventoryPhotos({
+  requestId,
+  files,
+}: {
+  requestId: string;
+  files: { id: string; file_name: string }[];
+}) {
+  if (files.length === 0) return <p className="mt-2 text-sm text-ink-mute">No images attached.</p>;
+  return (
+    <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
+      {files.map((file) => {
+        const href = `/api/requests/${requestId}/files/${file.id}`;
+        return (
+          <a key={file.id} href={href} target="_blank" rel="noreferrer" title={file.file_name}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={href}
+              alt={file.file_name}
+              className="aspect-square w-full rounded-lg border border-line object-cover"
+              loading="lazy"
+            />
+          </a>
+        );
+      })}
+    </div>
+  );
+}

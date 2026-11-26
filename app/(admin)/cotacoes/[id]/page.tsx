@@ -198,7 +198,7 @@ export default async function CotacaoDetailPage({
 
           <div className="grid gap-4 xl:col-span-2 xl:grid-cols-[minmax(0,1fr)_minmax(320px,400px)]">
             <div className="flex min-w-0 flex-col gap-4">
-              <QuoteInventoryCard snapshot={snapshot} request={linkedRequest} />
+              <QuoteInventoryCard snapshot={snapshot} request={linkedRequest} files={linkedRequest ? request?.files : undefined} />
               <QuoteTermsCard snapshot={snapshot} />
               <NotesCard kind="quote" id={id} notes={q.notes} />
               <SentCard kind="quote" id={id} />
