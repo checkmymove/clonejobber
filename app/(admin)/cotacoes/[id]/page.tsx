@@ -35,7 +35,8 @@ import { getActiveServices } from "@/lib/requests/company";
 import { getQuoteDeposits } from "@/lib/payments/queries";
 import { SentCard } from "@/components/funnel/sent-card";
 import { RouteEstimateCard } from "@/components/funnel/route-estimate-card";
-import { Badge, PageHeader, buttonOutline } from "@/components/ui";
+import { Badge, buttonOutline } from "@/components/ui";
+import { ShellPageHeader } from "@/components/layout/shell-header";
 
 export const dynamic = "force-dynamic";
 
@@ -112,28 +113,27 @@ export default async function CotacaoDetailPage({
 
   return (
     <div>
-      <PageHeader
+      <ShellPageHeader
         title={`Quote for ${q.client_name}`}
         subtitle={subtitle}
-        action={
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge tone={q.job_id && q.status !== "approved" ? "converted" : q.status} size="lg">
-              {q.job_id && q.status !== "approved" ? "Converted" : (LABELS[q.status] ?? q.status)}
-            </Badge>
-            <QuoteMoreMenu quoteId={id} clientId={q.client_id} status={q.status} archived={archived} jobId={q.job_id} />
-            <Link href="/cotacoes" className={buttonOutline}>
-              <ArrowLeft size={17} aria-hidden />
-              Back
-            </Link>
-            {/* Draft: Send Quote. Once sent, the green button moves on to the job; Resend is under More. */}
-            {q.status === "draft" && !q.job_id ? (
-              <SendQuoteButton quoteId={id} status={q.status} archived={archived} />
-            ) : (
-              <ConvertToJobButton quoteId={id} status={q.status} archived={archived} jobId={q.job_id} />
-            )}
-          </div>
-        }
-      />
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge tone={q.job_id && q.status !== "approved" ? "converted" : q.status} size="lg">
+            {q.job_id && q.status !== "approved" ? "Converted" : (LABELS[q.status] ?? q.status)}
+          </Badge>
+          <QuoteMoreMenu quoteId={id} clientId={q.client_id} status={q.status} archived={archived} jobId={q.job_id} />
+          <Link href="/cotacoes" className={buttonOutline}>
+            <ArrowLeft size={17} aria-hidden />
+            Back
+          </Link>
+          {/* Draft: Send Quote. Once sent, the green button moves on to the job; Resend is under More. */}
+          {q.status === "draft" && !q.job_id ? (
+            <SendQuoteButton quoteId={id} status={q.status} archived={archived} />
+          ) : (
+            <ConvertToJobButton quoteId={id} status={q.status} archived={archived} jobId={q.job_id} />
+          )}
+        </div>
+      </ShellPageHeader>
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
         <div className="grid min-w-0 flex-1 grid-cols-1 items-start gap-4 xl:grid-cols-2">

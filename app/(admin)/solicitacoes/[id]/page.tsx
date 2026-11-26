@@ -22,7 +22,8 @@ import { FunnelHistoryCard } from "@/components/funnel/funnel-history-card";
 import { RequestMoreMenu } from "@/components/requests/request-actions";
 import { SentCard } from "@/components/funnel/sent-card";
 import { RouteEstimateCard } from "@/components/funnel/route-estimate-card";
-import { Badge, Card, PageHeader, buttonDark, buttonOutline } from "@/components/ui";
+import { Badge, Card, buttonDark, buttonOutline } from "@/components/ui";
+import { ShellPageHeader } from "@/components/layout/shell-header";
 
 export const dynamic = "force-dynamic";
 
@@ -50,23 +51,22 @@ export default async function SolicitacaoDetailPage({
 
   return (
     <div>
-      <PageHeader
+      <ShellPageHeader
         title={`${r.number} · ${r.client_name}`}
         subtitle={`Received on ${formatDateLondon(r.submitted_at)}${r.move_date ? ` · Move on ${formatDateLondon(r.move_date)}${r.move_time ? ` at ${r.move_time}` : ""}` : " · No date set"}`}
-        action={
-          <div className="flex flex-wrap gap-2">
-            <RequestMoreMenu requestId={r.id} clientId={r.client_id} quoteId={requestQuote[0]?.id ?? null} />
-            <Link href={`/cotacoes/novo?requestId=${r.id}`} className={buttonDark}>
-              <FileText size={17} aria-hidden />
-              Convert to Quote
-            </Link>
-            <Link href="/solicitacoes" className={buttonOutline}>
-              <ArrowLeft size={17} aria-hidden />
-              Back
-            </Link>
-          </div>
-        }
-      />
+      >
+        <div className="flex flex-wrap gap-2">
+          <RequestMoreMenu requestId={r.id} clientId={r.client_id} quoteId={requestQuote[0]?.id ?? null} />
+          <Link href={`/cotacoes/novo?requestId=${r.id}`} className={buttonDark}>
+            <FileText size={17} aria-hidden />
+            Convert to Quote
+          </Link>
+          <Link href="/solicitacoes" className={buttonOutline}>
+            <ArrowLeft size={17} aria-hidden />
+            Back
+          </Link>
+        </div>
+      </ShellPageHeader>
 
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <Badge tone={r.status} size="lg">

@@ -37,7 +37,8 @@ import {
   depositTotalRows,
   type TotalRow,
 } from "@/components/funnel/document-cards";
-import { Card, PageHeader, buttonOutline } from "@/components/ui";
+import { Card, buttonOutline } from "@/components/ui";
+import { ShellPageHeader } from "@/components/layout/shell-header";
 import { LabourCard } from "@/components/team/labour-card";
 import { JobExpensesCard } from "@/components/jobs/job-expenses-card";
 import { listJobExpenses } from "@/lib/expenses/queries";
@@ -128,26 +129,25 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
 
   return (
     <div>
-      <PageHeader
+      <ShellPageHeader
         title={`${j.number} • ${j.client_name}`}
         subtitle={subtitle || "Job"}
-        action={
-          <div className="flex flex-wrap items-center gap-2">
-            <JobHeaderActions
-              jobId={j.id}
-              clientId={j.client_id}
-              quoteId={j.quote_id}
-              closed={closed}
-              invoiceCount={j.invoice_count}
-              sent={emails.some((e) => e.status === "sent")}
-            />
-            <Link href="/servicos" className={buttonOutline}>
-              <ArrowLeft size={17} aria-hidden />
-              Back
-            </Link>
-          </div>
-        }
-      />
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <JobHeaderActions
+            jobId={j.id}
+            clientId={j.client_id}
+            quoteId={j.quote_id}
+            closed={closed}
+            invoiceCount={j.invoice_count}
+            sent={emails.some((e) => e.status === "sent")}
+          />
+          <Link href="/servicos" className={buttonOutline}>
+            <ArrowLeft size={17} aria-hidden />
+            Back
+          </Link>
+        </div>
+      </ShellPageHeader>
 
       <div className="mb-5 flex flex-wrap items-center gap-2">
         <StatusPill badge={meta.badge} dot={meta.dot} label={meta.label} />

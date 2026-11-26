@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Bell,
   Box,
@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { signOut } from "@/lib/auth/actions";
 import { CompleteVisitHost } from "@/components/jobs/complete-visit-dialog";
+import { ShellHeaderProvider } from "@/components/layout/shell-header";
 import { Avatar } from "@/components/team/team-ui";
 import { cn } from "@/lib/cn";
 import type { ShellAlert, ShellProfile } from "@/lib/shell";
@@ -183,6 +184,20 @@ export function AppShell({
   // When the bell opened: items newer than the previous visit keep their dot until it closes.
   const [openedSeenAt, setOpenedSeenAt] = useState(0);
   const [now, setNow] = useState(0);
+  // Detail pages (request, quote, job) put their title and buttons in the top bar.
+  const [headerSlot, setHeaderSlot] = useState<HTMLDivElement | null>(null);
+  const [pageHeaders, setPageHeaders] = useState(0);
+  const hasPageHeader = pageHeaders > 0;
+  const shellHeader = useMemo(
+    () => ({
+      slot: headerSlot,
+      register: () => {
+        setPageHeaders((n) => n + 1);
+        return () => setPageHeaders((n) => n - 1);
+      },
+    }),
+    [headerSlot],
+  );
 
   function toggleBell() {
     if (bellOpen) {
@@ -313,7 +328,10 @@ export function AppShell({
                 const q = query.trim();
                 router.push(q ? `/clientes?q=${encodeURIComponent(q)}` : "/clientes");
               }}
-              className="hidden h-11 w-full max-w-[390px] items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] focus-within:border-[#1d4ed8] sm:flex"
+              className={cn(
+                "hidden h-11 items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] focus-within:border-[#1d4ed8] sm:flex",
+                hasPageHeader ? "w-[220px] shrink-0 2xl:w-[300px]" : "w-full max-w-[390px]",
+              )}
             >
               <Search size={18} className="shrink-0 text-slate-500" aria-hidden />
               <input
@@ -326,7 +344,9 @@ export function AppShell({
               />
             </form>
 
-            <div className="ml-auto flex items-center gap-2 sm:gap-3">
+            <div ref={setHeaderSlot} className={hasPageHeader ? "flex min-w-0 flex-1" : "hidden"} />
+
+            <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
               <div className="relative" data-bell-menu>
                 <button
                   type="button"
@@ -419,10 +439,15 @@ export function AppShell({
                       {profile.name.slice(0, 1).toUpperCase()}
                     </span>
                   )}
-                  <span className="hidden max-w-[180px] truncate text-sm font-semibold text-slate-900 md:inline">
+                  <span
+                    className={cn(
+                      "hidden max-w-[180px] truncate text-sm font-semibold text-slate-900",
+                      hasPageHeader ? "2xl:inline" : "md:inline",
+                    )}
+                  >
                     {profile.name}
                   </span>
-                  <ChevronDown size={16} className="hidden text-slate-500 md:inline" />
+                  <ChevronDown size={16} className={cn("hidden text-slate-500", hasPageHeader ? "2xl:inline" : "md:inline")} />
                 </button>
                 {userOpen ? (
                   <div className="absolute right-0 top-12 z-40 w-64 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
@@ -457,7 +482,7 @@ export function AppShell({
         </header>
 
         <main className={cn("min-w-0 px-3 sm:px-4 lg:px-6", isSchedule ? "pb-0" : "pb-16")}>
-          {children}
+          <ShellHeaderProvider value={shellHeader}>{children}</ShellHeaderProvider>
         </main>
       </div>
 
