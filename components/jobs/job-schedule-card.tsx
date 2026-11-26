@@ -241,11 +241,6 @@ export function JobScheduleCard({
 
       {editing === "new" ? (
         <div className="mb-4">
-          {visits.length === 0 && !approved ? (
-            <p className="mb-2 text-sm text-ink-soft">
-              Send the job to the client to approve, then pick the day, time and team here.
-            </p>
-          ) : null}
           <VisitEditor
             jobId={jobId}
             visit={null}

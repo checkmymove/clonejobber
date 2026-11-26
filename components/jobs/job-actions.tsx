@@ -12,6 +12,7 @@ import {
   Mail,
   Pencil,
   RotateCcw,
+  Send,
   Trash2,
 } from "lucide-react";
 import { ActionButton, MoreMenu } from "@/components/funnel/more-menu";
@@ -48,13 +49,13 @@ export function JobHeaderActions({
     return result;
   };
 
-  // Like Convert to Quote / Convert to Job: the job's next stage is its invoice.
+  // Before invoicing, the job's main action is the booking confirmation (email & text).
   const primary =
     invoiceCount === 0 ? (
       <ActionButton
-        label="Create Invoice"
-        icon={<FileText size={16} />}
-        run={async () => router.push(`/faturas/novo?jobId=${jobId}`)}
+        label={sent ? "Resend Job Confirmation" : "Send Job Confirmation"}
+        icon={<Send size={16} />}
+        run={() => sender.open("job", jobId)}
       />
     ) : closed ? (
       <ActionButton
@@ -89,6 +90,13 @@ export function JobHeaderActions({
             icon: <RotateCcw size={18} />,
             hidden: !closed,
             run: () => refresh(reopenJobAction(jobId)),
+          },
+          {
+            kind: "link",
+            label: "Create Invoice",
+            icon: <FileText size={18} />,
+            hidden: invoiceCount > 0,
+            href: `/faturas/novo?jobId=${jobId}`,
           },
           { kind: "link", label: "Edit Job", icon: <Pencil size={18} />, href: `/servicos/${jobId}/editar` },
           {

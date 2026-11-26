@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Box, MapPin, ReceiptText, UserRound } from "lucide-react";
+import { ArrowLeft, Box, ReceiptText, UserRound } from "lucide-react";
 import { CardIcon } from "@/components/card-icon";
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { INFO_ICONS, JobInfoStrip } from "@/components/jobs/job-info-strip";
@@ -42,7 +42,6 @@ import { LabourCard } from "@/components/team/labour-card";
 import { JobExpensesCard } from "@/components/jobs/job-expenses-card";
 import { listJobExpenses } from "@/lib/expenses/queries";
 import { JobScheduleCard } from "@/components/jobs/job-schedule-card";
-import { JobSendCard } from "@/components/jobs/job-send-card";
 import { parseMoveClock } from "@/lib/funnel/engine";
 import { LineItemsInlineCard } from "@/components/funnel/line-items-inline-card";
 import { listProducts } from "@/lib/products/queries";
@@ -204,6 +203,20 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
           approved={approved}
         />
 
+        {/* Same as the quote page: collection and delivery side by side, then the route estimate. */}
+        {snapshot ? (
+          <>
+            <RequestLocationCard title="Collection address" snapshot={snapshot} kind="pickup" />
+            <RequestLocationCard title="Delivery address" snapshot={snapshot} kind="delivery" />
+          </>
+        ) : (
+          <>
+            <AddressCard title="Collection address" address={j.pickup_address} />
+            <AddressCard title="Delivery address" address={j.delivery_address} />
+          </>
+        )}
+        <RouteEstimateCard collection={pickup} delivery={delivery} />
+
         <LabourCard
           jobId={j.id}
           labour={labour}
@@ -314,31 +327,6 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
         </CollapsibleSection>
 
         <CollapsibleSection
-          id="job-addresses"
-          title="Addresses"
-          icon={<MapPin size={22} strokeWidth={1.6} className="shrink-0 text-emerald-600" aria-hidden />}
-          summary={
-            <>
-              {pickup || "—"} <span className="px-1 text-ink">→</span> {delivery || "—"}
-            </>
-          }
-        >
-          {snapshot ? (
-            <>
-              <RequestLocationCard title="Collection Information" snapshot={snapshot} kind="pickup" />
-              <RequestLocationCard title="Delivery Information" snapshot={snapshot} kind="delivery" />
-            </>
-          ) : (
-            <>
-              <AddressCard title="Collection Information" address={j.pickup_address} />
-              <AddressCard title="Delivery Information" address={j.delivery_address} />
-            </>
-          )}
-        </CollapsibleSection>
-
-        <RouteEstimateCard collection={pickup} delivery={delivery} />
-
-        <CollapsibleSection
           id="job-services"
           title="Services"
           icon={<Box size={22} strokeWidth={1.6} className="shrink-0 text-[#1d4ed8]" aria-hidden />}
@@ -375,7 +363,6 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
         {snapshot && request ? <RequestInventoryCard snapshot={snapshot} files={request.files} /> : null}
         <NotesCard kind="job" id={j.id} notes={j.notes} />
         <SentCard kind="job" id={j.id} />
-        <JobSendCard jobId={j.id} approved={approved} />
       </div>
     </div>
   );

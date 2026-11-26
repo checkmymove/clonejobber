@@ -172,39 +172,7 @@ async function jobDraft(company: Company, id: string): Promise<Result> {
     JOB_LOCATION: location,
     JOB_DETAILS: jobDetailsText({ date, time, team, address: location }),
   });
-  // Until the client approves the job, the email asks for that approval; the visit
-  // is only scheduled afterwards.
-  if (!j.approved_at && j.status !== "done") {
-    const first = j.client_name.split(" ")[0] || j.client_name;
-    const message = [
-      `Hi ${first},`,
-      "",
-      `Here is job ${j.number}${j.title ? ` (${j.title})` : ""} with ${company.name}.`,
-      "Please review the details and approve it using the button below. Once approved, we will confirm the date, time and team for your move.",
-      "",
-      "If anything needs changing, just reply to this email.",
-      "",
-      "Kind regards,",
-      company.name,
-    ].join("\n");
-    return {
-      ok: true,
-      draft: {
-        ...base(company, "job"),
-        id,
-        number: j.number,
-        clientName: j.client_name,
-        viewUrl: url,
-        card: { heading: "Job for your approval", buttonLabel: "Review & Approve" },
-        email: { to: j.client_email, subject: `Please approve job ${j.number} from ${company.name}`, message },
-        sms: {
-          to: normalizePhone(j.client_phone),
-          message: withLink(`Hi ${first}, please review and approve job ${j.number} from ${company.name}:`, url),
-        },
-        attachment: pdfFileName("job", j.number),
-      },
-    };
-  }
+  // Jobs need no client approval: the job email is always the booking confirmation.
   return {
     ok: true,
     draft: {
