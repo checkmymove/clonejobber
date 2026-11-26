@@ -2,8 +2,8 @@
 
 import { openPicker } from "@/components/date-field";
 import { TimeField, toTime24 } from "@/components/time-field";
-import { useEffect, useState } from "react";
-import { Box, Calculator, CalendarDays, Clock, FileText } from "lucide-react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Box, Calculator, CalendarDays, ChevronDown, Clock, FileText } from "lucide-react";
 import { CardIcon } from "@/components/card-icon";
 import { cn } from "@/lib/cn";
 import { formatGBP, formatDateLondon, padMoney } from "@/lib/format";
@@ -245,19 +245,90 @@ export function AddLineItemButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-/** A line's summary, three lines until clicked. */
-function LineSummary({ text }: { text: string }) {
+/**
+ * Splits a description into blocks, keeping its line breaks: lines starting with
+ * "-", "•" or "*" become a bulleted list, blank lines separate paragraphs.
+ */
+function descriptionBlocks(text: string) {
+  const blocks: ({ kind: "p"; text: string } | { kind: "ul"; items: string[] })[] = [];
+  for (const raw of text.replace(/\r\n?/g, "\n").split("\n")) {
+    const line = raw.trim();
+    if (!line) continue;
+    const bullet = line.match(/^[-•*]\s*(.+)$/);
+    const last = blocks[blocks.length - 1];
+    if (bullet) {
+      if (last?.kind === "ul") last.items.push(bullet[1]);
+      else blocks.push({ kind: "ul", items: [bullet[1]] });
+    } else {
+      blocks.push({ kind: "p", text: line });
+    }
+  }
+  return blocks;
+}
+
+/** A line's description, broken into lines; about four lines tall until clicked. */
+function LineDescription({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
+  const [overflows, setOverflows] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const blocks = descriptionBlocks(text);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const check = () => setOverflows(el.scrollHeight > el.clientHeight + 1);
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [text]);
+
+  const clickable = open || overflows;
+  const toggle = () => clickable && setOpen((v) => !v);
   return (
-    <button
-      type="button"
-      onClick={() => setOpen((v) => !v)}
-      aria-expanded={open}
-      title={open ? "Show less" : "Show all"}
-      className={cn("mt-0.5 block text-left text-[13px] text-ink-soft", open ? "" : "line-clamp-3")}
+    <div
+      role={clickable ? "button" : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onClick={toggle}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          toggle();
+        }
+      }}
+      aria-expanded={clickable ? open : undefined}
+      title={clickable ? (open ? "Show less" : "Show all") : undefined}
+      className={cn(
+        "mt-1 block w-full rounded text-left text-[13px] leading-5 text-ink-soft outline-none focus-visible:ring-2 focus-visible:ring-accent/30",
+        clickable ? "cursor-pointer" : "cursor-default",
+      )}
     >
-      <span className="font-semibold text-ink">Summary:</span> {text}
-    </button>
+      <span className="flex items-center gap-1 font-semibold text-ink">
+        Description
+        {clickable ? (
+          <ChevronDown className={cn("h-3.5 w-3.5 text-ink-mute transition-transform", open && "rotate-180")} aria-hidden />
+        ) : null}
+      </span>
+      <div
+        ref={ref}
+        className={cn("relative mt-0.5 space-y-1.5", open ? "" : "max-h-[5.25rem] overflow-hidden")}
+      >
+        {blocks.map((b, i) =>
+          b.kind === "ul" ? (
+            <ul key={i} className="list-disc space-y-0.5 pl-4">
+              {b.items.map((item, j) => (
+                <li key={j}>{item}</li>
+              ))}
+            </ul>
+          ) : (
+            <p key={i}>{b.text}</p>
+          ),
+        )}
+        {!open && overflows ? (
+          <span aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-5 bg-gradient-to-t from-white to-transparent" />
+        ) : null}
+      </div>
+    </div>
   );
 }
 
@@ -280,7 +351,7 @@ function ServicesView({ lines }: { lines: QuoteEditSnapshot["lines"] }) {
             <tr key={line.id} className="border-b border-line align-top last:border-0">
               <td className="px-4 py-3">
                 <p className="font-bold text-ink">{line.name}</p>
-                {line.description ? <LineSummary text={line.description} /> : null}
+                {line.description ? <LineDescription text={line.description} /> : null}
               </td>
               <td data-label="Qty" className="px-3 py-3 text-center text-ink">
                 {line.qty}
