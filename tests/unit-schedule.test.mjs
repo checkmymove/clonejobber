@@ -19,6 +19,7 @@ import {
   weekDays,
 } from "../.testbuild/schedule/dates.js";
 import { buildRescheduleMessage, visitSlotChanged } from "../.testbuild/schedule/notify.js";
+import { firstVisitOfKind, isPackingVisit } from "../.testbuild/jobs/visit-kinds.js";
 
 describe("schedule dates", () => {
   it("builds a Monday-first month grid", () => {
@@ -80,5 +81,34 @@ describe("schedule notify", () => {
     assert.match(letter.message, /Previously:/);
     assert.match(letter.message, /Now:/);
     assert.match(letter.message, /Hi Fabiano/);
+  });
+});
+
+describe("packing and collection visits", () => {
+  const v = (title, date, start = "09:00", extra = {}) => ({ title, date, start, status: "scheduled", later: false, ...extra });
+
+  it("tells the packing visit apart by its title", () => {
+    assert.equal(isPackingVisit("Packing service"), true);
+    assert.equal(isPackingVisit("  packing SERVICE "), true);
+    assert.equal(isPackingVisit("Collection"), false);
+    assert.equal(isPackingVisit(""), false);
+    assert.equal(isPackingVisit(null), false);
+  });
+
+  it("picks the earliest open visit of each kind; untitled visits are collections", () => {
+    const visits = [
+      v("Collection", "2026-12-05"),
+      v("Packing service", "2026-12-04"),
+      v("", "2026-12-03", "08:00", { status: "cancelled" }),
+      v("", "2026-12-06"),
+    ];
+    assert.equal(firstVisitOfKind(visits, "packing").date, "2026-12-04");
+    assert.equal(firstVisitOfKind(visits, "collection").date, "2026-12-05");
+    assert.equal(firstVisitOfKind([v("Packing service", "2026-12-04")], "collection"), null);
+  });
+
+  it("defaults the packing day to the day before the collection", () => {
+    assert.equal(addDays("2026-12-01", -1), "2026-11-30");
+    assert.equal(addDays("2027-01-01", -1), "2026-12-31");
   });
 });

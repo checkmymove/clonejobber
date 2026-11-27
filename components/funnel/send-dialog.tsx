@@ -66,6 +66,16 @@ export function SendDialog({
   const [copy, setCopy] = useState(false);
   const [phone, setPhone] = useState(draft.sms.to);
   const [text, setText] = useState(draft.sms.message);
+  // Job with packing: two messages (packing + removal confirmation), sent together.
+  const second = draft.secondary;
+  const [which, setWhich] = useState<"primary" | "secondary">("primary");
+  const [secSubject, setSecSubject] = useState(second?.email.subject ?? "");
+  const [secMessage, setSecMessage] = useState(second?.email.message ?? "");
+  const [secText, setSecText] = useState(second?.sms.message ?? "");
+  const onSecond = Boolean(second) && which === "secondary";
+  const cur = onSecond
+    ? { subject: secSubject, setSubject: setSecSubject, message: secMessage, setMessage: setSecMessage, text: secText, setText: setSecText, card: second!.card }
+    : { subject, setSubject, message, setMessage, text, setText, card: draft.card };
   const [pending, setPending] = useState(false);
   const [outcome, setOutcome] = useState<SendOutcome | null>(null);
   const [files, setFiles] = useState<SendAttachment[]>([]);
@@ -130,17 +140,30 @@ export function SendDialog({
       documentEmailHtml({
         companyName: draft.companyName,
         logoUrl: draft.logoUrl,
-        ...draft.card,
+        ...cur.card,
         buttonUrl: draft.viewUrl ?? "#",
-        message,
+        message: cur.message,
         stampUrl: draft.stamp ? `${window.location.origin}${stampImagePath(draft.stamp)}` : null,
       }),
-    [draft, message],
+    [draft, cur.card, cur.message],
   );
-  const segments = smsSegments(text);
+  const segments = smsSegments(cur.text);
   const kind = SEND_KIND_LABEL[draft.kind];
-  const sendLabel =
-    useEmail && useSms ? "Send email & text" : useEmail ? "Send email" : useSms ? "Send text" : "Send";
+  const sendLabel = second
+    ? useEmail && useSms
+      ? "Send both emails & texts"
+      : useEmail
+        ? "Send both emails"
+        : useSms
+          ? "Send both texts"
+          : "Send"
+    : useEmail && useSms
+      ? "Send email & text"
+      : useEmail
+        ? "Send email"
+        : useSms
+          ? "Send text"
+          : "Send";
 
   async function send() {
     setPending(true);
@@ -152,12 +175,18 @@ export function SendDialog({
         ? { to, subject, message, copyToSender: copy, attachPdf, attachmentIds: files.map((f) => f.id) }
         : null,
       sms: useSms ? { to: phone, message: text } : null,
+      secondary: second
+        ? {
+            email: useEmail ? { subject: secSubject, message: secMessage } : null,
+            sms: useSms ? { message: secText } : null,
+          }
+        : null,
     });
     setPending(false);
     setOutcome(result);
     // Sent: the dialog closes by itself. A text that isn't connected yet is only logged,
     // so it doesn't hold the dialog open once the email went out.
-    if (result.ok && (!result.email || result.email.ok)) onDone();
+    if (result.ok && (!result.email || result.email.ok) && (!result.secondaryEmail || result.secondaryEmail.ok)) onDone();
   }
 
   const tabButton = (value: Tab, label: string, icon: React.ReactNode, on: boolean, setOn: (v: boolean) => void) => (
@@ -221,8 +250,28 @@ export function SendDialog({
           {tabButton("sms", "Text message", <MessageSquare size={17} />, useSms, setUseSms)}
         </div>
 
-        {draft.followUp ? (
-          <p className="mt-4 rounded-lg bg-sky-50 px-3 py-2 text-[14px] text-sky-900">{draft.followUp.note}</p>
+        {second ? (
+          <div className="mt-4 rounded-lg bg-sky-50 px-3 py-2.5">
+            <p className="mb-2 text-[13px] text-sky-900">
+              This job has packing: both messages go out together, each with its own date, time and team.
+            </p>
+            <div role="tablist" aria-label="Message" className="flex flex-wrap gap-2">
+              {(["primary", "secondary"] as const).map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={which === key}
+                  onClick={() => setWhich(key)}
+                  className={`h-9 rounded-full border px-4 text-sm font-semibold ${
+                    which === key ? "border-[#388623] bg-white text-[#042b3c]" : "border-transparent text-[#5d6f78] hover:bg-white/60"
+                  }`}
+                >
+                  {key === "primary" ? `1 · ${second.primaryLabel}` : `2 · ${second.label}`}
+                </button>
+              ))}
+            </div>
+          </div>
         ) : null}
 
         {tab === "email" ? (
@@ -234,14 +283,14 @@ export function SendDialog({
               </label>
               <label className="block">
                 <span className="mb-1 block text-[13px] text-[#5d6f78]">Subject</span>
-                <input aria-label="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} className={field} />
+                <input aria-label="Subject" value={cur.subject} onChange={(e) => cur.setSubject(e.target.value)} className={field} />
               </label>
               <label className="block">
                 <span className="mb-1 block text-[13px] text-[#5d6f78]">Message</span>
                 <textarea
                   aria-label="Message"
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
+                  value={cur.message}
+                  onChange={(e) => cur.setMessage(e.target.value)}
                   className="min-h-[260px] w-full resize-y rounded-lg border border-[#d5dde1] px-3 py-2 text-[15px] leading-6 text-[#042b3c] outline-none focus:border-[#388623]"
                 />
               </label>
@@ -357,8 +406,8 @@ export function SendDialog({
                 </span>
                 <textarea
                   aria-label="Text message"
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
+                  value={cur.text}
+                  onChange={(e) => cur.setText(e.target.value)}
                   className="min-h-[180px] w-full resize-y rounded-lg border border-[#d5dde1] px-3 py-2 text-[15px] leading-6 text-[#042b3c] outline-none focus:border-[#388623]"
                 />
               </label>
@@ -376,7 +425,7 @@ export function SendDialog({
               <p className="pb-2 text-center text-[12px] font-semibold text-[#5d6f78]">{draft.companyName}</p>
               <div className="min-h-[320px]">
                 <div className="max-w-[90%] whitespace-pre-wrap break-words rounded-2xl rounded-bl-sm bg-white px-3 py-2 text-[14px] leading-5 text-[#1f2a30] shadow-sm">
-                  {text || "…"}
+                  {cur.text || "…"}
                 </div>
               </div>
             </div>
@@ -388,13 +437,25 @@ export function SendDialog({
             {outcome.email ? (
               <p className={outcome.email.ok ? "text-emerald-700" : "text-rose-700"}>
                 {outcome.email.ok ? <Check size={14} className="mr-1 inline" /> : <X size={14} className="mr-1 inline" />}
-                Email: {outcome.email.ok ? "sent" : outcome.email.message}
+                {second ? `${second.primaryLabel} email` : "Email"}: {outcome.email.ok ? "sent" : outcome.email.message}
               </p>
             ) : null}
             {outcome.sms ? (
               <p className={outcome.sms.ok ? "text-emerald-700" : "text-amber-800"}>
                 {outcome.sms.ok ? <Check size={14} className="mr-1 inline" /> : <X size={14} className="mr-1 inline" />}
-                Text: {outcome.sms.ok ? "sent" : outcome.sms.message}
+                {second ? `${second.primaryLabel} text` : "Text"}: {outcome.sms.ok ? "sent" : outcome.sms.message}
+              </p>
+            ) : null}
+            {second && outcome.secondaryEmail ? (
+              <p className={outcome.secondaryEmail.ok ? "text-emerald-700" : "text-rose-700"}>
+                {outcome.secondaryEmail.ok ? <Check size={14} className="mr-1 inline" /> : <X size={14} className="mr-1 inline" />}
+                {second.label} email: {outcome.secondaryEmail.ok ? "sent" : outcome.secondaryEmail.message}
+              </p>
+            ) : null}
+            {second && outcome.secondarySms ? (
+              <p className={outcome.secondarySms.ok ? "text-emerald-700" : "text-amber-800"}>
+                {outcome.secondarySms.ok ? <Check size={14} className="mr-1 inline" /> : <X size={14} className="mr-1 inline" />}
+                {second.label} text: {outcome.secondarySms.ok ? "sent" : outcome.secondarySms.message}
               </p>
             ) : null}
             {!outcome.email && !outcome.sms && outcome.message ? (

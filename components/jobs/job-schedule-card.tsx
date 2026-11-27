@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarDays, Check, Pencil, Plus } from "lucide-react";
 import { CARD_TITLE, CardIcon } from "@/components/card-icon";
@@ -13,6 +13,7 @@ import { TimeField } from "@/components/time-field";
 import { Card } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { addDays, addMinutesToClock } from "@/lib/schedule/dates";
+import { COLLECTION_VISIT_TITLE, PACKING_VISIT_TITLE, isPackingVisit } from "@/lib/jobs/visit-kinds";
 import { saveJobVisitAction } from "@/lib/jobs/visit-actions";
 
 export type ScheduleVisit = {
@@ -32,15 +33,19 @@ export type ScheduleVisit = {
 
 type Member = { id: string; name: string };
 
-/** Save of the Schedule editor that is open on the page, if any. */
-let pendingScheduleSave: (() => Promise<{ ok: boolean; message?: string }>) | null = null;
+/** Saves of the Schedule editors open on the page (packing and collection on a job with packing). */
+const pendingScheduleSaves = new Set<() => Promise<{ ok: boolean; message?: string }>>();
 
 /**
- * Called by Send Job Confirmation: saves what is in the open Schedule editor (date, times,
- * team) and creates the visit, so the confirmation carries it. Nothing open → nothing to do.
+ * Called by Send Job Confirmation: saves what is in every open Schedule editor (date, times,
+ * team) and creates those visits, so the confirmations carry them. Nothing open → nothing to do.
  */
 export async function savePendingSchedule(): Promise<{ ok: boolean; message?: string }> {
-  return pendingScheduleSave ? pendingScheduleSave() : { ok: true };
+  for (const save of [...pendingScheduleSaves]) {
+    const result = await save();
+    if (!result.ok) return result;
+  }
+  return { ok: true };
 }
 
 /** Date and start time inherited from the funnel, plus the estimated duration set on the request. */
@@ -84,6 +89,7 @@ function VisitEditor({
   visit,
   team,
   defaults,
+  newTitle,
   onDone,
   onCancel,
 }: {
@@ -91,6 +97,8 @@ function VisitEditor({
   visit: ScheduleVisit | null;
   team: Member[];
   defaults: ScheduleDefaults;
+  /** Title given to a new visit ("Packing service" / "Collection" on a job with packing). */
+  newTitle?: string;
   onDone: () => void;
   onCancel?: () => void;
 }) {
@@ -125,7 +133,14 @@ function VisitEditor({
     }
     setPending(true);
     setMessage(null);
-    const result = await saveJobVisitAction(jobId, { visitId: visit?.id ?? null, date, start, end, memberIds: members });
+    const result = await saveJobVisitAction(jobId, {
+      visitId: visit?.id ?? null,
+      date,
+      start,
+      end,
+      memberIds: members,
+      title: visit ? undefined : newTitle,
+    });
     setPending(false);
     if (!result.ok) {
       setMessage(result.message ?? "Could not save.");
@@ -142,9 +157,9 @@ function VisitEditor({
   });
   useEffect(() => {
     const flush = () => saveRef.current();
-    pendingScheduleSave = flush;
+    pendingScheduleSaves.add(flush);
     return () => {
-      if (pendingScheduleSave === flush) pendingScheduleSave = null;
+      pendingScheduleSaves.delete(flush);
     };
   }, []);
 
@@ -217,20 +232,17 @@ function VisitEditor({
   );
 }
 
-/**
- * Job page Schedule box. A visit is set here directly: date, start and end time and the
- * team, saved in one step. The job is not scheduled on its own when it is created;
- * this is done once the client has approved it.
- */
-export function JobScheduleCard({
+/** One list of visits with its own editor: the whole box, or Packing / Collection on a job with packing. */
+function ScheduleSection({
   jobId,
   jobLabel,
   visits,
   team,
   defaults,
   today,
-  approved,
-  packing = false,
+  heading,
+  lead,
+  newTitle,
 }: {
   jobId: string;
   jobLabel: string;
@@ -238,19 +250,13 @@ export function JobScheduleCard({
   team: Member[];
   defaults: ScheduleDefaults;
   today: string;
-  approved: boolean;
-  /** The client asked for packing: it is always the day before the removal, same start time. */
-  packing?: boolean;
+  /** Packing / Collection chip on a job with packing. */
+  heading?: { label: string; tone: string; note?: string };
+  /** Left side of the header row instead of a chip (the box title on a job without packing). */
+  lead?: ReactNode;
+  newTitle?: string;
 }) {
   const router = useRouter();
-  const removal = visits
-    .filter((v) => v.status !== "cancelled" && !v.later && v.date)
-    .sort((a, b) => String(a.date).localeCompare(String(b.date)))[0];
-  const packingLine = packing
-    ? removal?.date
-      ? `${dmy(addDays(removal.date, -1))} · ${removal.anytime || !removal.start ? "Anytime" : removal.start} (day before the removal)`
-      : "Day before the removal, once the removal visit is scheduled"
-    : null;
   // With no visit yet the editor is already open: pick the time and the team, then save.
   const [editing, setEditing] = useState<string | null>(visits.length === 0 ? "new" : null);
   const names = new Map(team.map((m) => [m.id, m.name]));
@@ -258,35 +264,37 @@ export function JobScheduleCard({
     setEditing(null);
     router.refresh();
   };
+  const addButton =
+    editing === null ? (
+      <button
+        type="button"
+        onClick={() => setEditing("new")}
+        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-line px-3 text-sm font-semibold text-ink hover:bg-cream"
+      >
+        <Plus size={15} aria-hidden /> Add visit
+      </button>
+    ) : null;
 
   return (
-    <Card className="h-fit p-5 xl:col-span-2">
-      <div className="mb-4 flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-3">
-          <CardIcon icon={CalendarDays} tone="blue" boxed />
-          <h2 className={CARD_TITLE}>Schedule</h2>
-          {approved ? (
-            <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">Approved by client</span>
-          ) : null}
-        </div>
-        {editing === null ? (
-          <button
-            type="button"
-            onClick={() => setEditing("new")}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-line px-3 text-sm font-semibold text-ink hover:bg-cream"
-          >
-            <Plus size={15} aria-hidden /> Add visit
-          </button>
-        ) : null}
+    <section className={heading ? "rounded-xl border border-line p-4" : undefined}>
+      <div className={cn("flex items-center justify-between gap-2", heading ? "mb-3" : "mb-4")}>
+        {lead ?? (
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-bold", heading?.tone)}>{heading?.label}</span>
+            {heading?.note ? <span className="text-xs text-ink-mute">{heading.note}</span> : null}
+          </div>
+        )}
+        {addButton}
       </div>
 
       {editing === "new" ? (
-        <div className="mb-4">
+        <div className={visits.length ? "mb-4" : undefined}>
           <VisitEditor
             jobId={jobId}
             visit={null}
             team={team}
             defaults={defaults}
+            newTitle={newTitle}
             onDone={done}
             onCancel={visits.length ? () => setEditing(null) : undefined}
           />
@@ -363,12 +371,71 @@ export function JobScheduleCard({
           </table>
         </div>
       ) : null}
+    </section>
+  );
+}
 
-      {packingLine ? (
-        <p className="mt-3 rounded-lg bg-orange-50 px-3 py-2 text-sm text-orange-900">
-          <span className="font-semibold">Packing service:</span> {packingLine}
-        </p>
+/**
+ * Job page Schedule box. A visit is set here directly: date, start and end time and the
+ * team, saved in one step. On a job with packing there are two schedules, each with its
+ * own date and team: Packing (by default the day before the request date) and Collection.
+ */
+export function JobScheduleCard({
+  jobId,
+  jobLabel,
+  visits,
+  team,
+  defaults,
+  today,
+  approved,
+  packing = false,
+}: {
+  jobId: string;
+  jobLabel: string;
+  visits: ScheduleVisit[];
+  team: Member[];
+  defaults: ScheduleDefaults;
+  today: string;
+  approved: boolean;
+  /** The client asked for packing on the request: Packing and Collection schedules. */
+  packing?: boolean;
+}) {
+  const common = { jobId, jobLabel, team, today };
+  const title = (
+    <div className="flex min-w-0 items-center gap-3">
+      <CardIcon icon={CalendarDays} tone="blue" boxed />
+      <h2 className={CARD_TITLE}>Schedule</h2>
+      {approved ? (
+        <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">Approved by client</span>
       ) : null}
+    </div>
+  );
+
+  return (
+    <Card className="h-fit p-5 xl:col-span-2">
+      {packing ? (
+        <>
+          <div className="mb-4">{title}</div>
+          <div className="space-y-4">
+            <ScheduleSection
+              {...common}
+              visits={visits.filter((v) => isPackingVisit(v.title))}
+              defaults={{ date: defaults.date ? addDays(defaults.date, -1) : defaults.date, start: defaults.start }}
+              heading={{ label: "Packing", tone: "bg-orange-50 text-orange-800", note: "By default the day before the collection" }}
+              newTitle={PACKING_VISIT_TITLE}
+            />
+            <ScheduleSection
+              {...common}
+              visits={visits.filter((v) => !isPackingVisit(v.title))}
+              defaults={defaults}
+              heading={{ label: "Collection", tone: "bg-emerald-50 text-emerald-800" }}
+              newTitle={COLLECTION_VISIT_TITLE}
+            />
+          </div>
+        </>
+      ) : (
+        <ScheduleSection {...common} visits={visits} defaults={defaults} lead={title} />
+      )}
     </Card>
   );
 }

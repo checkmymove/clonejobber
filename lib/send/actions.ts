@@ -5,7 +5,6 @@ import { requireAdmin } from "@/lib/auth/session";
 import { isUuid } from "@/lib/funnel/validation";
 import { buildSendDraft } from "./drafts";
 import { deliverEmail, deliverSms } from "./deliver";
-import { scheduleRemovalConfirmation } from "./scheduled";
 import { sql } from "@/lib/db";
 import { getCompanyId } from "@/lib/company";
 import {
@@ -49,6 +48,8 @@ export async function sendDocument(input: {
     attachmentIds?: string[];
   } | null;
   sms: { to: string; message: string } | null;
+  /** Job with packing: the removal confirmation, sent with the packing one to the same recipients. */
+  secondary?: { email: { subject: string; message: string } | null; sms: { message: string } | null } | null;
 }): Promise<SendOutcome> {
   await requireAdmin();
   if (!KINDS.includes(input.kind) || !isUuid(input.id)) return { ok: false, message: "Document not found." };
@@ -59,16 +60,20 @@ export async function sendDocument(input: {
   const email = input.email ? await deliverEmail(prepared.draft, input.email) : undefined;
   const sms = input.sms ? await deliverSms(prepared.draft, input.sms) : undefined;
 
-  // Job with packing: the packing confirmation went out, so the removal confirmation
-  // follows on its own 24 hours later, to the same email and phone.
-  let scheduled = false;
-  if (prepared.draft.followUp && (email?.ok || (!input.email && input.sms))) {
-    await scheduleRemovalConfirmation({
-      jobId: input.id,
-      emailTo: email?.ok ? input.email!.to.trim() : null,
-      smsTo: input.sms ? input.sms.to : null,
-    });
-    scheduled = true;
+  // Job with packing: the removal confirmation goes out in the same click, as its own
+  // email and text (same recipients, PDF and attachments).
+  let secondaryEmail: SendOutcome["secondaryEmail"];
+  let secondarySms: SendOutcome["secondarySms"];
+  const second = prepared.draft.secondary;
+  if (second && input.secondary) {
+    const draft = { ...prepared.draft, card: second.card };
+    // Only once the packing email went out: never a removal confirmation on its own.
+    if (input.email && input.secondary.email && email?.ok) {
+      secondaryEmail = await deliverEmail(draft, { ...input.email, ...input.secondary.email });
+    }
+    if (input.sms && input.secondary.sms) {
+      secondarySms = await deliverSms(draft, { to: input.sms.to, message: input.secondary.sms.message });
+    }
   }
 
   revalidatePath(PATHS[input.kind]);
@@ -76,13 +81,14 @@ export async function sendDocument(input: {
   revalidatePath("/clientes");
   revalidatePath("/");
   // The email is what reaches the client today; texts wait for an SMS provider.
-  const ok = email ? email.ok : Boolean(sms?.ok);
+  const ok = email ? email.ok && (!secondaryEmail || secondaryEmail.ok) : Boolean(sms?.ok);
   return {
     ok,
     email,
     sms,
-    message: ok ? undefined : (email?.message ?? sms?.message),
-    scheduledNote: scheduled ? "Removal confirmation scheduled for 24 hours from now." : undefined,
+    secondaryEmail,
+    secondarySms,
+    message: ok ? undefined : (email?.ok ? secondaryEmail?.message : email?.message) ?? sms?.message,
   };
 }
 

@@ -35,10 +35,16 @@ export type SendDraft = {
   /** PAST DUE or PAID watermark on the email (and on the attached invoice PDF). */
   stamp?: "past_due" | "paid";
   /**
-   * Job with packing: this is the packing confirmation, and sending it schedules the
-   * removal confirmation (same email and phone) to go out on its own 24 hours later.
+   * Job with packing: this draft is the packing confirmation and `secondary` the removal
+   * (collection) confirmation. One Send delivers both, to the same email and phone.
    */
-  followUp?: { purpose: "job_removal_confirmation"; note: string };
+  secondary?: {
+    primaryLabel: string;
+    label: string;
+    card: EmailCard;
+    email: { subject: string; message: string };
+    sms: { message: string };
+  };
 };
 
 export type ChannelResult = { ok: boolean; message?: string };
@@ -48,8 +54,9 @@ export type SendOutcome = {
   message?: string;
   email?: ChannelResult;
   sms?: ChannelResult;
-  /** A follow-up message was scheduled by this send (packing → removal confirmation). */
-  scheduledNote?: string;
+  /** Job with packing: the removal confirmation sent with the packing one. */
+  secondaryEmail?: ChannelResult;
+  secondarySms?: ChannelResult;
 };
 
 /** SMS segments: 160 characters for GSM text, 70 once a character needs Unicode. */

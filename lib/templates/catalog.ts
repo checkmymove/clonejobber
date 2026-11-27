@@ -61,7 +61,7 @@ export const TEMPLATE_CATALOG = {
     stage: "jobs",
     label: "Removal confirmation",
     description:
-      "Send Job Confirmation: confirms the day and time of the removal. With packing it goes out on its own 24 hours after the packing confirmation",
+      "Send Job Confirmation: confirms the day and time of the collection (removal). With packing it goes out together with the packing confirmation",
     email: { subject: "Your removal is confirmed - {{JOB_DATE}}", body: "Hi {{CLIENT_NAME}},\n\nYour removal service is confirmed.\n\nDate: {{JOB_DATE}}\nTime: {{ARRIVAL_WINDOW}}\n\nThank you for choosing {{COMPANY_NAME}}!\n\nBest wishes,\n{{COMPANY_NAME}}" },
     sms: "Hi {{CLIENT_FIRST_NAME}}, your removal with {{COMPANY_NAME}} is confirmed for {{JOB_DATE}}, {{ARRIVAL_WINDOW}}. Thank you for choosing us!",
   },
@@ -69,8 +69,8 @@ export const TEMPLATE_CATALOG = {
     stage: "jobs",
     label: "Packing confirmation",
     description:
-      "Send Job Confirmation on a job with packing: confirms the day and time of the packing service (the day before the removal)",
-    email: { subject: "Your packing service is confirmed - {{JOB_DATE}}", body: "Hi {{CLIENT_NAME}},\n\nYour packing service is confirmed.\n\nDate: {{JOB_DATE}}\nTime: {{ARRIVAL_WINDOW}}\n\nWe will send the confirmation of your removal service separately.\n\nThank you for choosing {{COMPANY_NAME}}!\n\nBest wishes,\n{{COMPANY_NAME}}" },
+      "Send Job Confirmation on a job with packing: confirms the day, time and team of the packing service, sent together with the removal confirmation",
+    email: { subject: "Your packing service is confirmed - {{JOB_DATE}}", body: "Hi {{CLIENT_NAME}},\n\nYour packing service is confirmed.\n\nDate: {{JOB_DATE}}\nTime: {{ARRIVAL_WINDOW}}\n\nThank you for choosing {{COMPANY_NAME}}!\n\nBest wishes,\n{{COMPANY_NAME}}" },
     sms: "Hi {{CLIENT_FIRST_NAME}}, your packing service with {{COMPANY_NAME}} is confirmed for {{JOB_DATE}}, {{ARRIVAL_WINDOW}}. Thank you for choosing us!",
   },
   visit_reschedule: {

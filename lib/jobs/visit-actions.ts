@@ -6,6 +6,7 @@ import { getCompanyId } from "@/lib/company";
 import { sql } from "@/lib/db";
 import { isIsoDate } from "@/lib/schedule/dates";
 import { isUuid } from "@/lib/funnel/validation";
+import { PACKING_VISIT_TITLE } from "@/lib/jobs/visit-kinds";
 
 export type VisitSaveResult = { ok: boolean; message?: string };
 
@@ -16,6 +17,8 @@ export type VisitSaveInput = {
   start: string;
   end: string;
   memberIds: string[];
+  /** "Packing service" or "Collection" on a job with packing; kept as is when omitted. */
+  title?: string;
 };
 
 const CLOCK = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -36,6 +39,7 @@ export async function saveJobVisitAction(jobId: string, input: VisitSaveInput): 
   if (start && end && end <= start) return { ok: false, message: "End time must be after the start time." };
   if (input.visitId && !isUuid(input.visitId)) return { ok: false, message: "Visit not found." };
   const anytime = !start;
+  const title = input.title === undefined ? null : input.title.trim().slice(0, 120);
 
   const result = await sql.begin(async (tx) => {
     const job = await tx<{ id: string; number: string; approved: boolean }[]>`
@@ -52,7 +56,7 @@ export async function saveJobVisitAction(jobId: string, input: VisitSaveInput): 
       const updated = await tx`
         update job_visits set
           visit_date = ${input.date}, start_time = ${start}, end_time = ${anytime ? "" : end},
-          anytime = ${anytime}, later = false
+          anytime = ${anytime}, later = false, title = coalesce(${title}, title)
         where id = ${visitId} and job_id = ${jobId}
         returning id
       `;
@@ -61,9 +65,9 @@ export async function saveJobVisitAction(jobId: string, input: VisitSaveInput): 
       const sort = await tx<{ n: number }[]>`select count(*)::int as n from job_visits where job_id = ${jobId}`;
       const created = await tx<{ id: string }[]>`
         insert into job_visits
-          (job_id, visit_date, start_time, end_time, anytime, later, confirmed_by_client, sort)
+          (job_id, title, visit_date, start_time, end_time, anytime, later, confirmed_by_client, sort)
         values
-          (${jobId}, ${input.date}, ${start}, ${anytime ? "" : end}, ${anytime}, false,
+          (${jobId}, ${title ?? ""}, ${input.date}, ${start}, ${anytime ? "" : end}, ${anytime}, false,
            ${job[0].approved}, ${sort[0]?.n ?? 0})
         returning id
       `;
@@ -90,7 +94,8 @@ export async function saveJobVisitAction(jobId: string, input: VisitSaveInput): 
       where v.id = ${visitId}
     `;
 
-    // The job's own date and window follow its earliest open visit.
+    // The job's own date and window follow its earliest open collection visit (the move);
+    // the packing visit, the day before, only counts when there is nothing else.
     await tx`
       update jobs j set
         scheduled_date = f.visit_date,
@@ -102,7 +107,7 @@ export async function saveJobVisitAction(jobId: string, input: VisitSaveInput): 
       from (
         select visit_date, start_time, end_time, anytime from job_visits
         where job_id = ${jobId} and status <> 'cancelled' and visit_date is not null
-        order by visit_date, start_time limit 1
+        order by (coalesce(lower(trim(title)), '') = ${PACKING_VISIT_TITLE.toLowerCase()}), visit_date, start_time limit 1
       ) f
       where j.id = ${jobId}
     `;

@@ -1,12 +1,5 @@
 {
   "framework": "nextjs",
   "regions": ["gru1"],
-  "crons": [{ "path": "/api/cron/archive-quotes", "schedule": "0 6 * * *" }],
-  "schedules": {
-    "scheduled-sends": {
-      "schedule": "*/15 * * * *",
-      "path": "/api/cron/scheduled-sends",
-      "requestMethod": "GET"
-    }
-  }
+  "crons": [{ "path": "/api/cron/archive-quotes", "schedule": "0 6 * * *" }]
 }

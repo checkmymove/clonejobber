@@ -42,9 +42,9 @@ import { ShellPageHeader } from "@/components/layout/shell-header";
 import { LabourCard } from "@/components/team/labour-card";
 import { JobExpensesCard } from "@/components/jobs/job-expenses-card";
 import { listJobExpenses } from "@/lib/expenses/queries";
-import { pendingRemovalConfirmation } from "@/lib/send/scheduled";
 import { JobScheduleCard } from "@/components/jobs/job-schedule-card";
 import { parseMoveClock } from "@/lib/funnel/engine";
+import { isPackingVisit } from "@/lib/jobs/visit-kinds";
 import { LineItemsInlineCard } from "@/components/funnel/line-items-inline-card";
 import { listProducts } from "@/lib/products/queries";
 import { COMPANY_SLUG, getCompanyId } from "@/lib/company";
@@ -71,7 +71,7 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
   if (!j) notFound();
 
   const today = todayLondonInput();
-  const [request, deposits, labour, team, visitMembers, client, companyId, emails, expenses, removalScheduled] = await Promise.all([
+  const [request, deposits, labour, team, visitMembers, client, companyId, emails, expenses] = await Promise.all([
     j.linked_request_id ? getRequestDetail(j.linked_request_id) : null,
     j.quote_id ? getQuoteDeposits(j.quote_id) : null,
     getJobLabour(j.id),
@@ -81,7 +81,6 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
     getCompanyId(),
     listDeliveries("job", j.id).catch(() => []),
     listJobExpenses(j.id),
-    j.needs_packing ? pendingRemovalConfirmation(j.id) : null,
   ]);
   if (!client) notFound();
   const services = companyId ? await getActiveServices(companyId) : [];
@@ -109,7 +108,9 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
     totals.push(...depositTotalRows(deposits));
   }
 
-  const firstVisit = j.visits.find((v) => v.status !== "cancelled" && !v.later && v.visit_date) ?? null;
+  // The move is the collection visit; the packing one (the day before) never sets the move date.
+  const open = j.visits.filter((v) => v.status !== "cancelled" && !v.later && v.visit_date);
+  const firstVisit = open.find((v) => !isPackingVisit(v.title)) ?? open[0] ?? null;
   const moveLabel = firstVisit
     ? `${formatDateNumericLondon(firstVisit.visit_date as string)}${firstVisit.anytime || !firstVisit.start_time ? " · Anytime" : ` at ${firstVisit.start_time}`}`
     : "Not scheduled";
@@ -365,19 +366,7 @@ export default async function ServicoDetailPage({ params }: { params: Promise<{ 
 
         {snapshot && request ? <RequestInventoryCard snapshot={snapshot} files={request.files} /> : null}
         <NotesCard kind="job" id={j.id} notes={j.notes} />
-        <SentCard
-          kind="job"
-          id={j.id}
-          scheduled={
-            removalScheduled
-              ? {
-                  label: "Removal confirmation",
-                  to: [removalScheduled.email_to, removalScheduled.sms_to].filter(Boolean).join(" · "),
-                  at: removalScheduled.send_at,
-                }
-              : null
-          }
-        />
+        <SentCard kind="job" id={j.id} />
       </div>
     </div>
   );

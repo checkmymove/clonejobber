@@ -7,6 +7,7 @@ import { formatDateNumericLondon, formatPounds, todayLondonInput } from "@/lib/f
 import { deriveInvoiceStatus } from "@/lib/invoices/status";
 import { getInvoiceDetail } from "@/lib/invoices/queries";
 import { getJobDetail } from "@/lib/jobs/queries";
+import { firstVisitOfKind } from "@/lib/jobs/visit-kinds";
 import { pdfFileName } from "@/lib/pdf/document";
 import { getQuoteDetail } from "@/lib/quotes/queries";
 import { getRequestDetail } from "@/lib/requests/queries";
@@ -151,70 +152,86 @@ async function quoteDraft(company: Company, id: string): Promise<Result> {
 
 /**
  * Send Job Confirmation (jobs need no client approval).
- * - No packing: one email & text confirming the removal day and time.
- * - Packing: this send confirms the packing service (always the day before the removal,
- *   same start time) and schedules the removal confirmation 24 hours later.
- * `letter: "removal"` forces the removal confirmation (the scheduled send).
+ * - No packing: one email & text confirming the collection (removal) day and time.
+ * - Packing: two at once, the packing confirmation (its own visit, by default the day
+ *   before) and the removal confirmation, each with its own date, time and team.
  */
-async function jobDraft(company: Company, id: string, letter: "auto" | "removal" = "auto"): Promise<Result> {
+async function jobDraft(company: Company, id: string): Promise<Result> {
   const j = await getJobDetail(id);
   if (!j) return { ok: false, message: "Job not found." };
-  const visit = j.visits
-    .filter((v) => v.visit_date && !v.later && v.status !== "cancelled")
-    .sort((a, b) => String(a.visit_date).localeCompare(String(b.visit_date)))[0];
-  const timed = Boolean(visit && !visit.anytime && visit.start_time);
-  const removalDate = visit?.visit_date ? formatDateNumericLondon(visit.visit_date) : "To be confirmed";
-  const removalTime = timed ? `${visit!.start_time}${visit!.end_time ? ` – ${visit!.end_time}` : ""}` : "Anytime";
-  const packing = j.needs_packing && letter === "auto";
-  const date = packing
-    ? visit?.visit_date
-      ? formatDateNumericLondon(addDays(String(visit.visit_date), -1))
-      : "To be confirmed"
-    : removalDate;
-  const time = packing ? (timed ? visit!.start_time : "Anytime") : removalTime;
+  const visits = j.visits.map((v) => ({ ...v, date: v.visit_date ? String(v.visit_date) : null, start: v.start_time ?? "" }));
+  const collection = firstVisitOfKind(visits, "collection") ?? (j.needs_packing ? null : firstVisitOfKind(visits, "packing"));
+  const packingVisit = j.needs_packing ? firstVisitOfKind(visits, "packing") : null;
+  const teams = await visitTeamNames([collection?.id, packingVisit?.id].filter((x): x is string => Boolean(x)));
   const location = j.pickup_address || j.client_address || "";
   const url = clientJobUrl(id);
-  const team = visit ? (await visitTeamNames([visit.id])).get(visit.id) ?? "" : "";
-  const filled = await letterFor(company.id, packing ? "job_packing_booking" : "job_booking", {
-    ...baseVars(company, { name: j.client_name }),
-    JOB_NUMBER: j.number,
-    JOB_TITLE: j.title || "",
-    JOB_DATE: date,
-    APPOINTMENT_DATE: date,
-    ARRIVAL_WINDOW: time,
-    ASSIGNED_TO: team,
-    JOB_LOCATION: location,
-    JOB_DETAILS: jobDetailsText({ date, time, team, address: location }),
+
+  const when = (v: (typeof visits)[number] | null) => ({
+    date: v?.date ? formatDateNumericLondon(v.date) : "To be confirmed",
+    time: v && !v.anytime && v.start_time ? `${v.start_time}${v.end_time ? ` – ${v.end_time}` : ""}` : "Anytime",
+    team: v ? teams.get(v.id) ?? "" : "",
   });
+  const letter = (key: TemplateKey, w: { date: string; time: string; team: string }) =>
+    letterFor(company.id, key, {
+      ...baseVars(company, { name: j.client_name }),
+      JOB_NUMBER: j.number,
+      JOB_TITLE: j.title || "",
+      JOB_DATE: w.date,
+      APPOINTMENT_DATE: w.date,
+      ARRIVAL_WINDOW: w.time,
+      ASSIGNED_TO: w.team,
+      JOB_LOCATION: location,
+      JOB_DETAILS: jobDetailsText({ date: w.date, time: w.time, team: w.team, address: location }),
+    });
+
+  const removalWhen = when(collection);
+  const removal = await letter("job_booking", removalWhen);
+  const removalCard = { heading: "Removal confirmation", buttonLabel: "View Job" };
+  const common = {
+    ...base(company, "job"),
+    id,
+    number: j.number,
+    clientName: j.client_name,
+    viewUrl: url,
+    attachment: pdfFileName("job", j.number),
+  };
+  if (!j.needs_packing) {
+    return {
+      ok: true,
+      draft: {
+        ...common,
+        card: removalCard,
+        email: { to: j.client_email, subject: removal.subject, message: removal.message },
+        sms: { to: normalizePhone(j.client_phone), message: withLink(removal.sms, url) },
+      },
+    };
+  }
+
+  // Packing visit not saved yet: the day before the collection, same start time.
+  const packingWhen = packingVisit
+    ? when(packingVisit)
+    : {
+        date: collection?.date ? formatDateNumericLondon(addDays(collection.date, -1)) : "To be confirmed",
+        time: collection && !collection.anytime && collection.start_time ? collection.start_time : "Anytime",
+        team: "",
+      };
+  const packing = await letter("job_packing_booking", packingWhen);
   return {
     ok: true,
     draft: {
-      ...base(company, "job"),
-      id,
-      number: j.number,
-      clientName: j.client_name,
-      viewUrl: url,
-      card: { heading: packing ? "Packing confirmation" : "Removal confirmation", buttonLabel: "View Job" },
-      email: { to: j.client_email, subject: filled.subject, message: filled.message },
-      sms: { to: normalizePhone(j.client_phone), message: withLink(filled.sms, url) },
-      attachment: pdfFileName("job", j.number),
-      ...(packing
-        ? {
-            followUp: {
-              purpose: "job_removal_confirmation" as const,
-              note: `Packing service on ${date}. The removal confirmation (${removalDate}, ${removalTime}) goes out on its own 24 hours after this message.`,
-            },
-          }
-        : {}),
+      ...common,
+      card: { heading: "Packing confirmation", buttonLabel: "View Job" },
+      email: { to: j.client_email, subject: packing.subject, message: packing.message },
+      sms: { to: normalizePhone(j.client_phone), message: withLink(packing.sms, url) },
+      secondary: {
+        primaryLabel: "Packing confirmation",
+        label: "Removal confirmation",
+        card: removalCard,
+        email: { subject: removal.subject, message: removal.message },
+        sms: { message: withLink(removal.sms, url) },
+      },
     },
   };
-}
-
-/** The removal confirmation of a job, as the scheduled send delivers it. */
-export async function buildJobRemovalDraft(id: string): Promise<Result> {
-  const company = await sendCompany();
-  if (!company) return { ok: false, message: "Company not found." };
-  return jobDraft(company, id, "removal");
 }
 
 async function invoiceDraft(company: Company, id: string): Promise<Result> {
