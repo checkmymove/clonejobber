@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { PageHeader } from "@/components/ui";
 
 type ShellHeaderContextValue = {
-  /** Spot in the top bar, between the search box and the bell. */
+  /** Second row of the top bar, under the search, bell and user. */
   slot: HTMLElement | null;
   /** Tells the shell a page header sits in the top bar; returns the cleanup. */
   register: () => () => void;
@@ -14,8 +14,8 @@ type ShellHeaderContextValue = {
 const ShellHeaderContext = createContext<ShellHeaderContextValue | null>(null);
 export const ShellHeaderProvider = ShellHeaderContext.Provider;
 
-// Same as Tailwind's `xl`: below it the top bar has no room, so the header stays in the page.
-const WIDE_QUERY = "(min-width: 1280px)";
+// Same as Tailwind's `lg` (the sidebar breakpoint): below it the header stays in the page.
+const WIDE_QUERY = "(min-width: 1024px)";
 
 function subscribeWide(onChange: () => void) {
   const media = window.matchMedia(WIDE_QUERY);
@@ -33,8 +33,9 @@ function useWide() {
 
 /**
  * Header of a funnel detail page (request, quote, job). On wide screens the title
- * and the buttons (More and the ones beside it) go into the top bar, next to the
- * search, bell and user; on narrow screens it is the usual PageHeader.
+ * and the buttons (More and the ones beside it) become a second row of the top bar,
+ * under the search, bell and user, so they stay in view while scrolling; on narrow
+ * screens it is the usual PageHeader.
  */
 export function ShellPageHeader({
   title,
@@ -56,26 +57,20 @@ export function ShellPageHeader({
 
   if (slot) {
     return createPortal(
-      <div className="flex min-w-0 flex-1 items-center gap-4">
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-[19px] font-bold leading-tight tracking-tight text-ink" title={title}>
-            {title}
-          </h1>
-          {subtitle ? (
-            <p className="mt-0.5 truncate text-xs text-ink-soft" title={subtitle}>
-              {subtitle}
-            </p>
-          ) : null}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-[24px] font-bold leading-tight tracking-tight text-ink">{title}</h1>
+          {subtitle ? <p className="mt-1 text-sm text-ink-soft">{subtitle}</p> : null}
         </div>
-        <div className="flex shrink-0 items-center gap-2 [&>*]:flex-nowrap">{children}</div>
+        {children}
       </div>,
       slot,
     );
   }
 
-  // `xl:hidden` keeps a wide screen from flashing the in-page header before it moves up.
+  // `lg:hidden` keeps a wide screen from flashing the in-page header before it moves up.
   return (
-    <div className="xl:hidden">
+    <div className="lg:hidden">
       <PageHeader title={title} subtitle={subtitle} action={children} />
     </div>
   );
